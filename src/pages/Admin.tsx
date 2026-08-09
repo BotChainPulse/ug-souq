@@ -187,21 +187,53 @@ function Orders({ adminKey }: { adminKey: string }) {
     { retry: false }
   )
   const { data: partnersData } = trpc.admin.deliveryPartners.useQuery({ key: adminKey })
-  const setStatus = trpc.admin.setOrderStatus.useMutation({ onSuccess: () => { utils.admin.orders.invalidate(); utils.admin.stats.invalidate() } })
-  const setPayment = trpc.admin.setPaymentStatus.useMutation({ onSuccess: () => utils.admin.orders.invalidate() })
-  const assignDelivery = trpc.admin.assignDeliveryPartner.useMutation({ onSuccess: () => { utils.admin.orders.invalidate(); utils.admin.deliveryPartners.invalidate() } })
-  const unassignDelivery = trpc.admin.unassignDeliveryPartner.useMutation({ onSuccess: () => utils.admin.orders.invalidate() })
-  const markDelivered = trpc.admin.markDelivered.useMutation({ onSuccess: () => { utils.admin.orders.invalidate(); utils.admin.stats.invalidate() } })
+  const setStatus = trpc.admin.setOrderStatus.useMutation({ 
+    onSuccess: () => { 
+      utils.admin.orders.invalidate(); 
+      utils.admin.stats.invalidate() 
+    } 
+  })
+  const setPayment = trpc.admin.setPaymentStatus.useMutation({ 
+    onSuccess: () => utils.admin.orders.invalidate() 
+  })
+  const assignDelivery = trpc.admin.assignDeliveryPartner.useMutation({ 
+    onSuccess: () => { 
+      utils.admin.orders.invalidate(); 
+      utils.admin.deliveryPartners.invalidate() 
+    } 
+  })
+  const unassignDelivery = trpc.admin.unassignDeliveryPartner.useMutation({ 
+    onSuccess: () => utils.admin.orders.invalidate() 
+  })
+  const markDelivered = trpc.admin.markDelivered.useMutation({ 
+    onSuccess: () => { 
+      utils.admin.orders.invalidate(); 
+      utils.admin.stats.invalidate() 
+    } 
+  })
 
-  if (isLoading) return <p className="text-neutral-500">Loading orders...</p>
-  if (isError) return <QueryError title="Could not load orders" error={error?.message ?? "Unknown error"} onRetry={refetch} />
-  if (!data) return <QueryError title="Could not load orders" error="No response from server." onRetry={refetch} />
+  if (isLoading) return <p className="text-neutral-500 p-4">Loading orders...</p>
+  if (isError) return (
+    <div className="bg-red-50 border border-red-200 rounded-xl p-4 m-4">
+      <p className="text-red-700 font-medium">Could not load orders</p>
+      <p className="text-sm text-red-600 mt-1">{error?.message ?? "Unknown error"}</p>
+      <button onClick={() => refetch()} className="mt-2 text-sm px-3 py-1.5 bg-red-600 text-white rounded-lg">Retry</button>
+    </div>
+  )
+  if (!data) return (
+    <div className="bg-red-50 border border-red-200 rounded-xl p-4 m-4">
+      <p className="text-red-700 font-medium">No response from server.</p>
+      <button onClick={() => refetch()} className="mt-2 text-sm px-3 py-1.5 bg-red-600 text-white rounded-lg">Retry</button>
+    </div>
+  )
 
-  const approvedPartners = partnersData?.partners?.filter((p: any) => p.status === "approved") ?? []
+  const approvedPartners = Array.isArray(partnersData?.partners) 
+    ? partnersData.partners.filter((p: any) => p?.status === "approved") 
+    : []
   const ordersList = Array.isArray(data) ? data : []
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 p-4">
       <div className="flex gap-2 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
@@ -213,65 +245,114 @@ function Orders({ adminKey }: { adminKey: string }) {
         </select>
       </div>
       <div className="space-y-3">
+        {ordersList.length === 0 && <p className="text-neutral-500">No orders found.</p>}
         {ordersList.map((o: any) => {
+          if (!o) return null
           const safeTotal = Number(o?.total ?? 0)
           const safeDelivery = Number(o?.deliveryFee ?? 0)
           const safeCommission = Number(o?.commissionFee ?? 0)
           const items = Array.isArray(o?.items) ? o.items : []
+          const orderId = Number(o?.id ?? 0)
+          const orderCode = String(o?.code ?? "N/A")
+          const orderStatus = String(o?.status ?? "placed")
+          const paymentStatus = String(o?.paymentStatus ?? "unpaid")
+          const customerName = String(o?.customerName ?? "Unknown")
+          const phone = String(o?.phone ?? "-")
+          const address = String(o?.address ?? "")
+          const paymentMethod = String(o?.paymentMethod ?? "-")
+          const createdAt = o?.createdAt ? new Date(o.createdAt).toLocaleString("en-UG") : "-"
+          const deliveryPartnerId = o?.deliveryPartnerId ?? null
+          const isPaidOut = Boolean(o?.paidOut)
+
           return (
-            <div key={o?.id ?? Math.random()} className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
+            <div key={orderId || Math.random()} className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
               <div className="p-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <button onClick={() => setExpandedOrder(expandedOrder === o.id ? null : o.id)} className="flex items-center gap-1">
-                    {expandedOrder === o.id ? <ChevronDown size={16} /> : <ChevronDown size={16} className="rotate-[-90deg]" />}
+                  <button onClick={() => setExpandedOrder(expandedOrder === orderId ? null : orderId)} className="flex items-center gap-1">
+                    {expandedOrder === orderId ? <ChevronDown size={16} /> : <ChevronDown size={16} className="rotate-[-90deg]" />}
                   </button>
-                  <span className="font-mono font-bold text-sm">{o?.code ?? "N/A"}</span>
-                  <StatusBadge status={o?.status ?? "placed"} />
-                  <PaymentBadge status={o?.paymentStatus} />
-                  {o?.paidOut && <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">Paid Out</span>}
+                  <span className="font-mono font-bold text-sm">{orderCode}</span>
+                  <StatusBadge status={orderStatus} />
+                  <PaymentBadge status={paymentStatus} />
+                  {isPaidOut && <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">Paid Out</span>}
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-3">
                   <span className="font-extrabold text-lg">{fmt(safeTotal)}</span>
-                  <select value={o?.status ?? "placed"} onChange={(e) => setStatus.mutate({ key: adminKey, id: o.id, status: e.target.value as any })} className="text-sm rounded-lg border border-neutral-300 px-3 py-1.5 bg-white">
+                  <select 
+                    value={orderStatus} 
+                    onChange={(e) => { 
+                      if (orderId) setStatus.mutate({ key: adminKey, id: orderId, status: e.target.value as any }) 
+                    }} 
+                    className="text-sm rounded-lg border border-neutral-300 px-3 py-1.5 bg-white"
+                  >
                     {ORDER_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
                   </select>
-                  <select value={o?.paymentStatus ?? "unpaid"} onChange={(e) => setPayment.mutate({ key: adminKey, id: o.id, status: e.target.value as any })} className="text-sm rounded-lg border border-neutral-300 px-3 py-1.5 bg-white">
+                  <select 
+                    value={paymentStatus} 
+                    onChange={(e) => { 
+                      if (orderId) setPayment.mutate({ key: adminKey, id: orderId, status: e.target.value as any }) 
+                    }} 
+                    className="text-sm rounded-lg border border-neutral-300 px-3 py-1.5 bg-white"
+                  >
                     <option value="unpaid">Unpaid</option>
                     <option value="pending_confirmation">Confirming</option>
                     <option value="paid">Paid</option>
                   </select>
                 </div>
                 <p className="mt-2 text-sm text-neutral-600">
-                  {(o?.customerName ?? "Unknown")} · {(o?.phone ?? "-")} · {((o?.address ?? "").slice(0,60))}{((o?.address ?? "").length > 60 ? "..." : "")} · {(o?.paymentMethod ?? "-")} · {o?.createdAt ? new Date(o.createdAt).toLocaleString("en-UG") : "-"}
+                  {customerName} · {phone} · {address.slice(0,60)}{address.length > 60 ? "..." : ""} · {paymentMethod} · {createdAt}
                 </p>
-                {o?.status !== "cancelled" && o?.status !== "delivered" && (
+                {orderStatus !== "cancelled" && orderStatus !== "delivered" && (
                   <div className="mt-3 flex flex-wrap items-center gap-2">
-                    {o?.deliveryPartnerId ? (
+                    {deliveryPartnerId ? (
                       <div className="flex items-center gap-2">
                         <Truck size={14} className="text-sky-600" />
                         <span className="text-xs text-sky-700 font-medium">Rider assigned</span>
-                        <button onClick={() => unassignDelivery.mutate({ key: adminKey, orderId: o.id })} disabled={unassignDelivery.isPending} className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 font-medium disabled:opacity-50">Unassign</button>
-                        <button onClick={() => markDelivered.mutate({ key: adminKey, orderId: o.id })} disabled={markDelivered.isPending} className="text-xs px-2 py-1 rounded bg-emerald-100 text-emerald-700 font-medium disabled:opacity-50"><CheckCircle size={12} className="inline mr-1" /> Mark Delivered</button>
+                        <button 
+                          onClick={() => { if (orderId) unassignDelivery.mutate({ key: adminKey, orderId }) }} 
+                          disabled={unassignDelivery.isPending} 
+                          className="text-xs px-2 py-1 rounded bg-red-100 text-red-700 font-medium disabled:opacity-50"
+                        >
+                          Unassign
+                        </button>
+                        <button 
+                          onClick={() => { if (orderId) markDelivered.mutate({ key: adminKey, orderId }) }} 
+                          disabled={markDelivered.isPending} 
+                          className="text-xs px-2 py-1 rounded bg-emerald-100 text-emerald-700 font-medium disabled:opacity-50"
+                        >
+                          <CheckCircle size={12} className="inline mr-1" /> Mark Delivered
+                        </button>
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-neutral-500">Assign rider:</span>
-                        <select value={""} onChange={(e) => { const pid = e.target.value ? parseInt(e.target.value) : null; if (pid) assignDelivery.mutate({ key: adminKey, orderId: o.id, partnerId: pid }) }} className="text-xs rounded-lg border border-neutral-300 px-2 py-1 bg-white">
+                        <select 
+                          value={""} 
+                          onChange={(e) => { 
+                            const pid = e.target.value ? parseInt(e.target.value) : null
+                            if (pid && orderId) assignDelivery.mutate({ key: adminKey, orderId, partnerId: pid }) 
+                          }} 
+                          className="text-xs rounded-lg border border-neutral-300 px-2 py-1 bg-white"
+                        >
                           <option value="">Select rider...</option>
-                          {approvedPartners.map((p: any) => <option key={p.id} value={p.id}>{p.fullName} ({p.vehicleType})</option>)}
+                          {approvedPartners.map((p: any) => (
+                            <option key={p?.id ?? Math.random()} value={p?.id ?? ""}>
+                              {String(p?.fullName ?? "Unknown")} ({String(p?.vehicleType ?? "-")})
+                            </option>
+                          ))}
                         </select>
                       </div>
                     )}
                   </div>
                 )}
               </div>
-              {expandedOrder === o?.id && items.length > 0 && (
+              {expandedOrder === orderId && items.length > 0 && (
                 <div className="border-t border-neutral-100 p-4 bg-neutral-50">
                   <h4 className="text-xs font-bold text-neutral-500 uppercase mb-2">Order Items</h4>
                   <div className="space-y-2">
                     {items.map((it: any, idx: number) => (
                       <div key={idx} className="flex justify-between text-sm">
-                        <span>{Number(it?.qty ?? 1)} × {it?.name ?? "Item"}</span>
+                        <span>{Number(it?.qty ?? 1)} × {String(it?.name ?? "Item")}</span>
                         <span className="font-medium">{fmt(Number(it?.price ?? 0) * Number(it?.qty ?? 1))}</span>
                       </div>
                     ))}
@@ -284,7 +365,6 @@ function Orders({ adminKey }: { adminKey: string }) {
             </div>
           )
         })}
-        {ordersList.length === 0 && <p className="text-neutral-500">No orders found.</p>}
       </div>
     </div>
   )
