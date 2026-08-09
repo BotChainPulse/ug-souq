@@ -1,4 +1,4 @@
-import { Link, useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router-dom'
 import { SearchX, BadgeCheck, Star, Clock, Plus } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
