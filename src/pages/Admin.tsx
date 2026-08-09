@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { trpc } from '../providers/trpc'
 import { fmt } from '../lib/cart'
 import {
