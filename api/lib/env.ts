@@ -1,20 +1,16 @@
 import "dotenv/config";
 
-function required(name: string): string {
-  const value = process.env[name];
+function getEnv(name: string, fallback?: string): string {
+  const value = process.env[name] || fallback || "";
   if (!value && process.env.NODE_ENV === "production") {
-    throw new Error(`Missing required environment variable: ${name}`);
+    console.warn(`[ENV WARNING] Missing environment variable: ${name}`);
   }
-  return value ?? "";
-}
-
-function optional(name: string): string {
-  return process.env[name] ?? "";
+  return value;
 }
 
 export const env = {
-  appId: optional("APP_ID"),
-  appSecret: optional("APP_SECRET"),
+  appId: getEnv("APP_ID", "ug-souq"),
+  appSecret: getEnv("APP_SECRET"),
   isProduction: process.env.NODE_ENV === "production",
-  databaseUrl: process.env.DATABASE_URL || process.env.MYSQL_URL || required("DATABASE_URL"),
+  databaseUrl: getEnv("DATABASE_URL") || getEnv("MYSQL_URL") || getEnv("MYSQLDATABASE") || "",
 };
