@@ -253,7 +253,8 @@ function Orders({ adminKey }: { adminKey: string }) {
   const approvedPartners = Array.isArray(partnersData?.partners) 
     ? partnersData.partners.filter((p: any) => p?.status === "approved") 
     : []
-  const ordersList = Array.isArray(data) ? data : []
+ const ordersList = Array.isArray(data) ? data : (data?.orders || [])
+
 
   return (
     <div className="space-y-4 p-4">
