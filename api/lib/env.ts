@@ -16,5 +16,5 @@ export const env = {
   appId: optional("APP_ID"),
   appSecret: optional("APP_SECRET"),
   isProduction: process.env.NODE_ENV === "production",
-  databaseUrl: required("DATABASE_URL"),
+  databaseUrl: process.env.DATABASE_URL || process.env.MYSQL_URL || required("DATABASE_URL"),
 };
