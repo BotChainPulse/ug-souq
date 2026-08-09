@@ -8,7 +8,7 @@ import { defineConfig } from "vite"
 export default defineConfig({
   plugins: [
     devServer({ entry: "api/boot.ts", exclude: [/^\/(?!api\/).*$/] }),
-    inspectAttr(), react()],
+    react()],
   server: {
     port: 3000,
   },
