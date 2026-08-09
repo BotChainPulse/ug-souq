@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import React from 'react'
 import { useNavigate } from 'react-router'
 import { trpc } from '../providers/trpc'
 import { fmt } from '../lib/cart'
@@ -161,7 +162,7 @@ export default function Admin() {
               </div>
             </div>
           )}
-          {tab === "orders" && <Orders adminKey={adminKey} />}
+          {tab === "orders" && <OrderErrorBoundary><Orders adminKey={adminKey} /></OrderErrorBoundary>}
           {tab !== "overview" && tab !== "orders" && (
             <div className="bg-white rounded-xl border border-neutral-200 p-8 text-center">
               <p className="text-neutral-500">{tabs.find((t) => t.id === tab)?.label} coming soon.</p>
@@ -174,6 +175,28 @@ export default function Admin() {
       </main>
     </div>
   )
+}
+
+class OrderErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean; error: string}> {
+  constructor(props: {children: React.ReactNode}) {
+    super(props)
+    this.state = { hasError: false, error: "" }
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error: error.message + " " + (error.stack?.slice(0,200) ?? "") }
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 m-4">
+          <p className="text-red-700 font-bold">Orders crashed:</p>
+          <p className="text-sm text-red-600 mt-1 font-mono whitespace-pre-wrap">{this.state.error}</p>
+          <button onClick={() => this.setState({ hasError: false, error: "" })} className="mt-2 text-sm px-3 py-1.5 bg-red-600 text-white rounded-lg">Retry</button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
 }
 
 function Orders({ adminKey }: { adminKey: string }) {
