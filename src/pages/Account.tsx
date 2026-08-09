@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router'
+import { Link } from 'react-router-dom'
 import { UserRound, MapPin, Phone, Package, Pencil, LogOut, CircleCheckBig, Truck, XCircle, CircleDashed, Trash2 } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'

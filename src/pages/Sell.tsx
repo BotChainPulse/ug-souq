@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link } from 'react-router-dom'
 import {
   Store, TrendingUp, Truck, ShieldCheck, BadgeCheck, Upload, MapPin, FileText,
   Check, ChevronLeft, ChevronRight, MessageCircle, CircleCheckBig, Info, Wallet,
