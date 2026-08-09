@@ -205,9 +205,16 @@ function Orders({ adminKey }: { adminKey: string }) {
   const [statusFilter, setStatusFilter] = useState("all")
 
   const { data, isLoading, isError, error, refetch } = trpc.admin.orders.useQuery(
-    { key: adminKey, search: search || undefined, status: statusFilter !== "all" ? statusFilter as any : undefined },
+    { key: adminKey, search: search || undefined, status: statusFilter !== "all" && statusFilter !== "customer_cancelled" ? statusFilter as any : undefined },
     { retry: false }
   )
+
+  const setStatus = trpc.admin.setOrderStatus.useMutation({
+    onSuccess: () => {
+      utils.admin.orders.invalidate()
+      utils.admin.stats.invalidate()
+    }
+  })
 
   if (isLoading) return <p className="text-neutral-500 p-4">Loading orders...</p>
   if (isError) return (
@@ -224,7 +231,16 @@ function Orders({ adminKey }: { adminKey: string }) {
     </div>
   )
 
-  const ordersList = Array.isArray(data) ? data : (data?.orders || [])
+  let ordersList = Array.isArray(data) ? data : (data?.orders || [])
+
+  // Support client-side filter for "customer_cancelled"
+  if (statusFilter === "customer_cancelled") {
+    ordersList = ordersList.filter((o: any) => {
+      const s = String(o?.status ?? "")
+      const cancelledBy = (o?.cancelledBy ?? o?.cancelled_by ?? o?.canceledBy ?? null)
+      return s === "cancelled" && (cancelledBy === "customer" || cancelledBy === "user" || cancelledBy === "client")
+    })
+  }
 
   return (
     <div className="space-y-4 p-4">
@@ -248,6 +264,7 @@ function Orders({ adminKey }: { adminKey: string }) {
           <option value="shipped">Shipped</option>
           <option value="delivered">Delivered</option>
           <option value="cancelled">Cancelled</option>
+          <option value="customer_cancelled">Customer cancelled</option>
         </select>
       </div>
 
@@ -265,18 +282,47 @@ function Orders({ adminKey }: { adminKey: string }) {
           const address = String(o?.address ?? "")
           const total = Number(o?.total ?? 0)
           const createdAt = o?.createdAt ? new Date(o.createdAt).toLocaleString("en-UG") : "-"
+          const cancelledBy = o?.cancelledBy ?? o?.cancelled_by ?? o?.canceledBy ?? null
+          const cancelReason = o?.cancelReason ?? o?.cancellationReason ?? o?.cancel_reason ?? o?.cancellation_reason ?? ""
+
+          const canCancel = orderStatus !== "cancelled" && orderStatus !== "delivered"
 
           return (
             <div key={orderId || Math.random()} className="bg-white rounded-xl border border-neutral-200 p-4">
               <div className="flex flex-wrap items-center gap-2 mb-2">
                 <span className="font-mono font-bold text-sm">{orderCode}</span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">{orderStatus}</span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 font-medium">{paymentStatus}</span>
+                {/* status */}
+                <StatusBadge status={orderStatus} />
+                <PaymentBadge status={paymentStatus} />
+                {orderStatus === "cancelled" && cancelledBy === "customer" && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">Cancelled by customer</span>
+                )}
               </div>
               <p className="font-extrabold text-lg mb-1">UGX {total.toLocaleString()}</p>
               <p className="text-sm text-neutral-600">
                 {customerName} · {phone} · {address.slice(0,60)}{address.length > 60 ? "..." : ""} · {createdAt}
               </p>
+
+              {cancelReason && (
+                <p className="mt-2 text-sm text-neutral-600"><strong>Cancel reason:</strong> {String(cancelReason)}</p>
+              )}
+
+              {canCancel && (
+                <div className="mt-3">
+                  <button
+                    onClick={() => {
+                      if (!orderId) return
+                      const ok = window.confirm('Cancel this order? This will set status to cancelled.')
+                      if (!ok) return
+                      setStatus.mutate({ key: adminKey, id: orderId, status: 'cancelled' })
+                    }}
+                    disabled={setStatus.isLoading}
+                    className="text-sm px-3 py-1.5 bg-red-600 text-white rounded-lg disabled:opacity-50"
+                  >
+                    Cancel order
+                  </button>
+                </div>
+              )}
             </div>
           )
         })}
