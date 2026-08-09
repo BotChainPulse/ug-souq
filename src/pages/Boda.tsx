@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link } from 'react-router-dom'
 import { Send, MapPin, Package, ShieldCheck, MessageCircle, Clock } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'

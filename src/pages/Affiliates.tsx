@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link } from 'react-router-dom'
 import {
   Link2, Percent, LayoutDashboard, Image, Users, MessageCircle, ChevronRight,
   CircleCheckBig, Share2, Banknote,

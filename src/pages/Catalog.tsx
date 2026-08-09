@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router-dom'
 import { BadgeCheck, Check, MessageCircle, RefreshCcw, ShoppingCart, Star, Store, Timer } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'

@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router'
+import { useParams, Link } from 'react-router-dom'
 import { Star, Clock, Bike, Plus, Check, ChevronLeft, Flame } from 'lucide-react'
 import { useState } from 'react'
 import Header from '../components/Header'

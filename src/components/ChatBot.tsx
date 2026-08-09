@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Link } from 'react-router'
+import { Link } from 'react-router-dom'
 import { MessageCircle, X, Send } from 'lucide-react'
 import { ORANGE, WA_LINK } from '../lib/site'
 

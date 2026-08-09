@@ -1,4 +1,4 @@
-import { Link } from 'react-router'
+import { Link } from 'react-router-dom'
 import {
   BadgeCheck, FileText, MapPin, ShieldCheck, Star, ArrowRight, IdCard, MessageCircle,
 } from 'lucide-react'
