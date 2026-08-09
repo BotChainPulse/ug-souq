@@ -4,6 +4,7 @@ import { ShieldCheck, Store, Package, ClipboardList, Wallet, Banknote, Bike, Use
 import { trpc } from '../providers/trpc'
 import { fmt } from '../lib/cart'
 import { ORANGE } from '../lib/site'
+import DebugToolbar from '../components/DebugToolbar'
 
 const KEY_STORAGE = 'ugsouq_admin_key'
 const ORDER_STATUSES = ['placed', 'confirmed', 'pending_delivery', 'on_the_way', 'delivered', 'cancelled'] as const
@@ -60,6 +61,7 @@ export default function Admin() {
 
   return (
     <div className="min-h-screen bg-neutral-100 overflow-x-clip">
+      <DebugToolbar />
       <AdminHeader setKey={setKey} />
       <main className="mx-auto max-w-7xl px-4 py-6">
         <div className="flex gap-6">
