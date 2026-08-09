@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router'
+import { Routes, Route } from 'react-router-dom'
 import { CartProvider } from './lib/cart'
 import ChatBot from './components/ChatBot'
 import Home from './pages/Home'

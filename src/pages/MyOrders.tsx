@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link } from 'react-router-dom'
 import { Package, Smartphone, Truck, CircleCheckBig, Clock, XCircle, ShoppingCart } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'

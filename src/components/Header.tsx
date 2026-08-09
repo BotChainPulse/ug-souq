@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router-dom'
 import { Search, ShoppingCart, ChevronDown, Grid3X3, CircleHelp, MapPin, X, Smartphone, Tv, Shirt, Footprints, Wheat, Home as HomeIcon, RefreshCcw, UtensilsCrossed, Blend, UserRound } from 'lucide-react'
 import { ORANGE, WA_LINK } from '../lib/site'
 import { useCart } from '../lib/cart'

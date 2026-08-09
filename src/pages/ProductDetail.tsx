@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useParams } from 'react-router-dom'
 import { trpc } from '@/providers/trpc'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
