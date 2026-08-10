@@ -2,7 +2,7 @@ import { z } from "zod";
 import { eq, desc, asc, like, or } from "drizzle-orm";
 import { createRouter, publicQuery, COMMISSION_RATE } from "./middleware";
 import { getDb } from "./queries/connection";
-import { sellers, products, restaurants, menuItems, orders, orderItems, affiliates, listings, customers, deliveryPartners, sellerAdBookings } from "../db/schema";
+import { sellers, products, restaurants, menuItems, orders, orderItems, affiliates, listings, customers, deliveryPartners, sellerAdBookings, notifications } from "../db/schema";
 import { adminRouter } from "./admin";
 import { trustRouter } from "./trust";
 import { bootstrapRouter } from "./bootstrap";
@@ -317,6 +317,13 @@ export const appRouter = createRouter({
           imageData: input.imageData,
           status: "pending",
         }).$returningId();
+        await db.insert(notifications).values({
+          type: "listing_pending",
+          title: "New Listing Pending Review",
+          message: `${seller.shopName} added ${input.name}`,
+          entityType: "listing",
+          entityId: String(row.id),
+        });
         return { id: row.id };
       }),
     bookAd: publicQuery
