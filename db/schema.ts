@@ -33,7 +33,7 @@ export const sellers = mysqlTable("sellers", {
   sellerContractAcceptedAt: timestamp("seller_contract_accepted_at"),
   verified: boolean("verified").notNull().default(false),
   rating: int("rating").notNull().default(45),
-  status: mysqlEnum("status", ["pending", "approved", "rejected"]).notNull().default("pending"),
+  status: mysqlEnum("status", ["pending", "approved", "rejected", "suspended", "terminated"]).notNull().default("pending"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -65,7 +65,7 @@ export const listings = mysqlTable("listings", {
   warrantyMonths: int("warranty_months").notNull().default(0),
   imageNote: varchar("image_note", { length: 255 }).notNull(),
   imageData: mediumtext("image_data"),
-  status: mysqlEnum("status", ["pending", "approved", "rejected"]).notNull().default("pending"),
+  status: mysqlEnum("status", ["pending", "approved", "rejected", "suspended", "terminated"]).notNull().default("pending"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -157,7 +157,7 @@ export const deliveryPartners = mysqlTable("delivery_partners", {
   contractAccepted: boolean("contract_accepted").notNull().default(false),
   deliveryShareAccepted: boolean("delivery_share_accepted").notNull().default(false),
   contractAcceptedAt: timestamp("contract_accepted_at"),
-  status: mysqlEnum("status", ["pending", "approved", "rejected"]).notNull().default("pending"),
+  status: mysqlEnum("status", ["pending", "approved", "rejected", "suspended", "terminated"]).notNull().default("pending"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
