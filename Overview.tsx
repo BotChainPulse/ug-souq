@@ -1,23 +1,17 @@
 import { useEffect, useState } from "react";
-import { API_BASE } from "../api";
+import { trpcQuery } from "../api";
 
-interface Stats {
-  totalSellers: number;
-  totalListings: number;
-  totalOrders: number;
-  pendingPayouts: number;
-  activeDeliveries: number;
-  returnRequests: number;
+function getAdminKey() {
+  return localStorage.getItem("adminKey") || "";
 }
 
 export default function Overview() {
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/admin/stats`)
-      .then((r) => r.json())
+    trpcQuery("admin.stats", { key: getAdminKey() })
       .then((data) => {
         setStats(data);
         setLoading(false);
@@ -28,70 +22,56 @@ export default function Overview() {
       });
   }, []);
 
-  if (loading) return <div style={styles.container}><p>Loading stats…</p></div>;
-  if (error) return <div style={styles.container}><p style={{color:"red"}}>Error: {error}</p></div>;
+  if (loading) return <div style={styles.container}><p>Loading dashboard...</p></div>;
+  if (error) return <div style={styles.container}><p style={{ color: "red" }}>Error: {error}</p></div>;
+  if (!stats) return <div style={styles.container}><p>No data.</p></div>;
 
-  const s = stats || {
-    totalSellers: 0,
-    totalListings: 0,
-    totalOrders: 0,
-    pendingPayouts: 0,
-    activeDeliveries: 0,
-    returnRequests: 0,
-  };
+  const cards = [
+    { label: "Total Orders", value: stats.orderCount || 0 },
+    { label: "Revenue (UGX)", value: (stats.revenue || 0).toLocaleString() },
+    { label: "Sellers", value: stats.sellerCount || 0 },
+    { label: "Pending Sellers", value: stats.pendingSellers || 0 },
+    { label: "Products", value: stats.productCount || 0 },
+    { label: "Customers", value: stats.customerCount || 0 },
+    { label: "Pending Payouts", value: stats.pendingPayouts || 0 },
+    { label: "Unread Notifications", value: stats.unreadNotifications || 0 },
+  ];
 
   return (
     <div style={styles.container}>
-      <h2 style={styles.title}>Overview</h2>
-
+      <h2 style={styles.title}>Dashboard Overview</h2>
       <div style={styles.grid}>
-        <StatCard label="Total Sellers" value={String(s.totalSellers)} />
-        <StatCard label="Total Listings" value={String(s.totalListings)} />
-        <StatCard label="Total Orders" value={String(s.totalOrders)} />
-        <StatCard label="Pending Payouts" value={String(s.pendingPayouts)} />
-        <StatCard label="Active Deliveries" value={String(s.activeDeliveries)} />
-        <StatCard label="Return Requests" value={String(s.returnRequests)} />
+        {cards.map((c) => (
+          <div key={c.label} style={styles.card}>
+            <div style={styles.cardValue}>{c.value}</div>
+            <div style={styles.cardLabel}>{c.label}</div>
+          </div>
+        ))}
       </div>
-    </div>
-  );
-}
 
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={styles.card}>
-      <div style={styles.cardLabel}>{label}</div>
-      <div style={styles.cardValue}>{value}</div>
+      {stats.ordersByStatus && stats.ordersByStatus.length > 0 && (
+        <div style={{ marginTop: "30px" }}>
+          <h3 style={styles.subtitle}>Orders by Status</h3>
+          <div style={styles.grid}>
+            {stats.ordersByStatus.map((s: any) => (
+              <div key={s.status} style={styles.card}>
+                <div style={styles.cardValue}>{s.count}</div>
+                <div style={styles.cardLabel}>{s.status.replace(/_/g, " ")}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  container: {
-    padding: "10px",
-  },
-  title: {
-    fontSize: "22px",
-    fontWeight: "600",
-    marginBottom: "20px",
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-    gap: "20px",
-  },
-  card: {
-    backgroundColor: "#fff",
-    padding: "20px",
-    borderRadius: "8px",
-    border: "1px solid #e5e5e5",
-  },
-  cardLabel: {
-    fontSize: "14px",
-    color: "#777",
-  },
-  cardValue: {
-    fontSize: "24px",
-    fontWeight: "700",
-    marginTop: "10px",
-  },
+  container: { padding: "20px" },
+  title: { fontSize: "24px", fontWeight: 600, marginBottom: "20px" },
+  subtitle: { fontSize: "18px", fontWeight: 600, marginBottom: "15px" },
+  grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "16px" },
+  card: { background: "#fff", border: "1px solid #e5e5e5", borderRadius: "10px", padding: "20px", textAlign: "center" },
+  cardValue: { fontSize: "28px", fontWeight: 700, color: "#e8590c", marginBottom: "6px" },
+  cardLabel: { fontSize: "13px", color: "#666", textTransform: "capitalize" },
 };
