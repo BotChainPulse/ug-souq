@@ -23,6 +23,7 @@ import Account from './pages/Account'
 import ProductDetail from './pages/ProductDetail'
 import SouqHubs from './pages/SouqHubs'
 import GroupBuying from './pages/GroupBuying'
+import Deliveries from './pages/Deliveries'
 
 export default function App() {
   return (
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="/track" element={<TrackOrder />} />
         <Route path="/orders" element={<MyOrders />} />
         <Route path="/account" element={<Account />} />
+        <Route path="/deliveries" element={<Deliveries />} />
         <Route path="/returns" element={<Returns />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />

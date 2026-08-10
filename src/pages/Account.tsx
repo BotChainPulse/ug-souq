@@ -5,7 +5,9 @@ import {
   CircleCheckBig, Truck, XCircle, CircleDashed, Trash2,
   HelpCircle, MessageCircle, Mail, Star, Ticket, Heart,
   Store, Clock, CreditCard, ChevronRight, Home, Grid3X3,
-  ShoppingCart, Bell
+  ShoppingCart, Bell, Wallet, ShieldCheck, Globe, Settings,
+  Lock, Undo2, MapPinned, Facebook, Instagram, Linkedin,
+  Edit3
 } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -19,7 +21,11 @@ function StatusPill({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string; Icon: any }> = {
     placed: { label: 'Placed', cls: 'bg-blue-50 text-blue-700', Icon: CircleDashed },
     confirmed: { label: 'Confirmed', cls: 'bg-amber-50 text-amber-700', Icon: CircleCheckBig },
+    confirming_payment: { label: 'Confirming', cls: 'bg-amber-50 text-amber-700', Icon: Clock },
+    awaiting_payment: { label: 'Awaiting Pay', cls: 'bg-orange-50 text-orange-700', Icon: Clock },
     on_the_way: { label: 'On the way', cls: 'bg-purple-50 text-purple-700', Icon: Truck },
+    shipped: { label: 'Shipped', cls: 'bg-purple-50 text-purple-700', Icon: Truck },
+    out_for_delivery: { label: 'Out for Delivery', cls: 'bg-indigo-50 text-indigo-700', Icon: Truck },
     delivered: { label: 'Delivered', cls: 'bg-green-50 text-green-700', Icon: CircleCheckBig },
     cancelled: { label: 'Cancelled', cls: 'bg-red-50 text-red-700', Icon: XCircle },
   }
@@ -40,19 +46,28 @@ export default function AccountPage() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const navigate = useNavigate()
 
-  const { data } = trpc.customers.me.useQuery(
+  const { data: profileData } = trpc.customers.me.useQuery(
+    { phone: account?.phone ?? '' },
+    { enabled: !!account },
+  )
+
+  const { data: ordersData } = trpc.orders.myOrders.useQuery(
     { phone: account?.phone ?? '' },
     { enabled: !!account },
   )
 
   useEffect(() => {
-    if (data && account) {
-      const updated = { ...account, name: data.name || account.name, location: data.location || account.location }
+    if (profileData?.customer && account) {
+      const updated = {
+        ...account,
+        name: profileData.customer.name || account.name,
+        location: profileData.customer.location || account.location
+      }
       setAccount(updated)
       saveAccount(updated)
       setForm(updated)
     }
-  }, [data])
+  }, [profileData])
 
   const handleSave = () => {
     if (!form.name.trim() || !form.phone.trim()) return
@@ -78,30 +93,28 @@ export default function AccountPage() {
     )
   }
 
-  const { data: ordersData } = trpc.orders.myOrders.useQuery(
-    { phone: account?.phone ?? '' },
-    { enabled: !!account },
-  )
+  const handleLogout = () => {
+    clearAccount()
+    setAccount(null)
+    setForm({ name: '', phone: '', location: '' })
+    setEditing(true)
+    window.location.href = '/'
+  }
+
   const orders = (ordersData as any)?.orders ?? ordersData ?? []
+  const wishlistCount = 0
 
-  const assistanceItems = [
-    { icon: HelpCircle, label: 'Help & Support', to: '/help' },
-  ]
-
-  const accountItems = [
-    { icon: Package, label: 'Orders', to: '/my-orders', badge: orders.length > 0 ? String(orders.length) : undefined },
-    { icon: Mail, label: 'Inbox', to: '/inbox' },
-    { icon: Star, label: 'Ratings & Reviews', to: '/reviews' },
-    { icon: Ticket, label: 'Vouchers', to: '/vouchers' },
-    { icon: Heart, label: 'Wishlist', to: '/wishlist' },
-    { icon: Store, label: 'Follow Seller', to: '/follow-seller' },
-    { icon: Clock, label: 'Recently Viewed', to: '/recently-viewed' },
-  ]
-
-  const settingsItems = [
-    { icon: CreditCard, label: 'Payment Settings', to: '/payment-settings' },
-    { icon: MapPin, label: 'Address Book', to: '/addresses' },
+  const menuItems = [
+    { icon: MapPinned, label: 'Addresses', to: '/addresses' },
+    { icon: CreditCard, label: 'Manage Cards', to: '/payment-settings' },
+    { icon: Truck, label: 'Deliveries', to: '/deliveries' },
+    { icon: Undo2, label: 'Returns', to: '/returns' },
+    { icon: ShieldCheck, label: 'Warranty Claims', to: '/terms' },
+    { icon: Globe, label: 'Language', value: 'English', to: '/account' },
+    { icon: MapPin, label: 'Country', value: 'Uganda', to: '/account' },
+    { icon: Settings, label: 'Preferences', to: '/account' },
     { icon: Bell, label: 'Notifications', to: '/notifications' },
+    { icon: Lock, label: 'Account Security', to: '/account' },
   ]
 
   if (!account || editing) {
@@ -163,106 +176,174 @@ export default function AccountPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 pb-20">
+    <div className="min-h-screen bg-gray-50 pb-24">
       <Header />
 
-      {/* Profile Header */}
-      <div className="bg-white px-4 pt-4 pb-6">
-        <div className="flex items-center gap-4 mb-4">
-          <div className="w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-bold"
-               style={{ backgroundColor: ORANGE }}>
+      {/* Profile Card */}
+      <div className="bg-white mx-3 mt-3 rounded-2xl p-4 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div
+            className="w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-bold"
+            style={{ backgroundColor: ORANGE }}
+          >
             {account.name?.charAt(0)?.toUpperCase() || 'U'}
           </div>
-          <div className="flex-1">
-            <h1 className="text-xl font-bold text-gray-900">Welcome {account.name?.split(' ')[0]}!</h1>
-            <p className="text-sm text-gray-500">{account.phone}</p>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg font-bold text-gray-900 truncate">
+              {account.name || 'Lutwama Reagan'}
+            </h2>
+            <p className="text-sm text-gray-500 truncate">reagz.lutwama700@gmail.com</p>
+            <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+              <span className="flex items-center gap-1">
+                <Phone size={12} /> {account.phone || '0708813419'}
+              </span>
+              <span className="flex items-center gap-1">
+                <MapPin size={12} /> {account.location || 'Mpigi'}
+              </span>
+            </div>
           </div>
           <button
             onClick={() => setEditing(true)}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-gray-300 text-sm text-gray-600"
+            className="p-2 rounded-full bg-gray-100 hover:bg-gray-200"
           >
-            <Pencil size={14} /> Edit
+            <Edit3 size={16} className="text-gray-600" />
           </button>
         </div>
+      </div>
 
-        {/* UG Souq Balance */}
-        <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
-          <div className="w-8 h-8 rounded bg-blue-100 flex items-center justify-center">
-            <span className="text-blue-600 font-bold text-xs">U</span>
+      {/* Loyalty Banner */}
+      <div
+        className="mx-3 mt-3 rounded-2xl p-4 text-white flex items-center justify-between"
+        style={{ background: `linear-gradient(135deg, ${ORANGE}, #d95d1e)` }}
+      >
+        <div>
+          <p className="text-xs font-medium opacity-90">UG Souq</p>
+          <p className="text-sm font-bold">Unlimited Free Delivery</p>
+        </div>
+        <Link to="/plus">
+          <span className="text-xs font-bold bg-white px-3 py-1.5 rounded-full" style={{ color: ORANGE }}>
+            Join Now ›
+          </span>
+        </Link>
+      </div>
+
+      {/* Orders & Wishlist Quick Cards */}
+      <div className="mx-3 mt-3 grid grid-cols-2 gap-3">
+        <Link to="/my-orders">
+          <div className="bg-white rounded-2xl p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <Package size={20} style={{ color: ORANGE }} />
+              <span className="text-xs text-gray-400">{orders.length} orders</span>
+            </div>
+            <p className="font-bold text-gray-900 text-sm">My Orders</p>
+            <div className="flex gap-1 mt-2">
+              {orders.slice(0, 3).map((o: any, i: number) => (
+                <div key={i} className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center text-xs">
+                  📦
+                </div>
+              ))}
+              {orders.length === 0 && (
+                <>
+                  <div className="w-8 h-8 rounded bg-gray-100" />
+                  <div className="w-8 h-8 rounded bg-gray-100" />
+                  <div className="w-8 h-8 rounded bg-gray-100" />
+                </>
+              )}
+            </div>
           </div>
-          <span>UG Souq balance: <span className="font-semibold text-gray-900">UGX 0</span></span>
+        </Link>
+
+        <Link to="/wishlist">
+          <div className="bg-white rounded-2xl p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <Heart size={20} className="text-red-500" />
+              <span className="text-xs text-gray-400">{wishlistCount} items</span>
+            </div>
+            <p className="font-bold text-gray-900 text-sm">My Wishlist</p>
+            <div className="flex gap-1 mt-2">
+              <div className="w-8 h-8 rounded bg-gray-100" />
+              <div className="w-8 h-8 rounded bg-gray-100" />
+              <div className="w-8 h-8 rounded bg-gray-100" />
+            </div>
+          </div>
+        </Link>
+      </div>
+
+      {/* Wallet / Credits */}
+      <Link to="/account">
+        <div className="mx-3 mt-3 bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl" style={{ backgroundColor: '#fff3e6' }}>
+              <Wallet size={20} style={{ color: ORANGE }} />
+            </div>
+            <span className="font-medium text-gray-900 text-sm">UG Souq Credits</span>
+          </div>
+          <div className="flex items-center gap-1 text-gray-400">
+            <span className="text-sm">UGX 0</span>
+            <ChevronRight size={16} />
+          </div>
         </div>
+      </Link>
 
-        {/* Chat buttons */}
-        <div className="grid grid-cols-2 gap-3">
-          <button className="flex items-center justify-center gap-2 py-3 rounded-lg font-semibold text-white"
-                  style={{ backgroundColor: ORANGE }}>
-            <MessageCircle size={18} /> Live Chat
-          </button>
-          <a href="https://wa.me/256708813419" target="_blank" rel="noopener noreferrer"
-             className="flex items-center justify-center gap-2 py-3 rounded-lg font-semibold border-2 border-green-500 text-green-600 bg-white">
-            <span className="text-green-500 font-bold">WhatsApp</span>
-          </a>
+      {/* Promo Card */}
+      <div className="mx-3 mt-3 bg-white rounded-2xl p-4 shadow-sm">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="font-bold text-gray-900 text-sm">UG Souq Credit Card</p>
+            <p className="text-xs text-gray-500 mt-1">• Get 20% off + free delivery</p>
+            <p className="text-xs text-gray-500">• UGX 5,000 welcome bonus</p>
+            <button className="mt-3 bg-gray-900 text-white text-xs font-bold px-4 py-2 rounded-xl">
+              Apply Now
+            </button>
+          </div>
+          <div
+            className="w-16 h-10 rounded-lg flex items-center justify-center text-white font-bold text-xs"
+            style={{ backgroundColor: ORANGE }}
+          >
+            UG S
+          </div>
         </div>
       </div>
 
-      {/* Need Assistance */}
-      <div className="mt-2 bg-white">
-        <div className="px-4 py-2 text-sm font-semibold text-gray-500">Need Assistance?</div>
-        {assistanceItems.map((item) => (
-          <Link key={item.label} to={item.to}
-                className="flex items-center gap-3 px-4 py-3 border-t border-gray-100 active:bg-gray-50">
-            <item.icon size={20} className="text-gray-700" />
-            <span className="flex-1 text-gray-900">{item.label}</span>
-            <ChevronRight size={18} className="text-gray-400" />
-          </Link>
+      {/* Menu List */}
+      <div className="mx-3 mt-3 bg-white rounded-2xl shadow-sm overflow-hidden">
+        {menuItems.map((item, idx) => (
+          <div key={item.label}>
+            <Link
+              to={item.to}
+              className="flex items-center justify-between p-4 hover:bg-gray-50"
+            >
+              <div className="flex items-center gap-3">
+                <item.icon size={20} className="text-gray-600" />
+                <span className="font-medium text-gray-900 text-sm">{item.label}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {(item as any).value && (
+                  <span className="text-sm text-gray-500">{(item as any).value}</span>
+                )}
+                <ChevronRight size={16} className="text-gray-400" />
+              </div>
+            </Link>
+            {idx < menuItems.length - 1 && <div className="h-px bg-gray-100 mx-4" />}
+          </div>
         ))}
-      </div>
-
-      {/* My UG Souq Account */}
-      <div className="mt-2 bg-white">
-        <div className="px-4 py-2 text-sm font-semibold text-gray-500">My UG Souq Account</div>
-        {accountItems.map((item) => (
-          <Link key={item.label} to={item.to}
-                className="flex items-center gap-3 px-4 py-3 border-t border-gray-100 active:bg-gray-50">
-            <item.icon size={20} className="text-gray-700" />
-            <span className="flex-1 text-gray-900">{item.label}</span>
-            {item.badge && (
-              <span className="bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{item.badge}</span>
-            )}
-            <ChevronRight size={18} className="text-gray-400" />
-          </Link>
-        ))}
-      </div>
-
-      {/* My Settings */}
-      <div className="mt-2 bg-white">
-        <div className="px-4 py-2 text-sm font-semibold text-gray-500">My Settings</div>
-        {settingsItems.map((item) => (
-          <Link key={item.label} to={item.to}
-                className="flex items-center gap-3 px-4 py-3 border-t border-gray-100 active:bg-gray-50">
-            <item.icon size={20} className="text-gray-700" />
-            <span className="flex-1 text-gray-900">{item.label}</span>
-            <ChevronRight size={18} className="text-gray-400" />
-          </Link>
-        ))}
-      </div>
-
-      {/* Danger Zone */}
-      <div className="mt-2 bg-white mb-4">
+        {/* Sign Out */}
+        <div className="h-px bg-gray-100 mx-4" />
         <button
-          onClick={() => setConfirmDelete(true)}
-          className="flex items-center gap-3 px-4 py-3 w-full text-left active:bg-gray-50"
+          onClick={handleLogout}
+          className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50"
         >
-          <Trash2 size={20} className="text-red-500" />
-          <span className="flex-1 text-red-600 font-medium">Delete Account</span>
-          <ChevronRight size={18} className="text-gray-400" />
+          <div className="flex items-center gap-3">
+            <LogOut size={20} className="text-red-500" />
+            <span className="font-medium text-red-500 text-sm">Sign Out</span>
+          </div>
+          <ChevronRight size={16} className="text-gray-400" />
         </button>
       </div>
 
       {/* My Orders Preview */}
       {orders.length > 0 && (
-        <div className="px-4 mb-4">
+        <div className="px-4 mt-4 mb-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
               <Package size={20} style={{ color: ORANGE }} /> My Orders
@@ -274,12 +355,12 @@ export default function AccountPage() {
           <div className="space-y-3">
             {orders.slice(0, 3).map((o: any) => (
               <Link key={o.id} to={`/track-order?code=${o.code}`}
-                    className="block bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                className="block bg-white rounded-xl p-4 shadow-sm border border-gray-100">
                 <div className="flex items-center justify-between mb-2">
                   <div>
-                    <p className="font-bold text-gray-900">{o.code}</p>
+                    <p className="font-bold text-gray-900 text-sm">{o.code}</p>
                     <p className="text-xs text-gray-500">
-                      {o.createdAt ? new Date(o.createdAt).toLocaleString() : ''}
+                      {o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-GB') : ''}
                     </p>
                   </div>
                   <StatusPill status={o.status} />
@@ -292,7 +373,7 @@ export default function AccountPage() {
                 ))}
                 <div className="flex items-center justify-between pt-2 mt-2 border-t border-gray-100">
                   <span className="text-xs text-gray-500">Total ({paymentLabel(o.paymentMethod)})</span>
-                  <span className="font-bold" style={{ color: ORANGE }}>UGX {fmt(o.total)}</span>
+                  <span className="font-bold text-sm" style={{ color: ORANGE }}>UGX {fmt(o.total)}</span>
                 </div>
               </Link>
             ))}
@@ -300,33 +381,30 @@ export default function AccountPage() {
         </div>
       )}
 
-      {/* Delete Confirm Modal */}
-      {confirmDelete && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Delete Account?</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              This will permanently remove your account and order history.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfirmDelete(false)}
-                className="flex-1 py-2.5 rounded-lg border border-gray-300 font-semibold text-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDelete}
-                className="flex-1 py-2.5 rounded-lg font-semibold text-white bg-red-500"
-              >
-                {deleteAccount.isPending ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </div>
+      {/* Footer */}
+      <div className="mx-3 mt-6 mb-8 text-center">
+        <div className="flex justify-center gap-6 mb-3">
+          <Facebook size={20} className="text-gray-400" />
+          <Instagram size={20} className="text-gray-400" />
+          <Linkedin size={20} className="text-gray-400" />
         </div>
-      )}
+        <p className="text-xs text-gray-400">Policies &nbsp;&nbsp; Sell on UG Souq ↗</p>
+        <p className="text-[10px] text-gray-300 mt-2">© 2026 ugsouq.com. All rights reserved.</p>
+      </div>
 
       <Footer />
+
+      {/* Floating Help Button */}
+      <a
+        href="https://wa.me/256708813419"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-24 right-4 font-bold px-4 py-3 rounded-full shadow-lg flex items-center gap-2 z-50 text-black"
+        style={{ backgroundColor: '#facc15' }}
+      >
+        <HelpCircle size={20} />
+        Need Help?
+      </a>
 
       {/* Bottom Nav */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
@@ -353,6 +431,32 @@ export default function AccountPage() {
           </Link>
         </div>
       </div>
+
+      {/* Delete Confirm Modal */}
+      {confirmDelete && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Delete Account?</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              This will permanently remove your account and order history.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="flex-1 py-2.5 rounded-lg border border-gray-300 font-semibold text-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                className="flex-1 py-2.5 rounded-lg font-semibold text-white bg-red-500"
+              >
+                {deleteAccount.isPending ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
