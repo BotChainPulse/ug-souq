@@ -2,18 +2,18 @@ import { lazy } from "react";
 import { createBrowserRouter } from "react-router-dom";
 import AdminLayout from "./AdminLayout";
 
-const Overview = lazy(() => import("./pages/Overview"));
-const Sellers = lazy(() => import("./pages/Sellers"));
-const Listings = lazy(() => import("./pages/Listings"));
-const Orders = lazy(() => import("./pages/Orders"));
-const Payouts = lazy(() => import("./pages/Payouts"));
-const Deliveries = lazy(() => import("./pages/Deliveries"));
-const Returns = lazy(() => import("./pages/Returns"));
-const SellerAds = lazy(() => import("./pages/SellerAds"));
-const Affiliates = lazy(() => import("./pages/Affiliates"));
-const Settings = lazy(() => import("./pages/Settings"));
-const AuditLog = lazy(() => import("./pages/AuditLog"));
-const Notifications = lazy(() => import("./pages/Notifications"));
+const Overview = lazy(() => import("./Overview"));
+const Sellers = lazy(() => import("./Sellers"));
+const Listings = lazy(() => import("./Listings"));
+const Orders = lazy(() => import("./Orders"));
+const Payouts = lazy(() => import("./Payouts"));
+const Deliveries = lazy(() => import("./Deliveries"));
+const Returns = lazy(() => import("./Returns"));
+const SellerAds = lazy(() => import("./SellerAds"));
+const Affiliates = lazy(() => import("./Affiliates"));
+const Settings = lazy(() => import("./Settings"));
+const AuditLog = lazy(() => import("./AuditLog"));
+const Notifications = lazy(() => import("./Notifications"));
 
 export const adminRouter = createBrowserRouter([
   {
