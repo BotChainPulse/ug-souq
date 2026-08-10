@@ -297,13 +297,17 @@ export const appRouter = createRouter({
         condition: z.enum(["new", "refurbished", "used"]),
         warrantyMonths: z.number().min(0).max(60),
         imageNote: z.string().optional(),
-        imageData: z.string().min(100, "A real photo of the item is required").max(1_500_000), // photo as data URL (required)
+        imageData: z.union([z.string().min(100, "A real photo of the item is required").max(1_500_000), z.any()]), // photo as data URL or File object
       }))
       .mutation(async ({ input }) => {
         const db = getDb();
         const [seller] = await db.select().from(sellers).where(eq(sellers.phone, input.phone.trim()));
         if (!seller) throw new Error("No shop registered with this phone number. Register your shop first.");
         if (seller.status !== "approved") throw new Error("Your shop must be approved before you can list items.");
+        // Validate imageData is a base64 string, not a File object
+        if (typeof input.imageData !== "string") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Please select a photo and wait for it to load before submitting." });
+        }
         const [row] = await db.insert(listings).values({
           sellerId: seller.id,
           name: input.name,
