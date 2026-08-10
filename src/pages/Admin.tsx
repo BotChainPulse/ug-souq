@@ -27,6 +27,8 @@ const SELLER_STATUS_COLORS: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700",
   approved: "bg-emerald-100 text-emerald-700",
   rejected: "bg-red-100 text-red-700",
+  suspended: "bg-orange-100 text-orange-700",
+  terminated: "bg-gray-100 text-gray-700",
 }
 
 const ORDER_STATUSES = ["placed","confirmed","pending_delivery","on_the_way","delivered","cancelled"] as const
@@ -88,7 +90,7 @@ function Loading() {
 // ============================================
 function Sellers({ adminKey }: { adminKey: string }) {
   const [search, setSearch] = useState("")
-  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("all")
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected" | "suspended" | "terminated">("all")
   const { data, isLoading, error, refetch } = trpc.admin.sellers.useQuery(
     { key: adminKey, search: search || undefined, status: statusFilter === "all" ? undefined : statusFilter },
     { enabled: !!adminKey }
@@ -107,7 +109,12 @@ function Sellers({ adminKey }: { adminKey: string }) {
         </div>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)}
           className="px-3 py-2 rounded-lg border border-neutral-200 text-sm bg-white">
-          <option value="all">All Status</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option>
+          <option value="all">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+          <option value="suspended">Suspended</option>
+          <option value="terminated">Terminated</option>
         </select>
       </div>
       <div className="space-y-3">
@@ -123,12 +130,27 @@ function Sellers({ adminKey }: { adminKey: string }) {
                 {s?.verified && <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium flex items-center gap-1"><CheckCircle size={12} /> Verified</span>}
               </div>
               <p className="text-sm text-neutral-600">{s?.ownerName ?? "-"} · {s?.phone ?? "-"} · {s?.district ?? "-"}</p>
+              <p className="text-xs text-neutral-400 mt-1">{s?.totalListings ?? 0} listings · {s?.totalOrders ?? 0} orders · Joined {s?.createdAt ? new Date(s.createdAt).toLocaleDateString() : "-"}</p>
               {status === "pending" && (
                 <div className="mt-3 flex gap-2">
                   <button onClick={() => { if (!sid) return; if (window.confirm(`Approve ${s?.shopName}?`)) setSellerStatus.mutate({ key: adminKey, id: sid, status: "approved" }) }} disabled={setSellerStatus.isLoading}
                     className="text-sm px-3 py-1.5 bg-emerald-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-1"><Check size={14} /> Approve</button>
                   <button onClick={() => { if (!sid) return; if (window.confirm(`Reject ${s?.shopName}?`)) setSellerStatus.mutate({ key: adminKey, id: sid, status: "rejected" }) }} disabled={setSellerStatus.isLoading}
                     className="text-sm px-3 py-1.5 bg-red-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-1"><X size={14} /> Reject</button>
+                </div>
+              )}
+              {status === "approved" && (
+                <div className="mt-3 flex gap-2">
+                  <button onClick={() => { if (!sid) return; if (window.confirm(`Suspend ${s?.shopName}? They won't be able to list new items.`)) setSellerStatus.mutate({ key: adminKey, id: sid, status: "suspended" }) }} disabled={setSellerStatus.isLoading}
+                    className="text-sm px-3 py-1.5 bg-amber-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-1"><AlertTriangle size={14} /> Suspend</button>
+                  <button onClick={() => { if (!sid) return; if (window.confirm(`TERMINATE ${s?.shopName}? This is permanent!`)) setSellerStatus.mutate({ key: adminKey, id: sid, status: "terminated" }) }} disabled={setSellerStatus.isLoading}
+                    className="text-sm px-3 py-1.5 bg-red-700 text-white rounded-lg disabled:opacity-50 flex items-center gap-1"><X size={14} /> Terminate</button>
+                </div>
+              )}
+              {(status === "suspended" || status === "terminated") && (
+                <div className="mt-3 flex gap-2">
+                  <button onClick={() => { if (!sid) return; if (window.confirm(`Reinstate ${s?.shopName}?`)) setSellerStatus.mutate({ key: adminKey, id: sid, status: "approved" }) }} disabled={setSellerStatus.isLoading}
+                    className="text-sm px-3 py-1.5 bg-emerald-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-1"><Check size={14} /> Reinstate</button>
                 </div>
               )}
             </div>
@@ -144,7 +166,7 @@ function Sellers({ adminKey }: { adminKey: string }) {
 // ============================================
 function Listings({ adminKey }: { adminKey: string }) {
   const [search, setSearch] = useState("")
-  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("all")
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected" | "suspended" | "terminated">("all")
   const { data, isLoading, error, refetch } = trpc.admin.listings.useQuery(
     { key: adminKey, search: search || undefined, status: statusFilter === "all" ? undefined : statusFilter },
     { enabled: !!adminKey }
@@ -321,8 +343,8 @@ function Payouts({ adminKey }: { adminKey: string }) {
   if (pLoading || hLoading) return <Loading />
   if (subTab === "pending" && pError) return <QueryError title="Failed to load pending payouts" error={pError.message} onRetry={() => pRefetch()} />
   if (subTab === "history" && hError) return <QueryError title="Failed to load history" error={hError.message} onRetry={() => hRefetch()} />
-  const pending = (pData as any[]) ?? []
-  const history = (hData as any[]) ?? []
+  const pending = (pData as any)?.pending ?? []
+  const history = (hData as any)?.payouts ?? []
   return (
     <div className="space-y-4">
       <div className="flex gap-2">
@@ -466,7 +488,7 @@ function SellerAds({ adminKey }: { adminKey: string }) {
   const setAdStatus = trpc.admin.setAdBookingStatus.useMutation({ onSuccess: () => refetch() })
   if (isLoading) return <Loading />
   if (error) return <QueryError title="Failed to load ad bookings" error={error.message} onRetry={() => refetch()} />
-  const ads = (data as any[]) ?? []
+  const ads = (data as any)?.rows ?? []
   const adColors: Record<string, string> = { booked: "bg-amber-100 text-amber-700", paid: "bg-blue-100 text-blue-700", active: "bg-emerald-100 text-emerald-700", completed: "bg-neutral-100 text-neutral-700", cancelled: "bg-red-100 text-red-700" }
   return (
     <div className="space-y-3">
