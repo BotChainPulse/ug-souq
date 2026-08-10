@@ -11,6 +11,7 @@ export function getDb() {
   if (!instance) {
     instance = drizzle(env.databaseUrl, {
       schema: fullSchema,
+      mode: "default",
     });
   }
   return instance;
