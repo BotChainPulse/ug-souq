@@ -226,7 +226,7 @@ export const adminRouter = createRouter({
   // ============================================
   // SELLERS
   // ============================================
-  sellers: publicQuery.input(z.object({ key: z.string(), search: z.string().optional(), status: z.enum(["pending", "approved", "rejected"]).optional() })).query(async ({ input }) => {
+  sellers: publicQuery.input(z.object({ key: z.string(), search: z.string().optional(), status: z.enum(["pending", "approved", "rejected", "suspended", "terminated"]).optional() })).query(async ({ input }) => {
     requireAdmin(input.key);
     const db = getDb();
     let query = db.select().from(sellers).orderBy(desc(sellers.createdAt));
@@ -260,7 +260,7 @@ export const adminRouter = createRouter({
   }),
 
   setSellerStatus: publicQuery
-    .input(z.object({ key: z.string(), id: z.number(), status: z.enum(["pending", "approved", "rejected"]) }))
+    .input(z.object({ key: z.string(), id: z.number(), status: z.enum(["pending", "approved", "rejected", "suspended", "terminated"]) }))
     .mutation(async ({ input }) => {
       requireAdmin(input.key);
       const db = getDb();
@@ -480,7 +480,7 @@ export const adminRouter = createRouter({
     }),
 
   setDeliveryPartnerStatus: publicQuery
-    .input(z.object({ key: z.string(), id: z.number(), status: z.enum(["pending", "approved", "rejected"]) }))
+    .input(z.object({ key: z.string(), id: z.number(), status: z.enum(["pending", "approved", "rejected", "suspended", "terminated"]) }))
     .mutation(async ({ input }) => {
       requireAdmin(input.key);
       const db = getDb();
@@ -557,7 +557,7 @@ export const adminRouter = createRouter({
   }),
 
   setListingStatus: publicQuery
-    .input(z.object({ key: z.string(), id: z.number(), status: z.enum(["pending", "approved", "rejected"]) }))
+    .input(z.object({ key: z.string(), id: z.number(), status: z.enum(["pending", "approved", "rejected", "suspended", "terminated"]) }))
     .mutation(async ({ input }) => {
       requireAdmin(input.key);
       const db = getDb();
@@ -907,11 +907,16 @@ export const adminRouter = createRouter({
     .query(async ({ input }) => {
       requireAdmin(input.key);
       const db = getDb();
-      const rows = await db.select().from(payouts).orderBy(desc(payouts.createdAt)).limit(input.limit);
-      return { success: true, payouts: rows };
+      const rows = await db
+        .select({ payout: payouts, seller: sellers })
+        .from(payouts)
+        .leftJoin(sellers, eq(payouts.sellerId, sellers.id))
+        .orderBy(desc(payouts.createdAt))
+        .limit(input.limit);
+      return { success: true, payouts: rows.map(r => ({ ...r.payout, sellerName: r.seller?.shopName ?? "Unknown" })) };
     }),
 
-  sendPayout: publicQuery
+  processPayout: publicQuery
     .input(z.object({
       key: z.string(),
       sellerId: z.number(),
