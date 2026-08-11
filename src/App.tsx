@@ -29,6 +29,7 @@ import Preferences from './pages/Preferences'
 import AccountSecurity from './pages/AccountSecurity'
 import PaymentSettings from './pages/PaymentSettings'
 import Addresses from './pages/Addresses'
+import Wishlist from './pages/Wishlist'
 
 export default function App() {
   return (
@@ -64,6 +65,7 @@ export default function App() {
         <Route path="/account-security" element={<AccountSecurity />} />
         <Route path="/payment-settings" element={<PaymentSettings />} />
         <Route path="/addresses" element={<Addresses />} />
+        <Route path="/wishlist" element={<Wishlist />} />
 </Routes>
     </CartProvider>
   )
