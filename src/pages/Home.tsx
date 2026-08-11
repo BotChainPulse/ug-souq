@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
-import {
+import {Heart, 
   Search, Store, BadgePercent, Grid3X3,
   Smartphone, Cpu, Refrigerator, Armchair, Shirt, Sparkles, Tractor, Sun, Wrench, Footprints,
   GraduationCap, Dumbbell, Baby, Gamepad2, Dog, Apple, Bike, BookOpen,
@@ -54,6 +54,14 @@ export default function HomePage() {
   const [hh, mm, ss] = useCountdown()
   const { data: products, isLoading } = trpc.products.flashSale.useQuery()
   const { add } = useCart()
+  const [wishlist, setWishlist] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('wishlist') || '[]') } catch { return [] }
+  })
+  const toggleWish = (id: string) => {
+    const next = wishlist.includes(id) ? wishlist.filter(w => w !== id) : [...wishlist, id]
+    setWishlist(next)
+    localStorage.setItem('wishlist', JSON.stringify(next))
+  }
   const [added, setAdded] = useState<number | null>(null)
 
   const onAdd = (id: number, name: string, price: number) => {
@@ -181,17 +189,21 @@ export default function HomePage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {products?.map((p) => (
               <div key={p.id} className={`group bg-white rounded-2xl border overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all ${p.sellerVerified ? 'border-neutral-200 ring-1 ring-sky-100' : 'border-neutral-200'}`}>
-                <Link to={`/product/${p.slug}`} className="block relative bg-white">
-                  <img src={p.image} alt={p.name} className="w-full aspect-square object-cover" loading="lazy" />
+                <div className="block relative bg-white">
+                  <Link to={`/product/${p.slug}`}>
+                    <img src={p.image} alt={p.name} className="w-full aspect-[4/3] object-contain bg-gray-50" loading="lazy" />
+                  </Link>
                   {p.discount > 0 && (
                     <span className="absolute top-3 left-3 text-xs font-bold text-white px-2 py-1 rounded-full" style={{ background: ORANGE }}>−{p.discount}%</span>
                   )}
-                  {p.sellerVerified && (
-                    <span className="absolute top-3 right-3 bg-white/95 rounded-full p-1 shadow" title="Verified seller">
-                      <BadgeCheck size={16} className="text-sky-600" />
-                    </span>
-                  )}
-                </Link>
+                  <button
+                    onClick={(e) => { e.preventDefault(); toggleWish(p.id) }}
+                    className="absolute top-3 right-3 bg-white/95 rounded-full p-1.5 shadow hover:scale-110 transition-transform"
+                    title={wishlist.includes(p.id) ? 'Remove from wishlist' : 'Add to wishlist'}
+                  >
+                    <Heart size={16} className={wishlist.includes(p.id) ? 'text-red-500 fill-red-500' : 'text-gray-400'} />
+                  </button>
+                </div>
                 <div className="p-4">
                   {p.sellerVerified ? (
                     <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full mb-1.5">
@@ -210,9 +222,9 @@ export default function HomePage() {
                   </div>
                   <button
                     onClick={() => onAdd(p.id, p.name, p.price)}
-                    className="mt-3 w-full flex items-center justify-center gap-1.5 text-xs font-bold text-white py-2.5 rounded-full transition-colors"
+                    className="mt-3 w-full flex items-center justify-center gap-2 text-sm font-bold text-white py-3 rounded-xl transition-colors shadow-sm active:scale-95"
                     style={{ background: added === p.id ? '#16a34a' : ORANGE }}>
-                    {added === p.id ? <><Check size={14} /> Added</> : <><ShoppingCart size={14} /> Add to cart</>}
+                    {added === p.id ? <><Check size={16} /> Added to cart</> : <><ShoppingCart size={16} /> Add to cart</>}
                   </button>
                 </div>
               </div>
