@@ -1,4 +1,5 @@
 import { Link } from 'react-router'
+import { useState, useEffect } from 'react'
 import {
   ArrowLeft, Truck, Package, MapPin, CheckCircle2,
   CircleDashed, Clock, Loader2, AlertCircle
@@ -32,7 +33,15 @@ function getStatusIndex(status: string) {
 }
 
 export default function DeliveriesPage() {
-  const account = getAccount()
+  const [account, setAccount] = useState<any>(null)
+  const [loadingAccount, setLoadingAccount] = useState(true)
+
+  useEffect(() => {
+    const acc = getAccount()
+    setAccount(acc)
+    setLoadingAccount(false)
+  }, [])
+
 
   const { data: ordersData, isLoading } = trpc.orders.myOrders.useQuery(
     { phone: account?.phone ?? '' },
@@ -41,7 +50,7 @@ export default function DeliveriesPage() {
 
   const orders = (ordersData as any)?.orders ?? ordersData ?? []
 
-  if (isLoading) {
+  if (loadingAccount || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <Loader2 className="w-8 h-8 animate-spin" style={{ color: ORANGE }} />
