@@ -1,6 +1,6 @@
-import { useMemo } from 'react'
+import {useState,  useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { BadgeCheck, Check, MessageCircle, RefreshCcw, ShoppingCart, Star, Store, Timer } from 'lucide-react'
+import {Heart,  BadgeCheck, Check, MessageCircle, RefreshCcw, ShoppingCart, Star, Store, Timer } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { trpc } from '@/providers/trpc'
@@ -26,6 +26,14 @@ export default function Catalog() {
 
   const { data: items, isLoading } = trpc.products.browse.useQuery({ category, condition, deals })
   const { add } = useCart()
+  const [wishlist, setWishlist] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('wishlist') || '[]') } catch { return [] }
+  })
+  const toggleWish = (id: string) => {
+    const next = wishlist.includes(id) ? wishlist.filter(w => w !== id) : [...wishlist, id]
+    setWishlist(next)
+    localStorage.setItem('wishlist', JSON.stringify(next))
+  }
   const [added, setAdded] = useState<string | null>(null)
 
   const setFilter = (key: string, value: string | null) => {
@@ -106,9 +114,9 @@ export default function Catalog() {
                 <div key={key} className="group bg-white rounded-2xl border border-neutral-200 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all">
                   <div className="relative bg-white">
                     {p.kind === 'product' ? (
-                      <Link to={`/product/${p.slug}`}><img src={p.image} alt={p.name} className="w-full aspect-square object-cover" loading="lazy" /></Link>
+                      <Link to={`/product/${p.slug}`}><img src={p.image} alt={p.name} className="w-full aspect-[4/3] object-contain bg-gray-50" loading="lazy" /></Link>
                     ) : (
-                      <img src={p.image} alt={p.name} className="w-full aspect-square object-cover" loading="lazy" />
+                      <img src={p.image} alt={p.name} className="w-full aspect-[4/3] object-contain bg-gray-50" loading="lazy" />
                     )}
                     {p.discount > 0 && (
                       <span className="absolute top-3 left-3 text-xs font-bold text-white px-2 py-1 rounded-full" style={{ background: ORANGE }}>−{p.discount}%</span>
@@ -148,7 +156,7 @@ export default function Catalog() {
                           setAdded(key)
                           setTimeout(() => setAdded(null), 1200)
                         }}
-                        className="mt-3 w-full flex items-center justify-center gap-1.5 text-xs font-bold text-white py-2.5 rounded-full transition-colors"
+                        className="mt-3 w-full flex items-center justify-center gap-2 text-sm font-bold text-white py-3 rounded-xl transition-colors shadow-sm active:scale-95"
                         style={{ background: added === key ? '#16a34a' : ORANGE }}
                       >
                         {added === key ? <><Check size={14} /> Added</> : <><ShoppingCart size={14} /> Add to cart</>}
