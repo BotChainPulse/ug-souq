@@ -105,16 +105,16 @@ export default function AccountPage() {
   const wishlistCount = 0
 
   const menuItems = [
-    { icon: MapPinned, label: 'Addresses', to: '/addresses' },
-    { icon: CreditCard, label: 'Manage Cards', to: '/payment-settings' },
+    { icon: MapPinned, label: 'Addresses', to: '/account' },
+    { icon: CreditCard, label: 'Manage Cards', to: '/account' },
     { icon: Truck, label: 'Deliveries', to: '/deliveries' },
     { icon: Undo2, label: 'Returns', to: '/returns' },
     { icon: ShieldCheck, label: 'Warranty Claims', to: '/terms' },
     { icon: Globe, label: 'Language', value: 'English', to: '/account' },
     { icon: MapPin, label: 'Country', value: 'Uganda', to: '/account' },
-    { icon: Settings, label: 'Preferences', to: '/account' },
+    { icon: Settings, label: 'Preferences', to: '/preferences' },
     { icon: Bell, label: 'Notifications', to: '/notifications' },
-    { icon: Lock, label: 'Account Security', to: '/account' },
+    { icon: Lock, label: 'Account Security', to: '/account-security' },
   ]
 
   if (!account || editing) {
@@ -393,18 +393,6 @@ export default function AccountPage() {
       </div>
 
       <Footer />
-
-      {/* Floating Help Button */}
-      <a
-        href="https://wa.me/256708813419"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="fixed bottom-24 right-4 font-bold px-4 py-3 rounded-full shadow-lg flex items-center gap-2 z-50 text-black"
-        style={{ backgroundColor: '#facc15' }}
-      >
-        <HelpCircle size={20} />
-        Need Help?
-      </a>
 
       {/* Bottom Nav */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
