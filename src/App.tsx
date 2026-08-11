@@ -24,6 +24,11 @@ import ProductDetail from './pages/ProductDetail'
 import SouqHubs from './pages/SouqHubs'
 import GroupBuying from './pages/GroupBuying'
 import Deliveries from './pages/Deliveries'
+import Notifications from './pages/Notifications'
+import Preferences from './pages/Preferences'
+import AccountSecurity from './pages/AccountSecurity'
+import PaymentSettings from './pages/PaymentSettings'
+import Addresses from './pages/Addresses'
 
 export default function App() {
   return (
@@ -54,7 +59,12 @@ export default function App() {
         <Route path="/pay" element={<Pay />} />
         <Route path="/hubs" element={<SouqHubs />} />
         <Route path="/group-buying" element={<GroupBuying />} />
-      </Routes>
+              <Route path="/notifications" element={<Notifications />} />
+        <Route path="/preferences" element={<Preferences />} />
+        <Route path="/account-security" element={<AccountSecurity />} />
+        <Route path="/payment-settings" element={<PaymentSettings />} />
+        <Route path="/addresses" element={<Addresses />} />
+</Routes>
     </CartProvider>
   )
 }
