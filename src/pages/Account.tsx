@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useLocation } from 'wouter'
+import { Link, useNavigate } from 'react-router'
 import {
   UserRound, MapPin, Phone, Package, Pencil, LogOut,
   CircleCheckBig, Truck, XCircle, CircleDashed, Trash2,
@@ -44,7 +44,7 @@ export default function AccountPage() {
   const register = trpc.customers.register.useMutation()
   const deleteAccount = trpc.customers.deleteAccount.useMutation()
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [, navigate] = useLocation()
+  const navigate = useNavigate()
 
   const { data: profileData } = trpc.customers.me.useQuery(
     { phone: account?.phone ?? '' },
