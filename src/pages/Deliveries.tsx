@@ -1,4 +1,4 @@
-import { Link } from 'wouter'
+import { Link } from 'react-router'
 import {
   ArrowLeft, Truck, Package, MapPin, CheckCircle2,
   CircleDashed, Clock, Loader2, AlertCircle
