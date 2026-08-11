@@ -105,8 +105,8 @@ export default function AccountPage() {
   const wishlistCount = 0
 
   const menuItems = [
-    { icon: MapPinned, label: 'Addresses', to: '/account' },
-    { icon: CreditCard, label: 'Manage Cards', to: '/account' },
+    { icon: MapPinned, label: 'Addresses', to: '/addresses' },
+    { icon: CreditCard, label: 'Manage Cards', to: '/payment-settings' },
     { icon: Truck, label: 'Deliveries', to: '/deliveries' },
     { icon: Undo2, label: 'Returns', to: '/returns' },
     { icon: ShieldCheck, label: 'Warranty Claims', to: '/terms' },
