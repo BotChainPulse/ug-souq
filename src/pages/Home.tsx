@@ -207,10 +207,10 @@ export default function HomePage() {
                 <div className="p-4">
                   {p.sellerVerified ? (
                     <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full mb-1.5">
-                      <BadgeCheck size={12} /> {p.sellerName}
+                      <BadgeCheck size={12} /> <Link to={`/seller/${p.sellerId}`} className="hover:underline">{p.sellerName}</Link>
                     </span>
                   ) : (
-                    <span className="block text-[11px] text-neutral-400 mb-1.5">{p.sellerName}</span>
+                    <span className="block text-[11px] text-neutral-400 mb-1.5"><Link to={`/seller/${p.sellerId}`} className="hover:underline">{p.sellerName}</Link></span>
                   )}
                   <Link to={`/product/${p.slug}`}><h3 className="text-sm font-medium leading-snug line-clamp-2 min-h-[2.6em] hover:text-orange-600">{p.name}</h3></Link>
                   <div className="mt-2 flex items-baseline gap-2">

@@ -90,10 +90,10 @@ export default function ProductDetailPage() {
                   <span className="text-neutral-500">Sold by</span>
                   {p.sellerVerified ? (
                     <span className="inline-flex items-center gap-1 font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full text-xs">
-                      <BadgeCheck size={13} /> {p.sellerName}
+                      <BadgeCheck size={13} /> <Link to={`/seller/${p.sellerId}`} className="hover:underline">{p.sellerName}</Link>
                     </span>
                   ) : (
-                    <span className="font-medium">{p.sellerName}</span>
+                    <span className="font-medium"><Link to={`/seller/${p.sellerId}`} className="hover:underline">{p.sellerName}</Link></span>
                   )}
                   <span className="inline-flex items-center gap-1 text-xs text-amber-600 font-semibold">
                     <Star size={13} fill="currentColor" /> {p.sellerRating.toFixed(1)} seller rating
@@ -189,7 +189,7 @@ export default function ProductDetailPage() {
                     </span>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm flex items-center gap-1.5">
-                        {p.sellerName}
+                        <Link to={`/seller/${p.sellerId}`} className="hover:underline">{p.sellerName}</Link>
                         {p.sellerVerified && <BadgeCheck size={15} className="text-sky-600" />}
                       </p>
                       <p className="text-xs text-neutral-500 mt-0.5">

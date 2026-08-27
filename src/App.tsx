@@ -30,6 +30,7 @@ import AccountSecurity from './pages/AccountSecurity'
 import PaymentSettings from './pages/PaymentSettings'
 import Addresses from './pages/Addresses'
 import Wishlist from './pages/Wishlist'
+import SellerPage from './pages/SellerPage'
 
 export default function App() {
   return (
@@ -55,6 +56,7 @@ export default function App() {
         <Route path="/admin" element={<Admin />} />
         <Route path="/catalog" element={<Catalog />} />
         <Route path="/product/:slug" element={<ProductDetail />} />
+        <Route path="/seller/:id" element={<SellerPage />} />
         <Route path="/mall" element={<Catalog />} />
         <Route path="/boda" element={<Boda />} />
         <Route path="/pay" element={<Pay />} />

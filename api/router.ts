@@ -74,6 +74,62 @@ export const appRouter = createRouter({
         discount: row.product.oldPrice ? Math.round((1 - row.product.price / row.product.oldPrice) * 100) : 0,
       };
     }),
+    bySeller: publicQuery.input(z.object({ sellerId: z.number() })).query(async ({ input }) => {
+      const db = getDb();
+      const [seller] = await db.select().from(sellers).where(eq(sellers.id, input.sellerId));
+      if (!seller) return null;
+      const rows = await db
+        .select({ product: products, seller: sellers })
+        .from(products)
+        .innerJoin(sellers, eq(products.sellerId, sellers.id))
+        .where(eq(products.sellerId, input.sellerId));
+      const items = rows.map(({ product, seller }) => ({
+        kind: "product" as const,
+        ...product,
+        sellerName: seller.shopName,
+        sellerVerified: seller.verified,
+        sellerPhone: seller.phone,
+        discount: product.oldPrice ? Math.round((1 - product.price / product.oldPrice) * 100) : 0,
+      }));
+      const lrows = await db
+        .select({ listing: listings, seller: sellers })
+        .from(listings)
+        .innerJoin(sellers, eq(listings.sellerId, sellers.id))
+        .where(eq(listings.sellerId, input.sellerId));
+      const litems = lrows
+        .filter(({ listing }) => listing.status === "approved")
+        .map(({ listing, seller }) => ({
+          kind: "listing" as const,
+          id: listing.id,
+          sellerId: listing.sellerId,
+          name: listing.name,
+          slug: 'listing-' + listing.id,
+          category: listing.category,
+          price: listing.price,
+          oldPrice: listing.oldPrice,
+          image: listing.imageData ?? "/images/product-default.png",
+          stock: listing.stock,
+          condition: listing.condition,
+          warrantyMonths: listing.warrantyMonths,
+          flashSale: false,
+          createdAt: listing.createdAt,
+          sellerName: seller.shopName,
+          sellerVerified: seller.verified,
+          sellerPhone: seller.phone,
+          discount: listing.oldPrice ? Math.round((1 - listing.price / listing.oldPrice) * 100) : 0,
+        }));
+      return {
+        seller: {
+          id: seller.id,
+          shopName: seller.shopName,
+          verified: seller.verified,
+          rating: seller.rating / 10,
+          phone: seller.phone,
+          district: seller.district,
+        },
+        products: [...items, ...litems].sort((a, b) => Number(b.sellerVerified) - Number(a.sellerVerified)),
+      };
+    }),
     browse: publicQuery
       .input(z.object({
         category: z.string().optional(),
