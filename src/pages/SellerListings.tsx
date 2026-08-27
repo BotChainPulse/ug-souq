@@ -22,9 +22,17 @@ function fileToDataUrl(file: File): Promise<string> {
       const canvas = document.createElement('canvas')
       canvas.width = w
       canvas.height = h
-      canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(img, 0, 0, w, h)
       URL.revokeObjectURL(url)
-      resolve(canvas.toDataURL('image/jpeg', 0.82))
+      // Keep the data URL small enough to save reliably; step down quality if needed.
+      let quality = 0.82
+      let data = canvas.toDataURL('image/jpeg', quality)
+      while (data.length > 350_000 && quality > 0.4) {
+        quality -= 0.1
+        data = canvas.toDataURL('image/jpeg', quality)
+      }
+      resolve(data)
     }
     img.onerror = reject
     img.src = url
