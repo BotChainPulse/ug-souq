@@ -74,9 +74,9 @@ export default function SellerListings() {
   })
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }))
   const [justAdded, setJustAdded] = useState(false)
-  const [photo, setPhoto] = useState<File | null>(null);
+  const [photo, setPhoto] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
-  const onPhoto = (file: File) => { setPhoto(file); };
+  const onPhoto = async (file?: File) => { if (!file) return; setPhotoBusy(true); try { setPhoto(await fileToDataUrl(file)); } catch { setPhoto(null); } finally { setPhotoBusy(false); } };
 
   const seller = lookup.data
   const approved = seller?.status === 'approved'
@@ -86,7 +86,7 @@ export default function SellerListings() {
     form.name.trim().length >= 3 &&
     Number(form.price) >= 100 &&
     Number(form.stock) >= 1 &&
-    photo !== null &&
+    photo !== null && !photoBusy &&
     (form.condition === 'new' || Number(form.warrantyMonths) >= 1)
 
   const submit = async () => {
