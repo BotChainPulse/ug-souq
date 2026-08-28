@@ -51,7 +51,7 @@ export default function AccountPage() {
     { enabled: !!account },
   )
 
-  const { data: ordersData } = trpc.orders.myOrders.useQuery(
+  const { data: ordersData } = trpc.orders.byPhone.useQuery(
     { phone: account?.phone ?? '' },
     { enabled: !!account },
   )
@@ -101,7 +101,7 @@ export default function AccountPage() {
     window.location.href = '/'
   }
 
-  const orders = (ordersData as any)?.orders ?? ordersData ?? []
+  const orders = ordersData ?? []
   const [wishlistCount, setWishlistCount] = useState(0)
   useEffect(() => {
     try {
