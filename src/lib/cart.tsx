@@ -27,11 +27,32 @@ const STORAGE_KEY = 'ugsouq_cart'
 const sameKey = (a: { itemType: string; itemId: string | number }, b: { itemType: string; itemId: string | number }) =>
   a.itemType === b.itemType && String(a.itemId) === String(b.itemId)
 
+const safeQty = (q: any) => {
+  const n = Number(q)
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 1
+}
+
+const sanitize = (raw: any[]): CartItem[] => {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .filter((i) => i && i.itemType != null && i.itemId != null)
+    .map((i) => ({
+      itemType: String(i.itemType),
+      itemId: i.itemId,
+      name: typeof i.name === 'string' ? i.name : 'Item',
+      price: Number.isFinite(Number(i.price)) ? Number(i.price) : 0,
+      qty: safeQty(i.qty),
+      ...(i.image != null ? { image: i.image } : {}),
+      ...(i.sellerId != null ? { sellerId: i.sellerId } : {}),
+      ...(i.sellerName != null ? { sellerName: i.sellerName } : {}),
+    }))
+}
+
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY)
-      return raw ? JSON.parse(raw) : []
+      return sanitize(raw ? JSON.parse(raw) : [])
     } catch {
       return []
     }
@@ -45,7 +66,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const add: CartContextType['add'] = (item) => {
     setItems((prev) => {
       const existing = prev.find((i) => sameKey(i, item))
-      const qty = item.qty ?? 1
+      const qty = safeQty(item.qty ?? 1)
       const next = existing
         ? prev.map((i) => (sameKey(i, item) ? { ...i, qty: i.qty + qty } : i))
         : [...prev, { ...item, qty } as CartItem]
@@ -56,10 +77,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const setQty: CartContextType['setQty'] = (itemType, itemId, qty) => {
     setItems((prev) => {
+      const n = Number(qty)
       const next =
-        qty <= 0
+        !Number.isFinite(n) || n <= 0
           ? prev.filter((i) => !(i.itemType === itemType && String(i.itemId) === String(itemId)))
-          : prev.map((i) => (i.itemType === itemType && String(i.itemId) === String(itemId) ? { ...i, qty } : i))
+          : prev.map((i) => (i.itemType === itemType && String(i.itemId) === String(itemId) ? { ...i, qty: Math.floor(n) } : i))
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)) } catch {}
       return next
     })
