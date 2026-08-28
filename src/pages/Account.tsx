@@ -237,7 +237,7 @@ export default function AccountPage() {
 
       {/* Orders & Wishlist Quick Cards */}
       <div className="mx-3 mt-3 grid grid-cols-2 gap-3">
-        <Link to="/my-orders">
+        <Link to="/orders">
           <div className="bg-white rounded-2xl p-4 shadow-sm">
             <div className="flex items-center justify-between mb-2">
               <Package size={20} style={{ color: ORANGE }} />
@@ -356,7 +356,7 @@ export default function AccountPage() {
             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
               <Package size={20} style={{ color: ORANGE }} /> My Orders
             </h2>
-            <Link to="/my-orders" className="text-sm font-semibold" style={{ color: ORANGE }}>
+            <Link to="/orders" className="text-sm font-semibold" style={{ color: ORANGE }}>
               See all ({orders.length})
             </Link>
           </div>
