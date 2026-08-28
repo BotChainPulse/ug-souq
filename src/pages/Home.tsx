@@ -5,7 +5,7 @@ import {
   Smartphone, Cpu, Refrigerator, Armchair, Shirt, Sparkles, Tractor, Sun, Wrench, Footprints,
   GraduationCap, Dumbbell, Baby, Gamepad2, Dog, Apple, Bike, BookOpen,
   UtensilsCrossed, Timer, Send, Leaf, Recycle, Wallet, Zap, Star, Truck,
-  ShieldCheck, Heart, Home as HomeIcon, BadgeCheck, Handshake, ShoppingCart, Check,
+  ShieldCheck, Home as HomeIcon, BadgeCheck, Handshake, ShoppingCart, Check,
 } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
