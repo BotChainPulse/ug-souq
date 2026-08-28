@@ -8,17 +8,18 @@ import { fmt, useCart } from '../lib/cart'
 
 export default function WishlistPage() {
   const [wishlist, setWishlist] = useState<string[]>([])
-  const [items, setItems] = useState<any[]>([])
   const { add } = useCart()
 
   useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem('wishlist') || '[]')
-    setWishlist(saved)
-    // Fetch product details for wishlisted items
-    // For now, show a simple message
+    try {
+      const saved = JSON.parse(localStorage.getItem('wishlist') || '[]')
+      setWishlist(Array.isArray(saved) ? saved : [])
+    } catch {
+      setWishlist([])
+    }
   }, [])
 
-  const remove = (id: string) => {
+  const remove = (id: any) => {
     const next = wishlist.filter(w => w !== id)
     setWishlist(next)
     localStorage.setItem('wishlist', JSON.stringify(next))
@@ -46,14 +47,14 @@ export default function WishlistPage() {
         </div>
       ) : (
         <div className="px-4 py-4 space-y-3">
-          {wishlist.map((id) => (
-            <div key={id} className="bg-white rounded-xl p-4 shadow-sm flex items-center justify-between">
+          {wishlist.map((id: any) => (
+            <div key={String(id)} className="bg-white rounded-xl p-4 shadow-sm flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
                   <Heart size={24} className="text-red-500" />
                 </div>
                 <div>
-                  <p className="font-medium text-sm text-gray-900">Product {id.slice(0, 8)}</p>
+                  <p className="font-medium text-sm text-gray-900">Product {String(id).slice(0, 8)}</p>
                   <p className="text-xs text-gray-500">Saved to wishlist</p>
                 </div>
               </div>
