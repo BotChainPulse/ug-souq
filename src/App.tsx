@@ -23,6 +23,7 @@ import Account from './pages/Account'
 import ProductDetail from './pages/ProductDetail'
 import SouqHubs from './pages/SouqHubs'
 import GroupBuying from './pages/GroupBuying'
+import Wishlist from './pages/Wishlist'
 
 export default function App() {
   return (
@@ -52,7 +53,8 @@ export default function App() {
         <Route path="/pay" element={<Pay />} />
         <Route path="/hubs" element={<SouqHubs />} />
         <Route path="/group-buying" element={<GroupBuying />} />
-      </Routes>
+              <Route path="/wishlist" element={<Wishlist />} />
+</Routes>
     </CartProvider>
   )
 }
