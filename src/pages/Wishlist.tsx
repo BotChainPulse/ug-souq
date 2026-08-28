@@ -4,8 +4,7 @@ import { ArrowLeft, Heart, ShoppingCart, Trash2 } from 'lucide-react'
 import { ORANGE } from '../lib/site'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
-import { useCart } from '../hooks/useCart'
-import { fmt } from '../lib/cart'
+import { fmt, useCart } from '../lib/cart'
 
 export default function WishlistPage() {
   const [wishlist, setWishlist] = useState<string[]>([])
