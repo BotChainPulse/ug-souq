@@ -6,6 +6,7 @@ import Footer from '../components/Footer'
 import { trpc } from '@/providers/trpc'
 import { fmt } from '../lib/cart'
 import { ORANGE } from '../lib/site'
+import { getAccount } from '../lib/account'
 
 const SAVED_PHONE_KEY = 'ugsouq_myphone'
 
@@ -26,8 +27,9 @@ function StatusPill({ status }: { status: string }) {
 }
 
 export default function MyOrders() {
-  const [phone, setPhone] = useState(() => localStorage.getItem(SAVED_PHONE_KEY) ?? '')
-  const [searched, setSearched] = useState(() => localStorage.getItem(SAVED_PHONE_KEY) ?? '')
+  const savedPhone = localStorage.getItem(SAVED_PHONE_KEY) ?? getAccount()?.phone ?? ''
+  const [phone, setPhone] = useState(savedPhone)
+  const [searched, setSearched] = useState(savedPhone)
   const orders = trpc.orders.byPhone.useQuery(
     { phone: searched },
     { enabled: searched.trim().length >= 9, retry: false },
