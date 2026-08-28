@@ -102,7 +102,15 @@ export default function AccountPage() {
   }
 
   const orders = (ordersData as any)?.orders ?? ordersData ?? []
-  const wishlistCount = 0
+  const [wishlistCount, setWishlistCount] = useState(0)
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('wishlist') || '[]')
+      setWishlistCount(Array.isArray(saved) ? saved.length : 0)
+    } catch {
+      setWishlistCount(0)
+    }
+  }, [])
 
   const menuItems = [
     { icon: MapPinned, label: 'Addresses', to: '/addresses' },
