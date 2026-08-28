@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Minus, Plus, Trash2, ShoppingCart, CircleCheckBig, Wallet, Truck, Package } from 'lucide-react'
+import { Minus, Plus, Trash2, ShoppingCart, Wallet, Truck, Package } from 'lucide-react'
 import { DELIVERY_ZONES, PICKUP_POINTS } from '../lib/delivery'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -8,17 +8,14 @@ import { fmt, useCart } from '../lib/cart'
 import { trpc } from '@/providers/trpc'
 import { ORANGE } from '../lib/site'
 import { getAccount, saveAccount } from '../lib/account'
-import { MOMO_MERCHANT, AIRTEL_MERCHANT } from '../lib/site'
+import OrderConfirmation from '../components/OrderConfirmation'
 
 export default function Cart() {
   const { items, setQty, remove, clear, subtotal, count } = useCart()
   const acc = getAccount()
   const [form, setForm] = useState({ name: acc?.name ?? '', phone: acc?.phone ?? '', address: acc?.location ?? '', payment: 'mtn_momo' as 'mtn_momo' | 'airtel_money' | 'cash' })
   const createOrder = trpc.orders.create.useMutation()
-  const submitPayment = trpc.orders.submitPayment.useMutation()
   const [placed, setPlaced] = useState<{ code: string; total: number; phone: string; payment: 'mtn_momo' | 'airtel_money' | 'cash' } | null>(null)
-  const [payRef, setPayRef] = useState('')
-  const [paySent, setPaySent] = useState(false)
 
   const [zoneId, setZoneId] = useState('kampala')
   const [shipMethod, setShipMethod] = useState<'door' | 'pickup'>('door')
@@ -57,65 +54,8 @@ export default function Cart() {
       <Header />
       <div className="mx-auto max-w-3xl px-4 py-10">
         {placed ? (
-        <>
-          <div className="bg-white rounded-2xl border border-neutral-200 p-10 text-center">
-            <CircleCheckBig size={52} className="mx-auto text-green-600" />
-            <h1 className="mt-4 text-2xl font-extrabold">Order placed!</h1>
-            <p className="mt-2 text-neutral-600">Your order code is</p>
-            <p className="mt-1 text-3xl font-extrabold tracking-widest" style={{ color: ORANGE }}>{placed.code}</p>
-            <p className="mt-3 text-sm text-neutral-600">Total: <b>{fmt(placed.total)}</b> · We'll confirm on WhatsApp/SMS shortly.</p>
-            <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
-              <Link to="/account" className="px-6 py-3 rounded-full text-sm font-bold text-white" style={{ background: ORANGE }}>View my account & orders</Link>
-              <Link to="/" className="px-6 py-3 rounded-full text-sm font-bold border border-neutral-300 hover:border-neutral-500">Continue shopping</Link>
-            </div>
-          </div>
-        {placed.payment !== 'cash' && (
-          <div className="mt-4 bg-white rounded-2xl border border-neutral-200 p-6 sm:p-8 text-left max-w-lg mx-auto">
-            {(() => {
-              const m = placed.payment === 'mtn_momo' ? MOMO_MERCHANT : AIRTEL_MERCHANT
-              const label = placed.payment === 'mtn_momo' ? 'MTN MoMo' : 'Airtel Money'
-              return paySent ? (
-                <div className="text-center">
-                  <CircleCheckBig size={40} className="mx-auto text-green-600" />
-                  <h2 className="mt-3 font-extrabold text-lg">Payment received for confirmation</h2>
-                  <p className="mt-1.5 text-sm text-neutral-600">We're verifying your {label} transaction ID. Once confirmed, your order moves to <b>Confirmed</b> and delivery starts. You can watch it in My Account.</p>
-                </div>
-              ) : (
-                <>
-                  <h2 className="font-extrabold text-lg">Pay {fmt(placed.total)} with {label}</h2>
-                  <ol className="mt-3 space-y-2 text-sm text-neutral-700 list-decimal list-inside">
-                    <li>Open {label} on your phone ({placed.payment === 'mtn_momo' ? '*165#' : '*185#'})</li>
-                    <li>Send <b>{fmt(placed.total)}</b> to <b>{m.number}</b> ({m.name})</li>
-                    <li>Use order code <b className="font-mono">{placed.code}</b> as the reason/reference</li>
-                    <li>Copy the <b>transaction ID</b> from the confirmation SMS and paste it below</li>
-                  </ol>
-                  <input
-                    value={payRef}
-                    onChange={(e) => setPayRef(e.target.value)}
-                    placeholder="Transaction ID (from the SMS)"
-                    className="mt-4 w-full border border-neutral-300 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-neutral-500 font-mono"
-                  />
-                  <button
-                    disabled={payRef.trim().length < 6 || submitPayment.isPending}
-                    onClick={async () => {
-                      try {
-                        await submitPayment.mutateAsync({ code: placed.code, phone: placed.phone, ref: payRef.trim() })
-                        setPaySent(true)
-                      } catch { /* error shown below */ }
-                    }}
-                    className="mt-3 w-full text-sm font-bold text-white py-3 rounded-full disabled:opacity-40"
-                    style={{ background: ORANGE }}>
-                    {submitPayment.isPending ? 'Submitting…' : "I've sent the money"}
-                  </button>
-                  {submitPayment.isError && <p className="mt-2 text-sm text-red-600 text-center">{submitPayment.error.message}</p>}
-                  <p className="mt-3 text-xs text-neutral-500 text-center">Prefer to pay cash? Tell us on WhatsApp and we'll switch the order.</p>
-                </>
-              )
-            })()}
-          </div>
-        )}
-        </>
-        ) : items.length === 0 ? (
+        <OrderConfirmation placed={placed} />
+      ) : items.length === 0 ? (
           <div className="text-center py-16">
             <ShoppingCart size={44} className="mx-auto text-neutral-300" />
             <h1 className="mt-4 text-xl font-extrabold">Your cart is empty</h1>
