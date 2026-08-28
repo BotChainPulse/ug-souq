@@ -7,7 +7,6 @@ import { trpc } from '@/providers/trpc'
 import { fmt, useCart } from '../lib/cart'
 import { ORANGE, WHATSAPP_INTL } from '../lib/site'
 import { CATEGORIES, categoryName } from '../lib/categories'
-import { useState } from 'react'
 
 export default function Catalog() {
   const [params, setParams] = useSearchParams()
