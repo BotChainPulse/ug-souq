@@ -375,12 +375,12 @@ export default function AccountPage() {
                 </div>
                 {o.items?.map((it: any, idx: number) => (
                   <div key={idx} className="flex items-center justify-between py-1">
-                    <span className="text-sm text-gray-700">{it.quantity}× {it.name}</span>
-                    <span className="text-sm font-semibold text-gray-900">UGX {fmt(it.price * it.quantity)}</span>
+                    <span className="text-sm text-gray-700">{it.qty}× {it.name}</span>
+                    <span className="text-sm font-semibold text-gray-900">UGX {fmt(it.price * it.qty)}</span>
                   </div>
                 ))}
                 <div className="flex items-center justify-between pt-2 mt-2 border-t border-gray-100">
-                  <span className="text-xs text-gray-500">Total ({paymentLabel(o.paymentMethod)})</span>
+                  <span className="text-xs text-gray-500">Total ({paymentLabel({ paymentMethod: o.paymentMethod, paymentStatus: o.paymentStatus }).text})</span>
                   <span className="font-bold text-sm" style={{ color: ORANGE }}>UGX {fmt(o.total)}</span>
                 </div>
               </Link>
