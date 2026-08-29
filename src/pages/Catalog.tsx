@@ -148,10 +148,11 @@ export default function Catalog() {
                       <span className="font-extrabold" style={{ color: ORANGE }}>{fmt(p.price)}</span>
                       {p.oldPrice && <span className="text-xs text-neutral-400 line-through">{fmt(p.oldPrice)}</span>}
                     </div>
+                    <p className="mt-1 flex items-center gap-1 text-[11px] text-neutral-500"><Star size={12} className="text-amber-500" fill="currentColor" /> {'sellerRating' in p ? Number(p.sellerRating).toFixed(1) : 'Verified'} seller {p.stock > 0 ? '· In stock' : '· Out of stock'}</p>
                     {p.kind === 'product' ? (
                       <button
                         onClick={() => {
-                          add({ itemType: 'product', itemId: p.id, name: p.name, price: p.price })
+                          add({ itemType: 'product', itemId: p.id, name: p.name, price: p.price, image: p.image, sellerId: p.sellerId, sellerName: p.sellerName })
                           setAdded(key)
                           setTimeout(() => setAdded(null), 1200)
                         }}
@@ -190,3 +191,4 @@ export default function Catalog() {
     </div>
   )
 }
+

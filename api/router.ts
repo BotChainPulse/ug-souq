@@ -89,6 +89,7 @@ export const appRouter = createRouter({
         ...product,
         sellerName: seller.shopName,
         sellerVerified: seller.verified,
+        sellerRating: seller.rating / 10,
         sellerPhone: seller.phone,
         discount: product.oldPrice ? Math.round((1 - product.price / product.oldPrice) * 100) : 0,
       }));
@@ -116,6 +117,7 @@ export const appRouter = createRouter({
           createdAt: listing.createdAt,
           sellerName: seller.shopName,
           sellerVerified: seller.verified,
+          sellerRating: seller.rating / 10,
           sellerPhone: seller.phone,
           discount: listing.oldPrice ? Math.round((1 - listing.price / listing.oldPrice) * 100) : 0,
         }));
@@ -150,6 +152,7 @@ export const appRouter = createRouter({
             ...product,
             sellerName: seller.shopName,
             sellerVerified: seller.verified,
+            sellerRating: seller.rating / 10,
             sellerPhone: seller.phone,
             discount: product.oldPrice ? Math.round((1 - product.price / product.oldPrice) * 100) : 0,
           }))
@@ -180,6 +183,7 @@ export const appRouter = createRouter({
             createdAt: listing.createdAt,
             sellerName: seller.shopName,
             sellerVerified: seller.verified,
+            sellerRating: seller.rating / 10,
             sellerPhone: seller.phone,
             discount: listing.oldPrice ? Math.round((1 - listing.price / listing.oldPrice) * 100) : 0,
           }))
