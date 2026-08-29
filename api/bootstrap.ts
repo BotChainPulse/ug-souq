@@ -1,12 +1,67 @@
 // One-time database bootstrap: creates tables and loads starter data.
 // Called once after pointing DATABASE_URL at a fresh database; safe to re-run.
 import { z } from "zod";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { createRouter, publicQuery } from "./middleware";
 import { getDb } from "./queries/connection";
 import { runSeed } from "../db/seed";
+import { sellers, products } from "../db/schema";
+import { DEMO_GROCERY_SELLER, demoGroceries } from "../db/demoGroceries";
 
 const BOOTSTRAP_KEY = "ugsouq-setup-2026";
+
+async function syncDemoGroceries(db: ReturnType<typeof getDb>) {
+  // Retire the imported supplier catalog and its storefront. The generic seller
+  // route will return not found for old Kikuubo URLs after this cleanup.
+  const [legacySeller] = await db.select().from(sellers).where(eq(sellers.shopName, "Kikuubo Suppliers"));
+  if (legacySeller) {
+    await db.delete(products).where(eq(products.sellerId, legacySeller.id));
+    await db.delete(sellers).where(eq(sellers.id, legacySeller.id));
+  }
+
+  let [marketSeller] = await db.select().from(sellers).where(eq(sellers.shopName, DEMO_GROCERY_SELLER));
+  if (!marketSeller) {
+    const [created] = await db.insert(sellers).values({
+      shopName: DEMO_GROCERY_SELLER,
+      ownerName: "UG Souq Demo Catalog",
+      phone: "0700000000",
+      email: null,
+      idType: "business",
+      idNumber: "UGS-DEMO-CATALOG",
+      idPhotoName: "ugsouq-demo",
+      district: "Kampala",
+      landmark: "UG Souq online marketplace",
+      tin: null,
+      payoutMethod: "mtn_momo",
+      payoutNumber: "0700000000",
+      verified: true,
+      rating: 48,
+      status: "approved",
+    }).$returningId();
+    [marketSeller] = await db.select().from(sellers).where(eq(sellers.id, created.id));
+  }
+
+  const existing = await db.select({ slug: products.slug }).from(products).where(eq(products.sellerId, marketSeller.id));
+  const existingSlugs = new Set(existing.map(({ slug }) => slug));
+  const missing = demoGroceries.filter(({ slug }) => !existingSlugs.has(slug));
+  if (missing.length) {
+    await db.insert(products).values(missing.map((item) => ({
+      sellerId: marketSeller.id,
+      name: item.name,
+      slug: item.slug,
+      category: "grocery",
+      price: item.price,
+      oldPrice: item.oldPrice,
+      image: item.image,
+      stock: item.stock,
+      condition: "new" as const,
+      warrantyMonths: 0,
+      flashSale: false,
+    })));
+  }
+
+  return { removedLegacySeller: Boolean(legacySeller), demoProducts: existingSlugs.size + missing.length };
+}
 
 const TABLES = [
   `CREATE TABLE IF NOT EXISTS sellers (
@@ -177,56 +232,22 @@ export const bootstrapRouter = createRouter({
         await runSeed();
         seeded = true;
       }
+      const groceryCatalog = await syncDemoGroceries(db);
       const [after]: any = await db.execute(sql.raw(
         "SELECT (SELECT COUNT(*) FROM products) AS products, (SELECT COUNT(*) FROM sellers) AS sellers, (SELECT COUNT(*) FROM restaurants) AS restaurants, (SELECT COUNT(*) FROM menu_items) AS menu_items"
       ));
       const summary = Array.isArray(after) ? after[0] : after;
-      return { ok: true, seeded, ...summary };
+      return { ok: true, seeded, groceryCatalog, ...summary };
     }),
 
-  // One-off import: load the Kikuubo Suppliers wholesale catalog as real products
+  // Kept as a compatibility endpoint for existing deployment notes. It now
+  // retires the Kikuubo import and syncs the original UG Souq demo catalog.
   seedSuppliers: publicQuery
     .input(z.object({ key: z.string() }))
     .mutation(async ({ input }) => {
       if (input.key !== BOOTSTRAP_KEY) throw new Error("Invalid setup key");
       const db = getDb();
-      const { sellers, products } = await import("../db/schema");
-      const { eq } = await import("drizzle-orm");
-      const catalog: any[] = (await import("../db/kikuubo.json")).default as any[];
-      let [seller] = await db.select().from(sellers).where(eq(sellers.shopName, "Kikuubo Suppliers"));
-      if (!seller) {
-        const [row] = await db.insert(sellers).values({
-          shopName: "Kikuubo Suppliers",
-          ownerName: "Kikuubo Suppliers UG",
-          phone: "0756158466",
-          email: null, idType: "business", idNumber: "KIKUUBO-UG", idPhotoName: "kikuubo",
-          district: "Kampala", landmark: "Kikuubo Lane", tin: null,
-          payoutMethod: "mtn_momo", payoutNumber: "0756158466",
-          verified: true, rating: 48, status: "approved",
-        }).$returningId();
-        [seller] = await db.select().from(sellers).where(eq(sellers.id, row.id));
-      }
-      const existing = await db.select({ slug: products.slug }).from(products).where(eq(products.sellerId, seller.id));
-      const have = new Set(existing.map((p: any) => p.slug));
-      const fresh = catalog.filter((p) => !have.has(p.slug));
-      let inserted = 0;
-      for (const p of fresh) {
-        await db.insert(products).values({
-          sellerId: seller.id,
-          name: p.name,
-          slug: p.slug,
-          category: p.category,
-          price: p.price,
-          oldPrice: null,
-          image: p.image,
-          stock: 50,
-          condition: "new",
-          warrantyMonths: 0,
-          flashSale: false,
-        });
-        inserted++;
-      }
-      return { ok: true, inserted, total: have.size + inserted };
+      return { ok: true, ...(await syncDemoGroceries(db)) };
     }),
 });
 

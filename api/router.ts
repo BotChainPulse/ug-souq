@@ -40,6 +40,21 @@ export const appRouter = createRouter({
   migrate: migrateRouter,
 
   products: createRouter({
+    homepageGroceries: publicQuery.query(async () => {
+      const db = getDb();
+      const rows = await db
+        .select({ product: products, seller: sellers })
+        .from(products)
+        .innerJoin(sellers, eq(products.sellerId, sellers.id))
+        .where(eq(sellers.shopName, "UG Souq Market"));
+      return rows.map(({ product, seller }) => ({
+        ...product,
+        sellerName: seller.shopName,
+        sellerVerified: seller.verified,
+        sellerRating: seller.rating / 10,
+        discount: product.oldPrice ? Math.round((1 - product.price / product.oldPrice) * 100) : 0,
+      }));
+    }),
     flashSale: publicQuery.query(async () => {
       const db = getDb();
       const rows = await db
