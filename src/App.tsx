@@ -19,6 +19,7 @@ import Catalog from './pages/Catalog'
 import Boda from './pages/Boda'
 import Pay from './pages/Pay'
 import MyOrders from './pages/MyOrders'
+import OrderDetails from './pages/OrderDetails'
 import Account from './pages/Account'
 import ProductDetail from './pages/ProductDetail'
 import SouqHubs from './pages/SouqHubs'
@@ -47,6 +48,7 @@ export default function App() {
         <Route path="/cart" element={<Cart />} />
         <Route path="/track" element={<TrackOrder />} />
         <Route path="/orders" element={<MyOrders />} />
+        <Route path="/orders/:code" element={<OrderDetails />} />
         <Route path="/account" element={<Account />} />
         <Route path="/deliveries" element={<Deliveries />} />
         <Route path="/returns" element={<Returns />} />
