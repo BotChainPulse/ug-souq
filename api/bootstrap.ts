@@ -1,67 +1,13 @@
 // One-time database bootstrap: creates tables and loads starter data.
 // Called once after pointing DATABASE_URL at a fresh database; safe to re-run.
 import { z } from "zod";
-import { eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { createRouter, publicQuery } from "./middleware";
 import { getDb } from "./queries/connection";
 import { runSeed } from "../db/seed";
-import { sellers, products } from "../db/schema";
-import { DEMO_GROCERY_SELLER, demoGroceries } from "../db/demoGroceries";
+import { syncDemoGroceries } from "./demoGroceries";
 
 const BOOTSTRAP_KEY = "ugsouq-setup-2026";
-
-async function syncDemoGroceries(db: ReturnType<typeof getDb>) {
-  // Retire the imported supplier catalog and its storefront. The generic seller
-  // route will return not found for old Kikuubo URLs after this cleanup.
-  const [legacySeller] = await db.select().from(sellers).where(eq(sellers.shopName, "Kikuubo Suppliers"));
-  if (legacySeller) {
-    await db.delete(products).where(eq(products.sellerId, legacySeller.id));
-    await db.delete(sellers).where(eq(sellers.id, legacySeller.id));
-  }
-
-  let [marketSeller] = await db.select().from(sellers).where(eq(sellers.shopName, DEMO_GROCERY_SELLER));
-  if (!marketSeller) {
-    const [created] = await db.insert(sellers).values({
-      shopName: DEMO_GROCERY_SELLER,
-      ownerName: "UG Souq Demo Catalog",
-      phone: "0700000000",
-      email: null,
-      idType: "business",
-      idNumber: "UGS-DEMO-CATALOG",
-      idPhotoName: "ugsouq-demo",
-      district: "Kampala",
-      landmark: "UG Souq online marketplace",
-      tin: null,
-      payoutMethod: "mtn_momo",
-      payoutNumber: "0700000000",
-      verified: true,
-      rating: 48,
-      status: "approved",
-    }).$returningId();
-    [marketSeller] = await db.select().from(sellers).where(eq(sellers.id, created.id));
-  }
-
-  const existing = await db.select({ slug: products.slug }).from(products).where(eq(products.sellerId, marketSeller.id));
-  const existingSlugs = new Set(existing.map(({ slug }) => slug));
-  const missing = demoGroceries.filter(({ slug }) => !existingSlugs.has(slug));
-  if (missing.length) {
-    await db.insert(products).values(missing.map((item) => ({
-      sellerId: marketSeller.id,
-      name: item.name,
-      slug: item.slug,
-      category: "grocery",
-      price: item.price,
-      oldPrice: item.oldPrice,
-      image: item.image,
-      stock: item.stock,
-      condition: "new" as const,
-      warrantyMonths: 0,
-      flashSale: false,
-    })));
-  }
-
-  return { removedLegacySeller: Boolean(legacySeller), demoProducts: existingSlugs.size + missing.length };
-}
 
 const TABLES = [
   `CREATE TABLE IF NOT EXISTS sellers (

@@ -132,6 +132,7 @@ export default function HomePage() {
                 <div className="relative bg-neutral-50"><Link to={`/product/${p.slug}`}><img src={p.image} alt={p.name} className="aspect-square w-full object-contain" loading="lazy" /></Link>
                   {p.discount > 0 && <span className="absolute left-2 top-2 rounded-md bg-emerald-700 px-1.5 py-1 text-[10px] font-extrabold text-white">−{p.discount}%</span>}
                   <button onClick={(e) => { e.preventDefault(); toggleWish(p.id) }} className="absolute right-2 top-2 rounded-full bg-white p-1.5 shadow" aria-label={wishlist.includes(String(p.id)) ? `Remove ${p.name} from wishlist` : `Add ${p.name} to wishlist`}><Heart size={15} className={wishlist.includes(String(p.id)) ? 'fill-red-500 text-red-500' : 'text-neutral-500'} /></button>
+                  <span className="absolute bottom-2 left-2 rounded-full bg-neutral-950/85 px-2 py-1 text-[9px] font-extrabold uppercase tracking-wide text-white">UG Souq</span>
                 </div>
                 <div className="p-2.5 sm:p-3">
                   <span className="block truncate text-[10px] font-semibold text-emerald-700">{p.sellerVerified && <BadgeCheck size={11} className="mr-1 inline" />}{p.sellerName}</span>
