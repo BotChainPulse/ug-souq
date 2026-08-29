@@ -7,6 +7,44 @@ import { createContext } from "./context";
 import { env } from "./lib/env";
 import { isValidFlutterwaveWebhook, verifyPlusPayment } from "./plus";
 
+async function ensureCheckoutSchema() {
+  const { getDb } = await import("./queries/connection");
+  const db = getDb();
+  const raw: any = (db as any).$client;
+  const client: any = typeof raw.promise === "function" ? raw.promise() : raw;
+
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS plus_memberships (
+      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      customer_id BIGINT UNSIGNED NOT NULL UNIQUE,
+      plan VARCHAR(32) NOT NULL DEFAULT 'monthly',
+      status ENUM('pending','active','expired','cancelled','payment_failed') NOT NULL DEFAULT 'pending',
+      starts_at TIMESTAMP NULL,
+      expires_at TIMESTAMP NULL,
+      provider VARCHAR(32) NULL,
+      provider_reference VARCHAR(128) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )
+  `);
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS plus_payments (
+      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      customer_id BIGINT UNSIGNED NOT NULL,
+      membership_id BIGINT UNSIGNED NULL,
+      reference VARCHAR(128) NOT NULL UNIQUE,
+      transaction_id VARCHAR(128) NULL,
+      amount INT NOT NULL,
+      currency VARCHAR(8) NOT NULL DEFAULT 'UGX',
+      status ENUM('pending','successful','failed','cancelled') NOT NULL DEFAULT 'pending',
+      provider_response JSON NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      verified_at TIMESTAMP NULL,
+      INDEX idx_plus_payments_customer (customer_id)
+    )
+  `);
+}
+
 const app = new Hono<{ Bindings: HttpBindings }>();
 
 app.use(bodyLimit({ maxSize: 50 * 1024 * 1024 }));
@@ -179,6 +217,7 @@ app.all("/api/*", (c) => c.json({ error: "Not Found" }, 404));
 export default app;
 
 if (env.isProduction) {
+  await ensureCheckoutSchema();
   const { serve } = await import("@hono/node-server");
   const { serveStaticFiles } = await import("./lib/vite");
   serveStaticFiles(app);
