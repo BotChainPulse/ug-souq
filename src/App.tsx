@@ -1,6 +1,7 @@
 import { Routes, Route, useLocation } from 'react-router'
 import { CartProvider } from './lib/cart'
 import ChatBot from './components/ChatBot'
+import SponsoredBanner from './components/SponsoredBanner'
 import AdminNavigationBridge from './components/AdminNavigationBridge'
 import Home from './pages/Home'
 import Sell from './pages/Sell'
@@ -20,6 +21,8 @@ import AdminDashboard from './pages/AdminDashboard'
 import AdminLaunch from './pages/AdminLaunch'
 import AdminListingsReview from './pages/AdminListingsReview'
 import AdminDeliveriesSafe from './pages/AdminDeliveriesSafe'
+import AdminAdsSafe from './pages/AdminAdsSafe'
+import Promotions from './pages/Promotions'
 import Catalog from './pages/Catalog'
 import Boda from './pages/Boda'
 import Pay from './pages/Pay'
@@ -46,6 +49,7 @@ export default function App() {
   return (
     <CartProvider>
       {!isAdminRoute && <ChatBot />}
+      {!isAdminRoute && <SponsoredBanner />}
       {isAdminRoute && <AdminNavigationBridge />}
       <Routes>
         <Route path="/" element={<Home />} />
@@ -64,6 +68,7 @@ export default function App() {
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/search" element={<SearchResults />} />
+        <Route path="/promotions" element={<Promotions />} />
         <Route path="/sell/listings" element={<SellerListings />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
@@ -71,6 +76,7 @@ export default function App() {
         <Route path="/admin/operations" element={<Admin />} />
         <Route path="/admin/listings" element={<AdminListingsReview />} />
         <Route path="/admin/deliveries" element={<AdminDeliveriesSafe />} />
+        <Route path="/admin/ads" element={<AdminAdsSafe />} />
         <Route path="/catalog" element={<Catalog />} />
         <Route path="/product/:slug" element={<ProductDetail />} />
         <Route path="/seller/:id" element={<SellerPage />} />

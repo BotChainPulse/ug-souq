@@ -19,6 +19,41 @@ app.use("/api/trpc/*", async (c) => {
   });
 });
 
+// Public sponsored seller campaigns. Only admin-activated bookings are exposed.
+// The creative is taken from the seller's latest approved listing so no unreviewed image can become an ad.
+app.get("/api/ads/active", async (c) => {
+  const { getDb } = await import("./queries/connection");
+  const { sellerAdBookings, sellers, listings } = await import("../db/schema");
+  const { eq, desc, and } = await import("drizzle-orm");
+  const db = getDb();
+  const active = await db
+    .select({ booking: sellerAdBookings, seller: sellers })
+    .from(sellerAdBookings)
+    .innerJoin(sellers, eq(sellerAdBookings.sellerId, sellers.id))
+    .where(and(eq(sellerAdBookings.status, "active"), eq(sellers.status, "approved")))
+    .orderBy(desc(sellerAdBookings.createdAt));
+
+  const ads = await Promise.all(active.map(async ({ booking, seller }) => {
+    const [listing] = await db
+      .select()
+      .from(listings)
+      .where(and(eq(listings.sellerId, seller.id), eq(listings.status, "approved")))
+      .orderBy(desc(listings.createdAt))
+      .limit(1);
+    return {
+      id: booking.id,
+      sellerId: seller.id,
+      sellerName: seller.shopName,
+      sellerVerified: seller.verified,
+      planType: booking.planType,
+      headline: listing?.name ? `${listing.name} from ${seller.shopName}` : `Shop ${seller.shopName} on UG Souq`,
+      image: listing?.imageData ?? "/images/product-default.png",
+    };
+  }));
+
+  return c.json(ads);
+});
+
 // Flutterwave returns the buyer here after hosted checkout. We always verify with Flutterwave
 // server-to-server before activating a membership; query parameters alone are never trusted.
 app.get("/api/plus/callback", async (c) => {
@@ -108,4 +143,3 @@ if (env.isProduction) {
     console.log(`Server running on http://localhost:${port}/`);
   });
 }
-

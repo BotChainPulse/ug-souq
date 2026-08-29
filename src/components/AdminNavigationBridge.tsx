@@ -26,6 +26,13 @@ export default function AdminNavigationBridge() {
         event.preventDefault()
         event.stopPropagation()
         navigate('/admin/deliveries')
+        return
+      }
+
+      if (label === 'Seller Ads') {
+        event.preventDefault()
+        event.stopPropagation()
+        navigate('/admin/ads')
       }
     }
 
