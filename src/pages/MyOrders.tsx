@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { Package, Smartphone, Truck, CircleCheckBig, Clock, XCircle, ShoppingCart } from 'lucide-react'
+import { Package, Smartphone, Truck, CircleCheckBig, Clock, XCircle, ShoppingCart, ChevronRight } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { trpc } from '@/providers/trpc'
@@ -109,6 +109,9 @@ export default function MyOrders() {
                   <span className="font-extrabold">{fmt(o.total)}</span>
                 </div>
                 <p className="mt-2 text-xs text-neutral-500">Deliver to: {o.address}</p>
+                <Link to={`/orders/${encodeURIComponent(o.code)}`} className="mt-4 flex min-h-11 items-center justify-between border-t border-neutral-100 pt-3 text-sm font-bold text-emerald-700">
+                  View order details <ChevronRight size={18} />
+                </Link>
               </div>
             ))}
           </div>
