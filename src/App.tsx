@@ -1,6 +1,7 @@
 import { Routes, Route, useLocation } from 'react-router'
 import { CartProvider } from './lib/cart'
 import ChatBot from './components/ChatBot'
+import AdminNavigationBridge from './components/AdminNavigationBridge'
 import Home from './pages/Home'
 import Sell from './pages/Sell'
 import Affiliates from './pages/Affiliates'
@@ -45,6 +46,7 @@ export default function App() {
   return (
     <CartProvider>
       {!isAdminRoute && <ChatBot />}
+      {isAdminRoute && <AdminNavigationBridge />}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/sell" element={<Sell />} />
