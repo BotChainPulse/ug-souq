@@ -31,6 +31,7 @@ import PaymentSettings from './pages/PaymentSettings'
 import Addresses from './pages/Addresses'
 import Wishlist from './pages/Wishlist'
 import SellerPage from './pages/SellerPage'
+import Plus from './pages/Plus'
 
 export default function App() {
   return (
@@ -62,13 +63,14 @@ export default function App() {
         <Route path="/pay" element={<Pay />} />
         <Route path="/hubs" element={<SouqHubs />} />
         <Route path="/group-buying" element={<GroupBuying />} />
-              <Route path="/notifications" element={<Notifications />} />
+        <Route path="/notifications" element={<Notifications />} />
         <Route path="/preferences" element={<Preferences />} />
         <Route path="/account-security" element={<AccountSecurity />} />
         <Route path="/payment-settings" element={<PaymentSettings />} />
         <Route path="/addresses" element={<Addresses />} />
         <Route path="/wishlist" element={<Wishlist />} />
-</Routes>
+        <Route path="/plus" element={<Plus />} />
+      </Routes>
     </CartProvider>
   )
 }
