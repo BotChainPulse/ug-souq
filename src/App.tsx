@@ -17,6 +17,8 @@ import SellerListings from './pages/SellerListings'
 import Admin from './pages/Admin'
 import AdminDashboard from './pages/AdminDashboard'
 import AdminLaunch from './pages/AdminLaunch'
+import AdminListingsReview from './pages/AdminListingsReview'
+import AdminDeliveriesSafe from './pages/AdminDeliveriesSafe'
 import Catalog from './pages/Catalog'
 import Boda from './pages/Boda'
 import Pay from './pages/Pay'
@@ -65,6 +67,8 @@ export default function App() {
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/launch" element={<AdminLaunch />} />
         <Route path="/admin/operations" element={<Admin />} />
+        <Route path="/admin/listings" element={<AdminListingsReview />} />
+        <Route path="/admin/deliveries" element={<AdminDeliveriesSafe />} />
         <Route path="/catalog" element={<Catalog />} />
         <Route path="/product/:slug" element={<ProductDetail />} />
         <Route path="/seller/:id" element={<SellerPage />} />
