@@ -15,7 +15,10 @@ export default function SellerPage() {
   const [added, setAdded] = useState(null)
 
   const onAdd = (p) => {
-    add({ itemType: p.kind === 'listing' ? 'listing' : 'product', itemId: p.id, name: p.name, price: p.price })
+    // The live order schema intentionally accepts only product/menu_item.
+    // Seller listings are marketplace products at checkout, so keep them on the
+    // existing product path instead of introducing a new DB enum at runtime.
+    add({ itemType: 'product', itemId: p.id, name: p.name, price: p.price })
     setAdded(p.id)
     setTimeout(() => setAdded(null), 1400)
   }
