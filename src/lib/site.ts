@@ -1,4 +1,7 @@
-export const ORANGE = '#e85d04'
+export const ORANGE = '#087f5b'
+export const BRAND = ORANGE
+export const BRAND_DARK = '#065f46'
+export const PLUS_GOLD = '#c99700'
 export const WHATSAPP = '0708813419'
 export const WHATSAPP_INTL = '256708813419'
 export const WA_LINK = `https://wa.me/${WHATSAPP_INTL}?text=${encodeURIComponent('Hi UG Souq, I need help with')}`
