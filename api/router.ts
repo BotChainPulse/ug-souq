@@ -8,6 +8,7 @@ import { adminRouter } from "./admin";
 import { trustRouter } from "./trust";
 import { bootstrapRouter } from "./bootstrap";
 import { migrateRouter } from "./migrate";
+import { syncDemoGroceries } from "./demoGroceries";
 
 function orderCode() {
   // Unambiguous alphabet: no O/0, I/1, L — buyers type these codes by hand
@@ -42,6 +43,7 @@ export const appRouter = createRouter({
   products: createRouter({
     homepageGroceries: publicQuery.query(async () => {
       const db = getDb();
+      await syncDemoGroceries(db);
       const rows = await db
         .select({ product: products, seller: sellers })
         .from(products)
