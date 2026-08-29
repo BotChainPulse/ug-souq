@@ -247,10 +247,17 @@ export const appRouter = createRouter({
       .mutation(async ({ input }) => {
         const db = getDb();
         const subtotal = input.items.reduce((s, i) => s + i.price * i.qty, 0);
-        const total = subtotal + input.deliveryFee;
         const phone = normPhone(input.phone);
         const commissionFee = Math.round(subtotal * COMMISSION_RATE);
         await upsertCustomer(db, input.customerName, phone, input.address);
+        const [customer] = await db.select().from(customers).where(eq(customers.phone, phone));
+        const [membership] = customer
+          ? await db.select().from(plusMemberships).where(eq(plusMemberships.customerId, customer.id))
+          : [];
+        // Do not trust a browser-provided delivery discount. A currently active membership is the only source of truth.
+        const plusActive = Boolean(membership?.status === "active" && membership.expiresAt && membership.expiresAt > new Date());
+        const deliveryFee = plusActive ? 0 : input.deliveryFee;
+        const total = subtotal + deliveryFee;
         const [row] = await db.insert(orders).values({
           code: orderCode(),
           customerName: input.customerName,
@@ -258,7 +265,7 @@ export const appRouter = createRouter({
           address: input.address,
           paymentMethod: input.paymentMethod,
           subtotal,
-          deliveryFee: input.deliveryFee,
+          deliveryFee,
           commissionFee,
           total,
         }).$returningId();

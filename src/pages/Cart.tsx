@@ -20,10 +20,13 @@ export default function Cart() {
   const [zoneId, setZoneId] = useState('kampala')
   const [shipMethod, setShipMethod] = useState<'door' | 'pickup'>('door')
   const [stationId, setStationId] = useState('')
+  const { data: plus } = trpc.plus.status.useQuery({ phone: acc?.phone ?? '' }, { enabled: !!acc })
   const zone = DELIVERY_ZONES.find((z) => z.id === zoneId) ?? DELIVERY_ZONES[0]
   const stations = PICKUP_POINTS[zone.id] ?? []
   const station = stations.find((s) => s.id === stationId)
-  const deliveryFee = items.length ? (shipMethod === 'door' ? zone.doorFee : zone.pickupFee) : 0
+  const standardDeliveryFee = items.length ? (shipMethod === 'door' ? zone.doorFee : zone.pickupFee) : 0
+  const activePlusForCheckout = Boolean(plus?.membership && acc && form.phone.replace(/[\s-]+/g, '') === acc.phone.replace(/[\s-]+/g, ''))
+  const deliveryFee = activePlusForCheckout ? 0 : standardDeliveryFee
   const total = subtotal + deliveryFee
   const valid =
     form.name.length >= 2 &&
@@ -113,12 +116,12 @@ export default function Cart() {
                   <button type="button" onClick={() => setShipMethod('door')}
                     className={`rounded-xl border-2 p-3 text-left transition-all ${shipMethod === 'door' ? 'border-orange-500 bg-orange-50' : 'border-neutral-200 hover:border-neutral-300'}`}>
                     <p className="text-xs sm:text-sm font-bold flex items-center gap-1.5"><Truck size={15} /> Door delivery</p>
-                    <p className="text-xs text-neutral-500 mt-0.5">{fmt(zone.doorFee)} · {zone.doorEta}</p>
+                    <p className="text-xs text-neutral-500 mt-0.5">{activePlusForCheckout ? 'Free with Plus' : fmt(zone.doorFee)} · {zone.doorEta}</p>
                   </button>
                   <button type="button" onClick={() => setShipMethod('pickup')}
                     className={`rounded-xl border-2 p-3 text-left transition-all ${shipMethod === 'pickup' ? 'border-orange-500 bg-orange-50' : 'border-neutral-200 hover:border-neutral-300'}`}>
                     <p className="text-xs sm:text-sm font-bold flex items-center gap-1.5"><Package size={15} /> Pickup station</p>
-                    <p className="text-xs text-neutral-500 mt-0.5">{fmt(zone.pickupFee)} · {zone.pickupEta}</p>
+                    <p className="text-xs text-neutral-500 mt-0.5">{activePlusForCheckout ? 'Free with Plus' : fmt(zone.pickupFee)} · {zone.pickupEta}</p>
                   </button>
                 </div>
                 {shipMethod === 'pickup' && (
@@ -149,7 +152,7 @@ export default function Cart() {
               </div>
               <div className="mt-5 space-y-1.5 text-sm border-t border-neutral-100 pt-4">
                 <div className="flex justify-between text-neutral-600"><span>Subtotal</span><span>{fmt(subtotal)}</span></div>
-                <div className="flex justify-between text-neutral-600"><span>Delivery ({zone.label} · {shipMethod === 'door' ? 'door' : 'pickup'})</span><span>{fmt(deliveryFee)}</span></div>
+                <div className="flex justify-between text-neutral-600"><span>Delivery ({zone.label} · {shipMethod === 'door' ? 'door' : 'pickup'})</span><span>{activePlusForCheckout ? 'Free with Plus' : fmt(deliveryFee)}</span></div>
                 <div className="flex justify-between font-extrabold text-base"><span>Total</span><span style={{ color: ORANGE }}>{fmt(total)}</span></div>
               </div>
               <button
@@ -168,3 +171,4 @@ export default function Cart() {
     </div>
   )
 }
+
