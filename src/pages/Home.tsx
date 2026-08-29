@@ -42,11 +42,13 @@ function useCountdown() {
 export default function HomePage() {
   const [hh, mm, ss] = useCountdown()
   const { data: products, isLoading } = trpc.products.flashSale.useQuery()
+  const { data: groceryProducts, isLoading: groceriesLoading } = trpc.products.homepageGroceries.useQuery()
   const { add } = useCart()
   const [wishlist, setWishlist] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('wishlist') || '[]') } catch { return [] } })
   const [added, setAdded] = useState<number | null>(null)
-  const toggleWish = (id: string) => {
-    const next = wishlist.includes(id) ? wishlist.filter((w) => w !== id) : [...wishlist, id]
+  const toggleWish = (id: string | number) => {
+    const key = String(id)
+    const next = wishlist.includes(key) ? wishlist.filter((w) => w !== key) : [...wishlist, key]
     setWishlist(next); localStorage.setItem('wishlist', JSON.stringify(next))
   }
   const onAdd = (id: number, name: string, price: number) => {
@@ -104,13 +106,38 @@ export default function HomePage() {
               <article key={p.id} className="group overflow-hidden rounded-xl border border-neutral-200 bg-white transition hover:shadow-md">
                 <div className="relative bg-neutral-50"><Link to={`/product/${p.slug}`}><img src={p.image} alt={p.name} className="aspect-square w-full object-contain" loading="lazy" /></Link>
                   {p.discount > 0 && <span className="absolute left-2 top-2 rounded-md bg-emerald-700 px-1.5 py-1 text-[10px] font-extrabold text-white">−{p.discount}%</span>}
-                  <button onClick={(e) => { e.preventDefault(); toggleWish(p.id) }} className="absolute right-2 top-2 rounded-full bg-white p-1.5 shadow"><Heart size={15} className={wishlist.includes(p.id) ? 'fill-red-500 text-red-500' : 'text-neutral-500'} /></button>
+                  <button onClick={(e) => { e.preventDefault(); toggleWish(p.id) }} className="absolute right-2 top-2 rounded-full bg-white p-1.5 shadow"><Heart size={15} className={wishlist.includes(String(p.id)) ? 'fill-red-500 text-red-500' : 'text-neutral-500'} /></button>
                 </div>
                 <div className="p-2.5 sm:p-3">
                   <span className="block truncate text-[10px] font-semibold text-emerald-700">{p.sellerVerified && <BadgeCheck size={11} className="mr-1 inline" />}{p.sellerName}</span>
                   <Link to={`/product/${p.slug}`}><h3 className="mt-1 line-clamp-2 min-h-[2.4em] text-xs font-semibold leading-snug sm:text-sm">{p.name}</h3></Link>
                   <div className="mt-1.5"><span className="text-sm font-extrabold sm:text-base">{fmt(p.price)}</span>{p.oldPrice && <span className="ml-1.5 text-[10px] text-neutral-400 line-through">{fmt(p.oldPrice)}</span>}</div>
                   <div className="mt-1 flex items-center justify-between"><span className="flex items-center gap-1 text-[10px] text-neutral-500"><Star size={11} className="fill-amber-400 text-amber-400" />{p.sellerRating.toFixed(1)}</span><button onClick={() => onAdd(p.id, p.name, p.price)} aria-label="Add to cart" className="grid h-8 w-8 place-items-center rounded-lg text-white active:scale-95" style={{ background: ORANGE }}>{added === p.id ? <Check size={15} /> : <ShoppingCart size={15} />}</button></div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="mx-auto max-w-7xl px-3 pt-6 sm:px-4">
+        <div className="mb-3 flex items-end justify-between gap-3">
+          <div><h2 className="text-xl font-extrabold sm:text-2xl">Everyday essentials</h2><p className="mt-0.5 text-xs text-neutral-500">Popular household staples at everyday prices</p></div>
+          <Link to="/catalog?category=grocery" className="shrink-0 text-xs font-bold text-emerald-700">View all →</Link>
+        </div>
+        {groceriesLoading ? <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">{[...Array(6)].map((_, i) => <div key={i} className="h-64 animate-pulse rounded-xl bg-white" />)}</div> : (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-6">
+            {groceryProducts?.map((p) => (
+              <article key={p.id} className="group overflow-hidden rounded-xl border border-neutral-200 bg-white transition hover:shadow-md">
+                <div className="relative bg-neutral-50"><Link to={`/product/${p.slug}`}><img src={p.image} alt={p.name} className="aspect-square w-full object-contain" loading="lazy" /></Link>
+                  {p.discount > 0 && <span className="absolute left-2 top-2 rounded-md bg-emerald-700 px-1.5 py-1 text-[10px] font-extrabold text-white">−{p.discount}%</span>}
+                  <button onClick={(e) => { e.preventDefault(); toggleWish(p.id) }} className="absolute right-2 top-2 rounded-full bg-white p-1.5 shadow" aria-label={wishlist.includes(String(p.id)) ? `Remove ${p.name} from wishlist` : `Add ${p.name} to wishlist`}><Heart size={15} className={wishlist.includes(String(p.id)) ? 'fill-red-500 text-red-500' : 'text-neutral-500'} /></button>
+                </div>
+                <div className="p-2.5 sm:p-3">
+                  <span className="block truncate text-[10px] font-semibold text-emerald-700">{p.sellerVerified && <BadgeCheck size={11} className="mr-1 inline" />}{p.sellerName}</span>
+                  <Link to={`/product/${p.slug}`}><h3 className="mt-1 line-clamp-2 min-h-[2.4em] text-xs font-semibold leading-snug sm:text-sm">{p.name}</h3></Link>
+                  <div className="mt-1.5 flex flex-wrap items-baseline gap-x-1.5"><span className="text-sm font-extrabold sm:text-base">{fmt(p.price)}</span>{p.oldPrice && <span className="text-[10px] text-neutral-400 line-through">{fmt(p.oldPrice)}</span>}</div>
+                  <div className="mt-1 flex items-center justify-between"><span className="flex items-center gap-1 text-[10px] text-neutral-500"><Star size={11} className="fill-amber-400 text-amber-400" />{p.sellerRating.toFixed(1)}</span><button onClick={() => onAdd(p.id, p.name, p.price)} aria-label={`Add ${p.name} to cart`} className="grid h-8 w-8 place-items-center rounded-lg text-white active:scale-95" style={{ background: ORANGE }}>{added === p.id ? <Check size={15} /> : <ShoppingCart size={15} />}</button></div>
                 </div>
               </article>
             ))}
