@@ -1,8 +1,11 @@
-import { Link } from 'react-router'
-import { ArrowLeft, Check, Truck, ShieldCheck } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router'
+import { ArrowLeft, Check, Truck, ShieldCheck, Loader2 } from 'lucide-react'
+import { useState } from 'react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { ORANGE } from '../lib/site'
+import { trpc } from '@/providers/trpc'
+import { getAccount } from '../lib/account'
 
 const benefits = [
   'Unlimited free delivery on eligible orders',
@@ -11,6 +14,22 @@ const benefits = [
 ]
 
 export default function PlusPage() {
+  const account = getAccount()
+  const [searchParams] = useSearchParams()
+  const [email, setEmail] = useState('')
+  const checkout = trpc.plus.startCheckout.useMutation()
+  const { data: plan } = trpc.plus.plan.useQuery()
+  const { data, refetch } = trpc.plus.status.useQuery({ phone: account?.phone ?? '' }, { enabled: !!account })
+  const paymentState = searchParams.get('payment')
+  const membership = data?.membership
+
+  const beginCheckout = async () => {
+    if (!account) return
+    const result = await checkout.mutateAsync({ phone: account.phone, email })
+    if (result.alreadyActive) { await refetch(); return }
+    if ('checkoutUrl' in result) window.location.assign(result.checkoutUrl)
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
@@ -62,17 +81,31 @@ export default function PlusPage() {
           </div>
         </section>
 
-        <button
-          type="button"
-          className="w-full mt-5 py-3 rounded-xl font-bold text-white shadow-sm"
-          style={{ backgroundColor: ORANGE }}
-          onClick={() => window.alert('UG Souq Plus membership will be available soon.')}
-        >
-          Join UG Souq Plus
-        </button>
-        <p className="text-center text-xs text-gray-400 mt-3">Membership activation and pricing will be enabled here.</p>
+        {paymentState === 'successful' && <p className="mt-4 rounded-xl bg-green-50 p-3 text-sm font-medium text-green-700">Payment verified. Your Plus membership is now active.</p>}
+        {paymentState === 'failed' && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-medium text-red-700">We could not verify that payment. No membership was activated.</p>}
+
+        {membership ? (
+          <section className="mt-5 rounded-2xl border border-green-200 bg-green-50 p-4">
+            <p className="font-bold text-green-800">Plus is active</p>
+            <p className="mt-1 text-sm text-green-700">Free delivery benefits are available until {membership.expiresAt ? new Date(membership.expiresAt).toLocaleDateString() : 'your renewal date'}.</p>
+          </section>
+        ) : !account ? (
+          <section className="mt-5 rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">Create or sign in to your UG Souq account before joining Plus.</section>
+        ) : (
+          <section className="mt-5 rounded-2xl bg-white p-5 shadow-sm">
+            <p className="font-bold text-gray-900">{plan ? `${plan.currency} ${plan.amount.toLocaleString()} for ${plan.durationDays} days` : 'Monthly membership'}</p>
+            <p className="mt-1 text-xs text-gray-500">Secure checkout is handled by Flutterwave. Your membership starts only after payment is verified.</p>
+            <label className="mt-4 block text-sm font-medium text-gray-700">Email for your payment receipt</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 outline-none focus:border-orange-500" />
+            <button type="button" disabled={!email || checkout.isPending} onClick={beginCheckout} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl py-3 font-bold text-white shadow-sm disabled:opacity-60" style={{ backgroundColor: ORANGE }}>
+              {checkout.isPending && <Loader2 size={18} className="animate-spin" />}{checkout.isPending ? 'Opening secure checkout…' : 'Join UG Souq Plus'}
+            </button>
+            {checkout.isError && <p className="mt-3 text-sm text-red-600">{checkout.error.message}</p>}
+          </section>
+        )}
       </main>
       <Footer />
     </div>
   )
 }
+

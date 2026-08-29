@@ -102,6 +102,7 @@ export default function AccountPage() {
   }
 
   const orders = ordersData ?? []
+  const plusActive = Boolean(profileData?.membership)
   const [wishlistCount, setWishlistCount] = useState(0)
   useEffect(() => {
     try {
@@ -226,11 +227,11 @@ export default function AccountPage() {
       >
         <div>
           <p className="text-xs font-medium opacity-90">UG Souq</p>
-          <p className="text-sm font-bold">Unlimited Free Delivery</p>
+          <p className="text-sm font-bold">{plusActive ? 'Plus membership active' : 'Unlimited Free Delivery'}</p>
         </div>
         <Link to="/plus">
           <span className="text-xs font-bold bg-white px-3 py-1.5 rounded-full" style={{ color: ORANGE }}>
-            Join Now ›
+            {plusActive ? 'View Plus ›' : 'Join Now ›'}
           </span>
         </Link>
       </div>
@@ -456,3 +457,4 @@ export default function AccountPage() {
     </div>
   )
 }
+

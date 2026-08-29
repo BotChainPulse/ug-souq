@@ -137,6 +137,35 @@ export const customers = mysqlTable("customers", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// A membership is attached to a real buyer record, never just a browser session.
+// Payment attempts are kept separately so provider callbacks can be audited and retried safely.
+export const plusMemberships = mysqlTable("plus_memberships", {
+  id: serial("id").primaryKey(),
+  customerId: bigint("customer_id", { mode: "number", unsigned: true }).notNull().unique(),
+  plan: varchar("plan", { length: 32 }).notNull().default("monthly"),
+  status: mysqlEnum("status", ["pending", "active", "expired", "cancelled", "payment_failed"]).notNull().default("pending"),
+  startsAt: timestamp("starts_at"),
+  expiresAt: timestamp("expires_at"),
+  provider: varchar("provider", { length: 32 }),
+  providerReference: varchar("provider_reference", { length: 128 }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+});
+
+export const plusPayments = mysqlTable("plus_payments", {
+  id: serial("id").primaryKey(),
+  customerId: bigint("customer_id", { mode: "number", unsigned: true }).notNull(),
+  membershipId: bigint("membership_id", { mode: "number", unsigned: true }),
+  reference: varchar("reference", { length: 128 }).notNull().unique(),
+  transactionId: varchar("transaction_id", { length: 128 }),
+  amount: int("amount").notNull(),
+  currency: varchar("currency", { length: 8 }).notNull().default("UGX"),
+  status: mysqlEnum("status", ["pending", "successful", "failed", "cancelled"]).notNull().default("pending"),
+  providerResponse: json("provider_response"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  verifiedAt: timestamp("verified_at"),
+});
+
 export const affiliates = mysqlTable("affiliates", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
@@ -380,3 +409,4 @@ export const sellerSubscriptions = mysqlTable("seller_subscriptions", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
 });
+

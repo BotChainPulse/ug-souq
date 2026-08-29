@@ -5,7 +5,7 @@
  * Or upload to Railway and run in console: node run-migration.js
  */
 
-const mysql = require('mysql2/promise');
+import mysql from 'mysql2/promise';
 
 const SQL = `
 -- ============================================
@@ -57,7 +57,37 @@ CREATE TABLE IF NOT EXISTS platform_settings (
 INSERT IGNORE INTO platform_settings (id) VALUES (1);
 
 -- ============================================
--- 4. CREATE seller_contracts table
+-- 4. CREATE UG Souq Plus membership tables
+-- ============================================
+CREATE TABLE IF NOT EXISTS plus_memberships (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  customer_id BIGINT UNSIGNED NOT NULL UNIQUE,
+  plan VARCHAR(32) NOT NULL DEFAULT 'monthly',
+  status ENUM('pending','active','expired','cancelled','payment_failed') NOT NULL DEFAULT 'pending',
+  starts_at TIMESTAMP NULL,
+  expires_at TIMESTAMP NULL,
+  provider VARCHAR(32) NULL,
+  provider_reference VARCHAR(128) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS plus_payments (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  customer_id BIGINT UNSIGNED NOT NULL,
+  membership_id BIGINT UNSIGNED NULL,
+  reference VARCHAR(128) NOT NULL UNIQUE,
+  transaction_id VARCHAR(128) NULL,
+  amount INT NOT NULL,
+  currency VARCHAR(8) NOT NULL DEFAULT 'UGX',
+  status ENUM('pending','successful','failed','cancelled') NOT NULL DEFAULT 'pending',
+  provider_response JSON NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  verified_at TIMESTAMP NULL,
+  INDEX idx_plus_payments_customer (customer_id)
+);
+
+-- ============================================
+-- 5. CREATE seller_contracts table
 -- ============================================
 CREATE TABLE IF NOT EXISTS seller_contracts (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -150,3 +180,4 @@ run().catch(err => {
   console.error('💥 Fatal error:', err.message);
   process.exit(1);
 });
+

@@ -79,6 +79,25 @@ const TABLES = [
     \`location\` text,
     \`created_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
+  `CREATE TABLE IF NOT EXISTS plus_memberships (
+    \`id\` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    \`customer_id\` bigint unsigned NOT NULL UNIQUE,
+    \`plan\` varchar(32) NOT NULL DEFAULT 'monthly',
+    \`status\` enum('pending','active','expired','cancelled','payment_failed') NOT NULL DEFAULT 'pending',
+    \`starts_at\` timestamp NULL, \`expires_at\` timestamp NULL,
+    \`provider\` varchar(32) NULL, \`provider_reference\` varchar(128) NULL,
+    \`created_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE IF NOT EXISTS plus_payments (
+    \`id\` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    \`customer_id\` bigint unsigned NOT NULL, \`membership_id\` bigint unsigned NULL,
+    \`reference\` varchar(128) NOT NULL UNIQUE, \`transaction_id\` varchar(128) NULL,
+    \`amount\` int NOT NULL, \`currency\` varchar(8) NOT NULL DEFAULT 'UGX',
+    \`status\` enum('pending','successful','failed','cancelled') NOT NULL DEFAULT 'pending',
+    \`provider_response\` json NULL, \`created_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    \`verified_at\` timestamp NULL, INDEX \`idx_plus_payments_customer\` (\`customer_id\`)
+  )`,
   `CREATE TABLE IF NOT EXISTS affiliates (
     \`id\` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
     \`name\` varchar(255) NOT NULL, \`phone\` varchar(32) NOT NULL, \`channel\` varchar(64) NOT NULL,
@@ -210,3 +229,4 @@ export const bootstrapRouter = createRouter({
       return { ok: true, inserted, total: have.size + inserted };
     }),
 });
+

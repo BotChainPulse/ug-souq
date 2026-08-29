@@ -2,7 +2,8 @@ import { z } from "zod";
 import { eq, desc, asc, like, or } from "drizzle-orm";
 import { createRouter, publicQuery, COMMISSION_RATE } from "./middleware";
 import { getDb } from "./queries/connection";
-import { sellers, products, restaurants, menuItems, orders, orderItems, affiliates, listings, customers, deliveryPartners, sellerAdBookings, notifications } from "../db/schema";
+import { sellers, products, restaurants, menuItems, orders, orderItems, affiliates, listings, customers, deliveryPartners, sellerAdBookings, notifications, plusMemberships, plusPayments } from "../db/schema";
+import { createPlusCheckout, plusPlan } from "./plus";
 import { adminRouter } from "./admin";
 import { trustRouter } from "./trust";
 import { bootstrapRouter } from "./bootstrap";
@@ -462,7 +463,13 @@ export const appRouter = createRouter({
       const withItems = await Promise.all(
         myOrders.map(async (o) => ({ ...o, items: await db.select().from(orderItems).where(eq(orderItems.orderId, o.id)) })),
       );
-      return { customer: customer ?? null, orders: withItems };
+      const [membership] = customer
+        ? await db.select().from(plusMemberships).where(eq(plusMemberships.customerId, customer.id))
+        : [];
+      const activeMembership = membership && membership.status === "active" && membership.expiresAt && membership.expiresAt > new Date()
+        ? membership
+        : null;
+      return { customer: customer ?? null, orders: withItems, membership: activeMembership, membershipRecord: membership ?? null };
     }),
     // Buyer deletes their account: customer record + all their orders are removed
     deleteAccount: publicQuery
@@ -474,10 +481,41 @@ export const appRouter = createRouter({
         for (const o of myOrders) {
           await db.delete(orderItems).where(eq(orderItems.orderId, o.id));
         }
+        const [customer] = await db.select().from(customers).where(eq(customers.phone, phone));
+        if (customer) {
+          await db.delete(plusPayments).where(eq(plusPayments.customerId, customer.id));
+          await db.delete(plusMemberships).where(eq(plusMemberships.customerId, customer.id));
+        }
         await db.delete(orders).where(eq(orders.phone, phone));
         await db.delete(customers).where(eq(customers.phone, phone));
         return { ok: true, removedOrders: myOrders.length };
       }),
+  }),
+
+  plus: createRouter({
+    plan: publicQuery.query(() => plusPlan),
+    // Creates a hosted Flutterwave payment. No membership is activated here: only verified provider results can do that.
+    startCheckout: publicQuery
+      .input(z.object({ phone: z.string().min(9), email: z.string().email() }))
+      .mutation(async ({ input }) => {
+        const db = getDb();
+        const [customer] = await db.select().from(customers).where(eq(customers.phone, normPhone(input.phone)));
+        if (!customer) throw new Error("Create your UG Souq account before joining Plus.");
+        const [membership] = await db.select().from(plusMemberships).where(eq(plusMemberships.customerId, customer.id));
+        if (membership?.status === "active" && membership.expiresAt && membership.expiresAt > new Date()) {
+          return { alreadyActive: true, expiresAt: membership.expiresAt };
+        }
+        return { alreadyActive: false, ...(await createPlusCheckout({ customer, email: input.email.trim().toLowerCase() })) };
+      }),
+    status: publicQuery.input(z.object({ phone: z.string().min(9) })).query(async ({ input }) => {
+      const db = getDb();
+      const [customer] = await db.select().from(customers).where(eq(customers.phone, normPhone(input.phone)));
+      if (!customer) return { membership: null, latestPayment: null };
+      const [membership] = await db.select().from(plusMemberships).where(eq(plusMemberships.customerId, customer.id));
+      const [latestPayment] = await db.select().from(plusPayments).where(eq(plusPayments.customerId, customer.id)).orderBy(desc(plusPayments.createdAt)).limit(1);
+      const active = membership && membership.status === "active" && membership.expiresAt && membership.expiresAt > new Date() ? membership : null;
+      return { membership: active, membershipRecord: membership ?? null, latestPayment: latestPayment ?? null };
+    }),
   }),
 
   affiliates: createRouter({
@@ -493,3 +531,4 @@ export const appRouter = createRouter({
 });
 
 export type AppRouter = typeof appRouter;
+

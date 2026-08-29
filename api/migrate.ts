@@ -74,6 +74,30 @@ export const migrateRouter = createRouter({
       `);
       await run("platform_settings.insert", "INSERT INTO platform_settings (id) VALUES (1) ON DUPLICATE KEY UPDATE id = id");
 
+      await run("plus_memberships", `
+        CREATE TABLE plus_memberships (
+          id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+          customer_id BIGINT UNSIGNED NOT NULL UNIQUE,
+          plan VARCHAR(32) NOT NULL DEFAULT 'monthly',
+          status ENUM('pending','active','expired','cancelled','payment_failed') NOT NULL DEFAULT 'pending',
+          starts_at TIMESTAMP NULL, expires_at TIMESTAMP NULL,
+          provider VARCHAR(32) NULL, provider_reference VARCHAR(128) NULL,
+          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+      `);
+      await run("plus_payments", `
+        CREATE TABLE plus_payments (
+          id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+          customer_id BIGINT UNSIGNED NOT NULL, membership_id BIGINT UNSIGNED NULL,
+          reference VARCHAR(128) NOT NULL UNIQUE, transaction_id VARCHAR(128) NULL,
+          amount INT NOT NULL, currency VARCHAR(8) NOT NULL DEFAULT 'UGX',
+          status ENUM('pending','successful','failed','cancelled') NOT NULL DEFAULT 'pending',
+          provider_response JSON NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          verified_at TIMESTAMP NULL, INDEX idx_plus_payments_customer (customer_id)
+        )
+      `);
+
       // 4. Create seller_contracts table
       await run("seller_contracts", `
         CREATE TABLE seller_contracts (
@@ -125,3 +149,4 @@ export const migrateRouter = createRouter({
       return { ok: true, results };
     }),
 });
+
