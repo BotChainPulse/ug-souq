@@ -61,8 +61,9 @@ export default function App() {
         <Route path="/terms" element={<Terms />} />
         <Route path="/search" element={<SearchResults />} />
         <Route path="/sell/listings" element={<SellerListings />} />
-        <Route path="/admin" element={<AdminLaunch />} />
+        <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/launch" element={<AdminLaunch />} />
         <Route path="/admin/operations" element={<Admin />} />
         <Route path="/catalog" element={<Catalog />} />
         <Route path="/product/:slug" element={<ProductDetail />} />
