@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router'
+import { Routes, Route, useLocation } from 'react-router'
 import { CartProvider } from './lib/cart'
 import ChatBot from './components/ChatBot'
 import Home from './pages/Home'
@@ -15,6 +15,7 @@ import Terms from './pages/Terms'
 import SearchResults from './pages/SearchResults'
 import SellerListings from './pages/SellerListings'
 import Admin from './pages/Admin'
+import AdminDashboard from './pages/AdminDashboard'
 import Catalog from './pages/Catalog'
 import Boda from './pages/Boda'
 import Pay from './pages/Pay'
@@ -35,9 +36,12 @@ import SellerPage from './pages/SellerPage'
 import Plus from './pages/Plus'
 
 export default function App() {
+  const location = useLocation()
+  const isAdminRoute = location.pathname.startsWith('/admin')
+
   return (
     <CartProvider>
-      <ChatBot />
+      {!isAdminRoute && <ChatBot />}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/sell" element={<Sell />} />
@@ -56,7 +60,8 @@ export default function App() {
         <Route path="/terms" element={<Terms />} />
         <Route path="/search" element={<SearchResults />} />
         <Route path="/sell/listings" element={<SellerListings />} />
-        <Route path="/admin" element={<Admin />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin/operations" element={<Admin />} />
         <Route path="/catalog" element={<Catalog />} />
         <Route path="/product/:slug" element={<ProductDetail />} />
         <Route path="/seller/:id" element={<SellerPage />} />
