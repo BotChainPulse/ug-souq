@@ -67,13 +67,13 @@ export default function ChatBot() {
     <>
       {!open && (
         <button onClick={() => setOpen(true)} aria-label="Open chat"
-          className="fixed bottom-5 right-5 z-50 w-14 h-14 rounded-full text-white grid place-items-center shadow-xl hover:scale-105 transition-transform"
+          className="fixed bottom-20 right-4 z-50 grid h-12 w-12 place-items-center rounded-full text-white shadow-xl transition-transform hover:scale-105 sm:bottom-5 sm:right-5 sm:h-14 sm:w-14"
           style={{ background: ORANGE }}>
           <MessageCircle size={24} />
         </button>
       )}
       {open && (
-        <div className="fixed bottom-5 right-5 z-50 w-[min(92vw,360px)] h-[min(70vh,520px)] bg-white rounded-2xl shadow-2xl border border-neutral-200 flex flex-col overflow-hidden">
+        <div className="fixed bottom-20 right-3 z-50 flex h-[min(65vh,500px)] w-[min(94vw,360px)] flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-2xl sm:bottom-5 sm:right-5 sm:h-[min(70vh,520px)]">
           <div className="flex items-center justify-between px-4 py-3 text-white" style={{ background: ORANGE }}>
             <div>
               <p className="font-extrabold text-sm">Kik — UG Souq Assistant</p>
