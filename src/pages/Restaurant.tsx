@@ -26,18 +26,20 @@ export default function Restaurant() {
         <Link to="/food" className="inline-flex items-center gap-1 text-sm font-semibold text-neutral-500 hover:text-neutral-800"><ChevronLeft size={16} /> All restaurants</Link>
 
         {isLoading ? (
-          <div className="mt-4 h-64 bg-white rounded-2xl border border-neutral-200 animate-pulse" />
+          <div className="mt-4 h-64 animate-pulse rounded-2xl border border-neutral-200 bg-white" />
         ) : !r ? (
           <p className="mt-10 text-center text-neutral-500">Restaurant not found.</p>
         ) : (
           <>
-            <div className="mt-4 bg-white rounded-2xl border border-neutral-200 overflow-hidden">
-              <img src={r.image} alt={r.name} className="w-full aspect-[3/1] object-cover" />
+            <div className="mt-4 overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+              <div className="flex h-52 w-full items-center justify-center bg-white sm:h-auto sm:aspect-[16/7]">
+                <img src={r.image} alt={r.name} className="h-full w-full object-contain sm:object-cover" />
+              </div>
               <div className="p-5">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <h1 className="text-2xl font-extrabold">{r.name}</h1>
-                    <p className="text-sm text-neutral-500 mt-0.5">{r.cuisine} · {r.area}</p>
+                    <p className="mt-0.5 text-sm text-neutral-500">{r.cuisine} · {r.area}</p>
                   </div>
                   <span className="flex items-center gap-1 font-bold"><Star size={16} className="fill-amber-400 text-amber-400" /> {(r.rating / 10).toFixed(1)}</span>
                 </div>
@@ -49,21 +51,21 @@ export default function Restaurant() {
               </div>
             </div>
 
-            <h2 className="mt-8 mb-4 font-extrabold text-lg">Menu</h2>
-            <div className="grid sm:grid-cols-2 gap-3 mb-8">
+            <h2 className="mb-4 mt-8 text-lg font-extrabold">Menu</h2>
+            <div className="mb-8 grid gap-3 sm:grid-cols-2">
               {r.items.map((item) => (
-                <div key={item.id} className="bg-white rounded-2xl border border-neutral-200 p-4 flex items-start justify-between gap-3">
+                <div key={item.id} className="flex items-start justify-between gap-3 rounded-2xl border border-neutral-200 bg-white p-4">
                   <div className="min-w-0">
-                    <h3 className="font-bold text-sm flex items-center gap-1.5">
+                    <h3 className="flex items-center gap-1.5 text-sm font-bold">
                       {item.name}
                       {item.popular && <Flame size={13} style={{ color: ORANGE }} />}
                     </h3>
-                    {item.description && <p className="text-xs text-neutral-500 mt-1">{item.description}</p>}
-                    <p className="mt-2 font-extrabold text-sm" style={{ color: ORANGE }}>{fmt(item.price)}</p>
+                    {item.description && <p className="mt-1 text-xs text-neutral-500">{item.description}</p>}
+                    <p className="mt-2 text-sm font-extrabold" style={{ color: ORANGE }}>{fmt(item.price)}</p>
                   </div>
                   <button
                     onClick={() => onAdd(item.id, item.name, item.price)}
-                    className="shrink-0 w-9 h-9 rounded-full grid place-items-center text-white transition-colors"
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-white transition-colors"
                     style={{ background: added === item.id ? '#16a34a' : ORANGE }}
                     aria-label={`Add ${item.name}`}>
                     {added === item.id ? <Check size={16} /> : <Plus size={16} />}
