@@ -21,11 +21,15 @@ app.use("/api/trpc/*", async (c) => {
 
 // Public sponsored seller campaigns. Only admin-activated bookings are exposed.
 // The creative is taken from the seller's latest approved listing so no unreviewed image can become an ad.
+// Campaign duration is measured from the audit entry that changed the booking to "active":
+// weekly = 7 days, monthly = 30 days. Expired campaigns are completed lazily when this feed is read.
 app.get("/api/ads/active", async (c) => {
   const { getDb } = await import("./queries/connection");
-  const { sellerAdBookings, sellers, listings } = await import("../db/schema");
+  const { sellerAdBookings, sellers, listings, adminAuditLogs } = await import("../db/schema");
   const { eq, desc, and } = await import("drizzle-orm");
   const db = getDb();
+  const now = new Date();
+
   const active = await db
     .select({ booking: sellerAdBookings, seller: sellers })
     .from(sellerAdBookings)
@@ -34,24 +38,65 @@ app.get("/api/ads/active", async (c) => {
     .orderBy(desc(sellerAdBookings.createdAt));
 
   const ads = await Promise.all(active.map(async ({ booking, seller }) => {
+    const auditRows = await db
+      .select()
+      .from(adminAuditLogs)
+      .where(and(
+        eq(adminAuditLogs.action, "seller_ad_booking.status.changed"),
+        eq(adminAuditLogs.entityType, "seller_ad_booking"),
+        eq(adminAuditLogs.entityId, String(booking.id)),
+      ))
+      .orderBy(desc(adminAuditLogs.createdAt));
+
+    const activationAudit = auditRows.find((row) => {
+      try {
+        const after = row.afterState ? JSON.parse(row.afterState) : null;
+        return after?.status === "active";
+      } catch {
+        return false;
+      }
+    });
+
+    // Fallback protects older active campaigns that pre-date the activation audit flow.
+    const startsAt = activationAudit?.createdAt ?? booking.createdAt;
+    const durationDays = booking.planType === "monthly" ? 30 : 7;
+    const expiresAt = new Date(new Date(startsAt).getTime() + durationDays * 24 * 60 * 60 * 1000);
+
+    if (expiresAt <= now) {
+      await db.update(sellerAdBookings).set({ status: "completed" }).where(eq(sellerAdBookings.id, booking.id));
+      await db.insert(adminAuditLogs).values({
+        actorTag: "system-expiry",
+        action: "seller_ad_booking.auto_completed",
+        entityType: "seller_ad_booking",
+        entityId: String(booking.id),
+        beforeState: JSON.stringify({ status: "active" }),
+        afterState: JSON.stringify({ status: "completed" }),
+        meta: JSON.stringify({ planType: booking.planType, startsAt, expiresAt }),
+      });
+      return null;
+    }
+
     const [listing] = await db
       .select()
       .from(listings)
       .where(and(eq(listings.sellerId, seller.id), eq(listings.status, "approved")))
       .orderBy(desc(listings.createdAt))
       .limit(1);
+
     return {
       id: booking.id,
       sellerId: seller.id,
       sellerName: seller.shopName,
       sellerVerified: seller.verified,
       planType: booking.planType,
+      startsAt,
+      expiresAt,
       headline: listing?.name ? `${listing.name} from ${seller.shopName}` : `Shop ${seller.shopName} on UG Souq`,
       image: listing?.imageData ?? "/images/product-default.png",
     };
   }));
 
-  return c.json(ads);
+  return c.json(ads.filter(Boolean));
 });
 
 // Flutterwave returns the buyer here after hosted checkout. We always verify with Flutterwave
