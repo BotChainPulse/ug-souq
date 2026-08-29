@@ -1,17 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
-import {Heart, 
-  Search, Store, BadgePercent, Grid3X3,
-  Smartphone, Cpu, Refrigerator, Armchair, Shirt, Sparkles, Tractor, Sun, Wrench, Footprints,
-  GraduationCap, Dumbbell, Baby, Gamepad2, Dog, Apple, Bike, BookOpen,
-  UtensilsCrossed, Timer, Send, Leaf, Recycle, Wallet, Zap, Star, Truck,
-  ShieldCheck, Home as HomeIcon, BadgeCheck, Handshake, ShoppingCart, Check,
-} from 'lucide-react'
+import { Heart, Store, BadgePercent, Grid3X3, Smartphone, Cpu, Refrigerator, Armchair, Shirt, Sparkles, Tractor, Sun, Wrench, Footprints, GraduationCap, Dumbbell, Baby, Gamepad2, Dog, Apple, Bike, BookOpen, UtensilsCrossed, Timer, Send, Leaf, Recycle, Wallet, Zap, Star, Truck, ShieldCheck, Home as HomeIcon, BadgeCheck, ShoppingCart, Check, UserRound } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { trpc } from '@/providers/trpc'
 import { fmt, useCart } from '../lib/cart'
-import { ORANGE, WA_LINK } from '../lib/site'
+import { ORANGE } from '../lib/site'
 import { categoryName } from '../lib/categories'
 
 const services = [
@@ -33,17 +27,12 @@ const categoryIcons: Record<string, typeof Cpu> = {
   grocery: Apple, 'boda-auto': Bike, books: BookOpen, other: Grid3X3,
 }
 
-const homeTiles = [
-  'electronics', 'phones', 'refurbished', 'appliances', 'home',
-  'furniture', 'mens-fashion', 'womens-fashion', 'beauty', 'agriculture',
-  'solar', 'tools', 'office', 'sports', 'baby',
-  'toys', 'pets', 'grocery', 'boda-auto', 'books',
-]
+const homeTiles = ['phones', 'electronics', 'appliances', 'home', 'womens-fashion', 'mens-fashion', 'beauty', 'grocery', 'agriculture', 'solar', 'sports', 'baby']
 
 function useCountdown() {
-  const [t, setT] = useState(16 * 3600 + 43 * 60 + 49)
+  const [t, setT] = useState(16 * 3600 + 23 * 60 + 49)
   useEffect(() => {
-    const id = setInterval(() => setT((s) => (s > 0 ? s - 1 : 24 * 3600)), 1000)
+    const id = setInterval(() => setT((s) => (s > 0 ? s - 1 : 16 * 3600 + 23 * 60 + 49)), 1000)
     return () => clearInterval(id)
   }, [])
   const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60
@@ -54,242 +43,95 @@ export default function HomePage() {
   const [hh, mm, ss] = useCountdown()
   const { data: products, isLoading } = trpc.products.flashSale.useQuery()
   const { add } = useCart()
-  const [wishlist, setWishlist] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem('wishlist') || '[]') } catch { return [] }
-  })
-  const toggleWish = (id: string) => {
-    const next = wishlist.includes(id) ? wishlist.filter(w => w !== id) : [...wishlist, id]
-    setWishlist(next)
-    localStorage.setItem('wishlist', JSON.stringify(next))
-  }
+  const [wishlist, setWishlist] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('wishlist') || '[]') } catch { return [] } })
   const [added, setAdded] = useState<number | null>(null)
-
+  const toggleWish = (id: string) => {
+    const next = wishlist.includes(id) ? wishlist.filter((w) => w !== id) : [...wishlist, id]
+    setWishlist(next); localStorage.setItem('wishlist', JSON.stringify(next))
+  }
   const onAdd = (id: number, name: string, price: number) => {
-    add({ itemType: 'product', itemId: id, name, price })
-    setAdded(id)
-    setTimeout(() => setAdded(null), 1200)
+    add({ itemType: 'product', itemId: id, name, price }); setAdded(id); setTimeout(() => setAdded(null), 1200)
   }
 
   return (
-    <div className="min-h-screen bg-[#faf9f7] text-neutral-900 antialiased">
+    <div className="min-h-screen bg-[#f6f7f6] pb-16 text-neutral-900 antialiased sm:pb-0">
       <Header />
 
-      {/* Service chips */}
-      <div className="bg-white border-b border-neutral-200">
-        <div className="mx-auto max-w-7xl px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none]">
+      <div className="border-b border-neutral-200 bg-white">
+        <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-3 py-2.5 [scrollbar-width:none] sm:px-4">
           {services.map(({ icon: Icon, label, tag, to }) => (
-            <Link key={label} to={to} className="flex items-center gap-2 px-3.5 py-2 rounded-full border border-neutral-200 text-sm font-medium whitespace-nowrap hover:border-neutral-400 hover:shadow-sm transition-all bg-white">
-              <Icon size={16} style={{ color: ORANGE }} />
-              {label}
-              {tag && <span className="text-[10px] font-bold text-white px-1.5 py-0.5 rounded-full" style={{ background: ORANGE }}>{tag}</span>}
+            <Link key={label} to={to} className="flex shrink-0 items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs font-bold transition hover:border-emerald-300 hover:bg-emerald-50 sm:text-sm">
+              <Icon size={16} style={{ color: ORANGE }} /> {label}
+              {tag && <span className="rounded-full bg-emerald-700 px-1.5 py-0.5 text-[9px] text-white">{tag}</span>}
             </Link>
           ))}
         </div>
       </div>
 
-      {/* Hero */}
-      <section className="bg-[#fdf3ea]">
-        <div className="mx-auto max-w-7xl px-4 py-12 md:py-16 grid md:grid-cols-2 gap-10 items-center">
-          <div>
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-white border border-orange-200" style={{ color: ORANGE }}>
-              <Zap size={13} /> Proudly Ugandan
-            </span>
-            <h1 className="mt-4 text-4xl md:text-5xl font-extrabold tracking-tight leading-[1.08]">
-              Uganda's market,<br />in your pocket.
-            </h1>
-            <p className="mt-4 text-neutral-600 max-w-md">
-              Phones, fashion, fresh farm produce & more — pay with MTN MoMo or Airtel Money, delivered anywhere in Uganda.
-            </p>
-            <div className="mt-6 flex items-center rounded-full border border-neutral-300 bg-white overflow-hidden max-w-md shadow-sm focus-within:border-neutral-500">
-              <Search size={16} className="ml-4 text-neutral-400" />
-              <input className="flex-1 min-w-0 px-3 py-3 text-sm outline-none" placeholder="Search UG Souq..." />
-              <button className="m-1 px-4 sm:px-5 py-2 rounded-full text-white text-sm font-semibold" style={{ background: ORANGE }}>Search</button>
-            </div>
-            <div className="mt-5 flex flex-wrap gap-2 text-xs font-medium">
-              <Link to="/catalog?category=phones" className="px-3 py-1.5 rounded-full bg-white border border-neutral-200 hover:border-orange-300 hover:text-orange-700 transition-colors">Phones under 500K</Link>
-              <Link to="/food" className="px-3 py-1.5 rounded-full bg-white border border-neutral-200 hover:border-orange-300 hover:text-orange-700 transition-colors">Order Food</Link>
-              <Link to="/catalog?deals=1" className="px-3 py-1.5 rounded-full bg-white border border-neutral-200 hover:border-orange-300 hover:text-orange-700 transition-colors">Today's Deals</Link>
-            </div>
-          </div>
-          <div className="relative">
-            <img src="/images/hero.jpg" alt="Shopping on UG Souq" className="w-full rounded-2xl shadow-xl object-cover aspect-[3/2]" />
-            <div className="absolute -bottom-4 left-4 bg-white rounded-xl shadow-lg px-4 py-2.5 flex items-center gap-2 text-sm font-semibold">
-              <Truck size={16} style={{ color: ORANGE }} /> Free delivery in Kampala
-            </div>
-            <div className="absolute top-4 right-4 bg-white rounded-xl shadow-lg px-3 py-2 text-sm font-bold" style={{ color: ORANGE }}>
-              Up to −35%
-            </div>
+      <section className="mx-auto max-w-7xl px-3 pt-3 sm:px-4 sm:pt-6">
+        <div className="relative overflow-hidden rounded-2xl bg-emerald-950 text-white">
+          <img src="/images/hero.jpg" alt="Shopping on UG Souq" className="h-44 w-full object-cover opacity-55 sm:h-72" />
+          <div className="absolute inset-0 bg-gradient-to-r from-emerald-950 via-emerald-950/75 to-transparent" />
+          <div className="absolute inset-0 flex max-w-lg flex-col justify-center p-5 sm:p-8">
+            <span className="w-fit rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider">Proudly Ugandan</span>
+            <h1 className="mt-2 text-2xl font-extrabold leading-tight sm:text-4xl">Uganda's market,<br />in your pocket.</h1>
+            <p className="mt-2 max-w-sm text-xs text-emerald-50 sm:text-sm">Shop trusted sellers, pay your way and get delivery across Uganda.</p>
+            <div className="mt-3 flex gap-2"><Link to="/catalog?deals=1" className="rounded-lg bg-white px-3 py-2 text-xs font-extrabold text-emerald-900">Shop deals</Link><Link to="/plus" className="rounded-lg bg-[#c99700] px-3 py-2 text-xs font-extrabold text-white">UG Souq Plus</Link></div>
           </div>
         </div>
       </section>
 
-      {/* Verified sellers banner */}
-      <section className="mx-auto max-w-7xl px-4 mt-12">
-        <div className="bg-sky-50 border border-sky-100 rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
-          <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-full bg-white grid place-items-center shadow-sm shrink-0"><BadgeCheck size={20} className="text-sky-600" /></span>
-            <div>
-              <h3 className="font-bold text-sm text-sky-900">Verified sellers come first</h3>
-              <p className="text-xs text-sky-700/80">ID-checked, location-confirmed shops with a 95%+ positive record are shown at the top of every listing.</p>
-            </div>
-          </div>
-          <Link to="/verification" className="sm:ml-auto text-xs font-bold text-sky-700 bg-white border border-sky-200 px-4 py-2 rounded-full hover:bg-sky-100 transition-colors whitespace-nowrap">How verification works →</Link>
+      <section className="mx-auto max-w-7xl px-3 pt-5 sm:px-4">
+        <div className="mb-3 flex items-center justify-between"><h2 className="text-lg font-extrabold sm:text-2xl">Shop by category</h2><Link to="/catalog" className="text-xs font-bold text-emerald-700">View all →</Link></div>
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-12">
+          {homeTiles.map((slug) => { const Icon = categoryIcons[slug] ?? Grid3X3; return (
+            <Link key={slug} to={`/catalog?category=${slug}`} className="min-w-0 text-center">
+              <span className="mx-auto grid aspect-square w-full max-w-20 place-items-center rounded-2xl bg-white shadow-sm ring-1 ring-neutral-200"><Icon size={23} className="text-emerald-700" /></span>
+              <span className="mt-1.5 block truncate text-[10px] font-semibold sm:text-xs">{categoryName(slug)}</span>
+            </Link>
+          )})}
         </div>
       </section>
 
-      {/* Seller ads banner */}
-      <section className="mx-auto max-w-7xl px-4 mt-6">
-        <div className="bg-neutral-900 text-white rounded-2xl p-6 sm:p-7 border border-neutral-700">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
-            <div>
-              <p className="text-xs uppercase tracking-wider text-orange-300 font-bold">Seller Ads</p>
-              <h3 className="mt-1 text-xl font-extrabold">Promote your shop on UG Souq</h3>
-              <p className="mt-2 text-sm text-neutral-300 max-w-2xl">Boost visibility on home sections and category feeds. Pick a weekly or monthly ad package and our team activates your campaign.</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Link to="/sell" className="px-4 py-2 rounded-full text-sm font-bold text-white" style={{ background: ORANGE }}>Start seller profile</Link>
-              <a href={WA_LINK} target="_blank" rel="noreferrer" className="px-4 py-2 rounded-full text-sm font-bold border border-neutral-500 hover:border-neutral-300">Book ad via WhatsApp</a>
-            </div>
-          </div>
-          <div className="mt-5 grid sm:grid-cols-2 gap-4">
-            <div className="rounded-xl bg-neutral-800 border border-neutral-700 p-4">
-              <p className="text-sm font-bold">Weekly Seller Ad</p>
-              <p className="text-2xl font-extrabold mt-1" style={{ color: ORANGE }}>UGX 25,000</p>
-              <p className="text-xs text-neutral-300 mt-2">7 days visibility, one category boost, weekly performance summary.</p>
-            </div>
-            <div className="rounded-xl bg-neutral-800 border border-neutral-700 p-4">
-              <p className="text-sm font-bold">Monthly Seller Ad</p>
-              <p className="text-2xl font-extrabold mt-1" style={{ color: ORANGE }}>UGX 50,000</p>
-              <p className="text-xs text-neutral-300 mt-2">30 days visibility, priority placement, creative refresh support, monthly report.</p>
-            </div>
-          </div>
+      <section className="mx-auto max-w-7xl px-3 pt-6 sm:px-4">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2"><h2 className="flex shrink-0 items-center gap-1.5 text-xl font-extrabold sm:text-2xl"><Zap size={21} className="text-emerald-700" /> Flash Sale</h2><div className="flex items-center gap-0.5 text-xs font-bold">{[hh, mm, ss].map((v, i) => <span key={i} className="flex items-center gap-0.5"><span className="rounded bg-neutral-900 px-1.5 py-1 text-white tabular-nums">{v}</span>{i < 2 && <span className="text-neutral-400">:</span>}</span>)}</div></div>
+          <Link to="/catalog?deals=1" className="shrink-0 text-xs font-bold text-emerald-700">View all →</Link>
         </div>
-      </section>
-
-      {/* Flash sale */}
-      <section className="mx-auto max-w-7xl px-4 mt-10">
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-extrabold flex items-center gap-2"><Zap size={22} style={{ color: ORANGE }} /> Flash Sale</h2>
-            <div className="flex items-center gap-1 text-sm font-bold">
-              {[hh, mm, ss].map((v, i) => (
-                <span key={i} className="flex items-center gap-1">
-                  <span className="bg-neutral-900 text-white px-2 py-1 rounded-md tabular-nums">{v}</span>
-                  {i < 2 && <span className="text-neutral-400">:</span>}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-        {isLoading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {[...Array(8)].map((_, i) => <div key={i} className="bg-white rounded-2xl border border-neutral-200 h-80 animate-pulse" />)}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        {isLoading ? <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">{[...Array(8)].map((_, i) => <div key={i} className="h-64 animate-pulse rounded-xl bg-white" />)}</div> : (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4">
             {products?.map((p) => (
-              <div key={p.id} className={`group bg-white rounded-2xl border overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all ${p.sellerVerified ? 'border-neutral-200 ring-1 ring-sky-100' : 'border-neutral-200'}`}>
-                <div className="block relative bg-white">
-                  <Link to={`/product/${p.slug}`}>
-                    <img src={p.image} alt={p.name} className="w-full aspect-[4/3] object-contain bg-gray-50" loading="lazy" />
-                  </Link>
-                  {p.discount > 0 && (
-                    <span className="absolute top-3 left-3 text-xs font-bold text-white px-2 py-1 rounded-full" style={{ background: ORANGE }}>−{p.discount}%</span>
-                  )}
-                  <button
-                    onClick={(e) => { e.preventDefault(); toggleWish(p.id) }}
-                    className="absolute top-3 right-3 bg-white/95 rounded-full p-1.5 shadow hover:scale-110 transition-transform"
-                    title={wishlist.includes(p.id) ? 'Remove from wishlist' : 'Add to wishlist'}
-                  >
-                    <Heart size={16} className={wishlist.includes(p.id) ? 'text-red-500 fill-red-500' : 'text-gray-400'} />
-                  </button>
+              <article key={p.id} className="group overflow-hidden rounded-xl border border-neutral-200 bg-white transition hover:shadow-md">
+                <div className="relative bg-neutral-50"><Link to={`/product/${p.slug}`}><img src={p.image} alt={p.name} className="aspect-square w-full object-contain" loading="lazy" /></Link>
+                  {p.discount > 0 && <span className="absolute left-2 top-2 rounded-md bg-emerald-700 px-1.5 py-1 text-[10px] font-extrabold text-white">−{p.discount}%</span>}
+                  <button onClick={(e) => { e.preventDefault(); toggleWish(p.id) }} className="absolute right-2 top-2 rounded-full bg-white p-1.5 shadow"><Heart size={15} className={wishlist.includes(p.id) ? 'fill-red-500 text-red-500' : 'text-neutral-500'} /></button>
                 </div>
-                <div className="p-4">
-                  {p.sellerVerified ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full mb-1.5">
-                      <BadgeCheck size={12} /> <Link to={`/seller/${p.sellerId}`} className="hover:underline">{p.sellerName}</Link>
-                    </span>
-                  ) : (
-                    <span className="block text-[11px] text-neutral-400 mb-1.5"><Link to={`/seller/${p.sellerId}`} className="hover:underline">{p.sellerName}</Link></span>
-                  )}
-                  <Link to={`/product/${p.slug}`}><h3 className="text-sm font-medium leading-snug line-clamp-2 min-h-[2.6em] hover:text-orange-600">{p.name}</h3></Link>
-                  <div className="mt-2 flex items-baseline gap-2">
-                    <span className="font-extrabold" style={{ color: ORANGE }}>{fmt(p.price)}</span>
-                    {p.oldPrice && <span className="text-xs text-neutral-400 line-through">{fmt(p.oldPrice)}</span>}
-                  </div>
-                  <div className="mt-1.5 flex items-center gap-1 text-xs text-neutral-500">
-                    <Star size={12} className="fill-amber-400 text-amber-400" /> {p.sellerRating.toFixed(1)}
-                  </div>
-                  <button
-                    onClick={() => onAdd(p.id, p.name, p.price)}
-                    className="mt-3 w-full flex items-center justify-center gap-2 text-sm font-bold text-white py-3 rounded-xl transition-colors shadow-sm active:scale-95"
-                    style={{ background: added === p.id ? '#16a34a' : ORANGE }}>
-                    {added === p.id ? <><Check size={16} /> Added to cart</> : <><ShoppingCart size={16} /> Add to cart</>}
-                  </button>
+                <div className="p-2.5 sm:p-3">
+                  <span className="block truncate text-[10px] font-semibold text-emerald-700">{p.sellerVerified && <BadgeCheck size={11} className="mr-1 inline" />}{p.sellerName}</span>
+                  <Link to={`/product/${p.slug}`}><h3 className="mt-1 line-clamp-2 min-h-[2.4em] text-xs font-semibold leading-snug sm:text-sm">{p.name}</h3></Link>
+                  <div className="mt-1.5"><span className="text-sm font-extrabold sm:text-base">{fmt(p.price)}</span>{p.oldPrice && <span className="ml-1.5 text-[10px] text-neutral-400 line-through">{fmt(p.oldPrice)}</span>}</div>
+                  <div className="mt-1 flex items-center justify-between"><span className="flex items-center gap-1 text-[10px] text-neutral-500"><Star size={11} className="fill-amber-400 text-amber-400" />{p.sellerRating.toFixed(1)}</span><button onClick={() => onAdd(p.id, p.name, p.price)} aria-label="Add to cart" className="grid h-8 w-8 place-items-center rounded-lg text-white active:scale-95" style={{ background: ORANGE }}>{added === p.id ? <Check size={15} /> : <ShoppingCart size={15} />}</button></div>
                 </div>
-              </div>
+              </article>
             ))}
           </div>
         )}
       </section>
 
-      {/* Categories */}
-      <section className="mx-auto max-w-7xl px-4 mt-14">
-        <h2 className="text-2xl font-extrabold mb-5 flex items-center gap-2"><Grid3X3 size={22} style={{ color: ORANGE }} /> Shop by Category</h2>
-        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3">
-          {homeTiles.map((slug) => {
-            const Icon = categoryIcons[slug] ?? Grid3X3
-            return (
-              <Link key={slug} to={`/catalog?category=${slug}`} className="bg-white rounded-2xl border border-neutral-200 p-4 flex flex-col items-center text-center gap-2 hover:shadow-md hover:border-orange-200 transition-all">
-                <span className="w-11 h-11 rounded-full grid place-items-center bg-orange-50"><Icon size={20} style={{ color: ORANGE }} /></span>
-                <span className="text-sm font-semibold leading-tight">{categoryName(slug)}</span>
-              </Link>
-            )
-          })}
-        </div>
-      </section>
+      <section className="mx-auto max-w-7xl px-3 pt-6 sm:px-4"><div className="flex items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50 p-4"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white"><BadgeCheck size={18} className="text-emerald-700" /></span><div className="min-w-0 flex-1"><h3 className="text-sm font-bold text-emerald-950">Shop verified sellers</h3><p className="text-xs text-emerald-800/80">ID-checked sellers and buyer protection help you shop with confidence.</p></div><Link to="/verification" className="shrink-0 text-xs font-bold text-emerald-700">Learn more →</Link></div></section>
 
-      {/* Trust */}
-      <section className="mx-auto max-w-7xl px-4 mt-14">
-        <div className="grid sm:grid-cols-3 gap-4">
-          {[
-            { icon: Truck, t: 'Nationwide Delivery', d: 'Kampala same-day, upcountry in 1–3 days via boda & bus courier.' },
-            { icon: Wallet, t: 'Pay Your Way', d: 'MTN MoMo, Airtel Money, or cash on delivery. No card needed.' },
-            { icon: ShieldCheck, t: 'Buyer Protection', d: 'Full refund if your item is not as described. Verified sellers only.' },
-          ].map(({ icon: Icon, t, d }) => (
-            <div key={t} className="bg-white rounded-2xl border border-neutral-200 p-5 flex gap-4">
-              <span className="w-11 h-11 shrink-0 rounded-full grid place-items-center bg-orange-50"><Icon size={20} style={{ color: ORANGE }} /></span>
-              <div>
-                <h3 className="font-bold text-sm">{t}</h3>
-                <p className="text-sm text-neutral-600 mt-1">{d}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      <section className="mx-auto max-w-7xl px-3 py-7 sm:px-4"><div className="grid gap-3 sm:grid-cols-3">{[
+        { icon: Truck, t: 'Nationwide Delivery', d: 'Kampala and upcountry delivery options.' },
+        { icon: Wallet, t: 'Pay Your Way', d: 'MTN MoMo, Airtel Money or cash on delivery.' },
+        { icon: ShieldCheck, t: 'Buyer Protection', d: 'Protection on every eligible order.' },
+      ].map(({ icon: Icon, t, d }) => <div key={t} className="flex gap-3 rounded-xl bg-white p-4 ring-1 ring-neutral-200"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-emerald-50"><Icon size={18} className="text-emerald-700" /></span><div><h3 className="text-sm font-bold">{t}</h3><p className="mt-0.5 text-xs text-neutral-600">{d}</p></div></div>)}</div></section>
 
-      {/* Sell & earn */}
-      <section className="mx-auto max-w-7xl px-4 mt-14">
-        <div className="grid sm:grid-cols-2 gap-4">
-          <Link to="/sell" className="group bg-neutral-900 text-white rounded-2xl p-6 flex items-center gap-5 hover:bg-neutral-800 transition-colors">
-            <span className="w-12 h-12 shrink-0 rounded-full grid place-items-center" style={{ background: ORANGE }}><Store size={22} /></span>
-            <div className="flex-1">
-              <h3 className="font-extrabold">Sell on UG Souq</h3>
-              <p className="text-sm text-neutral-300 mt-1">Open your shop in minutes. Free verification with your National ID — verified sellers rank first.</p>
-            </div>
-            <span className="text-neutral-500 group-hover:text-white transition-colors">→</span>
-          </Link>
-          <Link to="/affiliates" className="group bg-white rounded-2xl border border-neutral-200 p-6 flex items-center gap-5 hover:shadow-md transition-shadow">
-            <span className="w-12 h-12 shrink-0 rounded-full grid place-items-center bg-orange-50"><Handshake size={22} style={{ color: ORANGE }} /></span>
-            <div className="flex-1">
-              <h3 className="font-extrabold">Earn as an affiliate</h3>
-              <p className="text-sm text-neutral-600 mt-1">Share links, get up to 8% commission on every sale — paid monthly by MoMo. Free to join.</p>
-            </div>
-            <span className="text-neutral-300 group-hover:text-neutral-600 transition-colors">→</span>
-          </Link>
-        </div>
-      </section>
-
+      <div className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-neutral-200 bg-white px-2 py-1.5 sm:hidden">
+        <Link to="/" className="flex flex-col items-center gap-0.5 text-[10px] font-bold text-emerald-700"><HomeIcon size={21} />Home</Link>
+        <Link to="/catalog" className="flex flex-col items-center gap-0.5 text-[10px] font-medium text-neutral-600"><Grid3X3 size={21} />Categories</Link>
+        <Link to="/account" className="flex flex-col items-center gap-0.5 text-[10px] font-medium text-neutral-600"><UserRound size={21} />Account</Link>
+        <Link to="/cart" className="flex flex-col items-center gap-0.5 text-[10px] font-medium text-neutral-600"><ShoppingCart size={21} />Cart</Link>
+      </div>
       <Footer />
     </div>
   )
