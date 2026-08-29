@@ -165,7 +165,6 @@ export default function Cart() {
               </div></div>
               </div>
             </div>
-            </div>
             <aside className="lg:sticky lg:top-5">
               <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
                 <div className="border-b border-neutral-100 p-5"><h2 className="font-extrabold">Order summary</h2><p className="mt-1 text-xs text-neutral-500">Review your order before placing it.</p></div>
@@ -197,4 +196,3 @@ export default function Cart() {
     </div>
   )
 }
-
