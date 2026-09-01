@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { ORANGE, WA_LINK } from '../lib/site'
 import { trpc } from '@/providers/trpc'
+import SellerAdBookingForm from '../components/SellerAdBookingForm'
 
 const steps = ['Shop details', 'Verification', 'Payout', 'Review & submit']
 
@@ -88,9 +89,6 @@ export default function Sell() {
               <h2 className="text-lg sm:text-xl font-extrabold mt-1">Run weekly or monthly ads for your shop</h2>
               <p className="text-sm text-neutral-600 mt-1">Need faster sales? Promote top products on UG Souq banners and category spots.</p>
             </div>
-            <a href={WA_LINK} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-bold text-white" style={{ background: ORANGE }}>
-              <MessageCircle size={15} /> Book seller ad
-            </a>
           </div>
           <div className="mt-4 grid sm:grid-cols-2 gap-3">
             <div className="bg-white rounded-xl border border-neutral-200 p-4">
@@ -104,6 +102,7 @@ export default function Sell() {
               <p className="text-xs text-neutral-600 mt-1">30 days promo, broader placement, refresh + monthly performance report.</p>
             </div>
           </div>
+          <SellerAdBookingForm />
         </div>
       </section>
 
