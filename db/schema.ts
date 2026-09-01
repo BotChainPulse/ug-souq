@@ -137,6 +137,23 @@ export const customers = mysqlTable("customers", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const marketingSubscribers = mysqlTable("marketing_subscribers", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }),
+  email: varchar("email", { length: 255 }).unique(),
+  phone: varchar("phone", { length: 32 }).unique(),
+  emailOptIn: boolean("email_opt_in").notNull().default(false),
+  whatsappOptIn: boolean("whatsapp_opt_in").notNull().default(false),
+  consentSource: varchar("consent_source", { length: 64 }).notNull().default("homepage"),
+  consentVersion: varchar("consent_version", { length: 32 }).notNull().default("2026-09-01"),
+  unsubscribeToken: varchar("unsubscribe_token", { length: 64 }).notNull().unique(),
+  consentedAt: timestamp("consented_at").notNull().defaultNow(),
+  emailUnsubscribedAt: timestamp("email_unsubscribed_at"),
+  whatsappUnsubscribedAt: timestamp("whatsapp_unsubscribed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+});
+
 // A membership is attached to a real buyer record, never just a browser session.
 // Payment attempts are kept separately so provider callbacks can be audited and retried safely.
 export const plusMemberships = mysqlTable("plus_memberships", {

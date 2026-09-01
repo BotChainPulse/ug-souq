@@ -80,6 +80,20 @@ const TABLES = [
     \`location\` text,
     \`created_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
+  `CREATE TABLE IF NOT EXISTS marketing_subscribers (
+    \`id\` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    \`name\` varchar(255) NULL, \`email\` varchar(255) NULL UNIQUE, \`phone\` varchar(32) NULL UNIQUE,
+    \`email_opt_in\` boolean NOT NULL DEFAULT false, \`whatsapp_opt_in\` boolean NOT NULL DEFAULT false,
+    \`consent_source\` varchar(64) NOT NULL DEFAULT 'homepage',
+    \`consent_version\` varchar(32) NOT NULL DEFAULT '2026-09-01',
+    \`unsubscribe_token\` varchar(64) NOT NULL UNIQUE,
+    \`consented_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    \`email_unsubscribed_at\` timestamp NULL, \`whatsapp_unsubscribed_at\` timestamp NULL,
+    \`created_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX \`idx_marketing_email_opt_in\` (\`email_opt_in\`),
+    INDEX \`idx_marketing_whatsapp_opt_in\` (\`whatsapp_opt_in\`)
+  )`,
   `CREATE TABLE IF NOT EXISTS plus_memberships (
     \`id\` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
     \`customer_id\` bigint unsigned NOT NULL UNIQUE,

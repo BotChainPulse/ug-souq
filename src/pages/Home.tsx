@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { Heart, Store, BadgePercent, Grid3X3, Smartphone, Cpu, Refrigerator, Armchair, Shirt, Sparkles, Tractor, Sun, Wrench, Footprints, GraduationCap, Dumbbell, Baby, Gamepad2, Dog, Apple, Bike, BookOpen, UtensilsCrossed, Timer, Send, Leaf, Recycle, Wallet, Zap, Star, Truck, ShieldCheck, Home as HomeIcon, BadgeCheck, ShoppingCart, Check, UserRound } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
+import MarketingSignup from '../components/MarketingSignup'
 import { trpc } from '@/providers/trpc'
 import { fmt, useCart } from '../lib/cart'
 import { ORANGE } from '../lib/site'
@@ -147,6 +148,8 @@ export default function HomePage() {
       </section>
 
       <section className="mx-auto max-w-7xl px-3 pt-6 sm:px-4"><div className="flex items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50 p-4"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white"><BadgeCheck size={18} className="text-emerald-700" /></span><div className="min-w-0 flex-1"><h3 className="text-sm font-bold text-emerald-950">Shop verified sellers</h3><p className="text-xs text-emerald-800/80">ID-checked sellers and buyer protection help you shop with confidence.</p></div><Link to="/verification" className="shrink-0 text-xs font-bold text-emerald-700">Learn more →</Link></div></section>
+
+      <MarketingSignup />
 
       <section className="mx-auto max-w-7xl px-3 py-7 sm:px-4"><div className="grid gap-3 sm:grid-cols-3">{[
         { icon: Truck, t: 'Nationwide Delivery', d: 'Kampala and upcountry delivery options.' },

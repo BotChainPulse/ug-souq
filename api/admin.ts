@@ -7,7 +7,7 @@ import { getDb } from "./queries/connection";
 import {
   sellers, orders, orderItems, affiliates, products, listings,
   sellerAdBookings, deliveryPartners, adminAuditLogs, payouts,
-  platformSettings, sellerContracts, notifications, returns, customers
+  platformSettings, sellerContracts, notifications, returns, customers, marketingSubscribers
 } from "../db/schema";
 
 const ADMIN_KEY = process.env.ADMIN_KEY ?? "ugsouq-admin-2026";
@@ -148,6 +148,20 @@ export const adminRouter = createRouter({
   login: publicQuery.input(z.object({ key: z.string() })).mutation(({ input }) => {
     requireAdmin(input.key);
     return { ok: true };
+  }),
+
+  marketingSubscribers: publicQuery.input(z.object({ key: z.string() })).query(async ({ input }) => {
+    requireAdmin(input.key);
+    const db = getDb();
+    const rows = await db.select().from(marketingSubscribers).orderBy(desc(marketingSubscribers.consentedAt)).limit(1000);
+    return {
+      rows: rows.map(({ unsubscribeToken: _unsubscribeToken, ...row }) => row),
+      totals: {
+        subscribers: rows.filter((row) => row.emailOptIn || row.whatsappOptIn).length,
+        email: rows.filter((row) => row.emailOptIn).length,
+        whatsapp: rows.filter((row) => row.whatsappOptIn).length,
+      },
+    };
   }),
 
   // ============================================

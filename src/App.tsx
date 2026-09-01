@@ -22,6 +22,7 @@ import AdminLaunch from './pages/AdminLaunch'
 import AdminListingsReview from './pages/AdminListingsReview'
 import AdminDeliveriesSafe from './pages/AdminDeliveriesSafe'
 import AdminAdsSafe from './pages/AdminAdsSafe'
+import Unsubscribe from './pages/Unsubscribe'
 import Promotions from './pages/Promotions'
 import Catalog from './pages/Catalog'
 import Boda from './pages/Boda'
@@ -62,6 +63,7 @@ export default function App() {
         <Route path="/track" element={<TrackOrder />} />
         <Route path="/orders" element={<MyOrders />} />
         <Route path="/orders/:code" element={<OrderDetails />} />
+        <Route path="/unsubscribe" element={<Unsubscribe />} />
         <Route path="/account" element={<Account />} />
         <Route path="/deliveries" element={<Deliveries />} />
         <Route path="/returns" element={<Returns />} />
