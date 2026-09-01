@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { Component, useState } from 'react'
+import type { ErrorInfo, ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
 import { ArrowLeft, CheckCircle2, CircleDashed, MapPin, Package, ReceiptText, Truck, XCircle } from 'lucide-react'
 import Header from '../components/Header'
@@ -24,7 +25,47 @@ function paymentMethodLabel(method: string) {
   return 'Cash on delivery'
 }
 
-export default function OrderDetails() {
+function safeOrderDate(value: unknown) {
+  const date = new Date(value as string | number | Date)
+  if (Number.isNaN(date.getTime())) return 'Date unavailable'
+  try {
+    return date.toLocaleString('en-UG', { dateStyle: 'medium', timeStyle: 'short' })
+  } catch {
+    return date.toLocaleString()
+  }
+}
+
+function safeAmount(value: unknown) {
+  const amount = Number(value)
+  return fmt(Number.isFinite(amount) ? amount : 0)
+}
+
+class OrderDetailsBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() { return { failed: true } }
+  componentDidCatch(error: Error, info: ErrorInfo) { console.error('Order details render failed', error, info) }
+  render() {
+    if (this.state.failed) {
+      return (
+        <div className="flex min-h-screen flex-col bg-[#faf9f7]">
+          <Header />
+          <main className="mx-auto w-full max-w-xl flex-1 px-4 py-10">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center">
+              <ReceiptText className="mx-auto text-amber-700" />
+              <h1 className="mt-3 text-xl font-extrabold text-amber-950">We couldn't display this order</h1>
+              <p className="mt-2 text-sm text-amber-800">The order is still saved. Return to My Orders and try opening it again.</p>
+              <Link to="/orders" className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-amber-900 px-4 text-sm font-bold text-white">Back to My Orders</Link>
+            </div>
+          </main>
+          <Footer />
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
+function OrderDetailsPage() {
   const { code = '' } = useParams()
   const savedPhone = localStorage.getItem(SAVED_PHONE_KEY) ?? getAccount()?.phone ?? ''
   const [phone, setPhone] = useState(savedPhone)
@@ -35,6 +76,7 @@ export default function OrderDetails() {
     { enabled: canLoad, retry: false },
   )
   const order = orderQuery.data
+  const items = order && Array.isArray(order.items) ? order.items : []
   const stageIndex = order ? STAGES.findIndex(({ key }) => key === order.status) : -1
 
   const lookUp = () => {
@@ -63,7 +105,16 @@ export default function OrderDetails() {
 
         {orderQuery.isLoading && <div className="mt-6 h-80 animate-pulse rounded-2xl bg-white" />}
 
-        {canLoad && orderQuery.isFetched && !order && !orderQuery.isLoading && (
+        {orderQuery.isError && (
+          <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
+            <XCircle className="mx-auto text-red-500" />
+            <h2 className="mt-2 font-extrabold text-red-800">Unable to load order</h2>
+            <p className="mt-1 text-sm text-red-700">Please check your connection and try again.</p>
+            <button onClick={() => orderQuery.refetch()} className="mt-4 min-h-11 rounded-xl bg-red-700 px-4 text-sm font-bold text-white">Try again</button>
+          </div>
+        )}
+
+        {canLoad && orderQuery.isFetched && !order && !orderQuery.isLoading && !orderQuery.isError && (
           <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
             <XCircle className="mx-auto text-red-500" />
             <h2 className="mt-2 font-extrabold text-red-800">Order not found</h2>
@@ -76,8 +127,8 @@ export default function OrderDetails() {
           <div className="mt-5 space-y-4">
             <section className="rounded-2xl border border-neutral-200 bg-white p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div><p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Order number</p><p className="mt-1 font-mono text-lg font-extrabold tracking-widest" style={{ color: ORANGE }}>{order.code}</p><p className="mt-1 text-xs text-neutral-500">{new Date(order.createdAt).toLocaleString('en-UG', { dateStyle: 'medium', timeStyle: 'short' })}</p></div>
-                <div className="text-right"><p className="text-xl font-extrabold">{fmt(order.total)}</p><span className={`mt-1 inline-block rounded-full px-2 py-1 text-[11px] font-bold ${paymentLabel(order).cls}`}>{paymentLabel(order).text}</span></div>
+                <div><p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Order number</p><p className="mt-1 font-mono text-lg font-extrabold tracking-widest" style={{ color: ORANGE }}>{order.code || code}</p><p className="mt-1 text-xs text-neutral-500">{safeOrderDate(order.createdAt)}</p></div>
+                <div className="text-right"><p className="text-xl font-extrabold">{safeAmount(order.total)}</p><span className={`mt-1 inline-block rounded-full px-2 py-1 text-[11px] font-bold ${paymentLabel({ paymentMethod: order.paymentMethod ?? '', paymentStatus: order.paymentStatus ?? 'unpaid' }).cls}`}>{paymentLabel({ paymentMethod: order.paymentMethod ?? '', paymentStatus: order.paymentStatus ?? 'unpaid' }).text}</span></div>
               </div>
               {order.status === 'cancelled' ? <p className="mt-5 flex items-center gap-2 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-700"><XCircle size={18} /> This order was cancelled.</p> : (
                 <div className="mt-6 grid gap-3 sm:grid-cols-5">
@@ -89,14 +140,15 @@ export default function OrderDetails() {
             <section className="rounded-2xl border border-neutral-200 bg-white p-5">
               <h2 className="font-extrabold">Items</h2>
               <div className="mt-3 divide-y divide-neutral-100">
-                {order.items.map((item) => <div key={item.id} className="flex justify-between gap-3 py-3 text-sm"><span className="text-neutral-700">{item.qty} × {item.name}</span><span className="shrink-0 font-semibold">{fmt(item.price * item.qty)}</span></div>)}
+                {items.map((item) => <div key={item.id} className="flex justify-between gap-3 py-3 text-sm"><span className="text-neutral-700">{Number(item.qty) || 0} × {item.name || 'Item'}</span><span className="shrink-0 font-semibold">{safeAmount((Number(item.price) || 0) * (Number(item.qty) || 0))}</span></div>)}
+                {items.length === 0 && <p className="py-3 text-sm text-neutral-500">No item lines were saved for this legacy order.</p>}
               </div>
-              <div className="mt-2 space-y-2 border-t border-neutral-200 pt-3 text-sm"><div className="flex justify-between text-neutral-600"><span>Subtotal</span><span>{fmt(order.subtotal)}</span></div><div className="flex justify-between text-neutral-600"><span>Delivery</span><span>{order.deliveryFee === 0 ? 'Free' : fmt(order.deliveryFee)}</span></div><div className="flex justify-between pt-1 text-base font-extrabold"><span>Total</span><span>{fmt(order.total)}</span></div></div>
+              <div className="mt-2 space-y-2 border-t border-neutral-200 pt-3 text-sm"><div className="flex justify-between text-neutral-600"><span>Subtotal</span><span>{safeAmount(order.subtotal)}</span></div><div className="flex justify-between text-neutral-600"><span>Delivery</span><span>{Number(order.deliveryFee) === 0 ? 'Free' : safeAmount(order.deliveryFee)}</span></div><div className="flex justify-between pt-1 text-base font-extrabold"><span>Total</span><span>{safeAmount(order.total)}</span></div></div>
             </section>
 
             <section className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-neutral-200 bg-white p-5"><h2 className="flex items-center gap-2 font-extrabold"><MapPin size={17} className="text-emerald-700" /> Delivery address</h2><p className="mt-2 text-sm leading-relaxed text-neutral-600">{order.address}</p></div>
-              <div className="rounded-2xl border border-neutral-200 bg-white p-5"><h2 className="font-extrabold">Payment</h2><p className="mt-2 text-sm text-neutral-600">{paymentMethodLabel(order.paymentMethod)}</p>{order.paymentRef && <p className="mt-1 break-all text-xs text-neutral-500">Reference: {order.paymentRef}</p>}</div>
+              <div className="rounded-2xl border border-neutral-200 bg-white p-5"><h2 className="flex items-center gap-2 font-extrabold"><MapPin size={17} className="text-emerald-700" /> Delivery address</h2><p className="mt-2 text-sm leading-relaxed text-neutral-600">{order.address || 'Address unavailable'}</p></div>
+              <div className="rounded-2xl border border-neutral-200 bg-white p-5"><h2 className="font-extrabold">Payment</h2><p className="mt-2 text-sm text-neutral-600">{paymentMethodLabel(order.paymentMethod ?? '')}</p>{order.paymentRef && <p className="mt-1 break-all text-xs text-neutral-500">Reference: {order.paymentRef}</p>}</div>
             </section>
           </div>
         )}
@@ -104,4 +156,8 @@ export default function OrderDetails() {
       <Footer />
     </div>
   )
+}
+
+export default function OrderDetails() {
+  return <OrderDetailsBoundary><OrderDetailsPage /></OrderDetailsBoundary>
 }
