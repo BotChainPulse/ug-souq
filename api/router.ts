@@ -1,8 +1,10 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { eq, desc, asc, like, or } from "drizzle-orm";
+import { randomBytes } from "crypto";
 import { createRouter, publicQuery, COMMISSION_RATE } from "./middleware";
 import { getDb } from "./queries/connection";
-import { sellers, products, restaurants, menuItems, orders, orderItems, affiliates, listings, customers, deliveryPartners, sellerAdBookings, notifications, plusMemberships, plusPayments } from "../db/schema";
+import { sellers, products, restaurants, menuItems, orders, orderItems, affiliates, listings, customers, deliveryPartners, sellerAdBookings, notifications, plusMemberships, plusPayments, marketingSubscribers } from "../db/schema";
 import { createPlusCheckout, plusPlan } from "./plus";
 import { adminRouter } from "./admin";
 import { trustRouter } from "./trust";
@@ -19,6 +21,13 @@ function orderCode() {
 }
 
 const normPhone = (p: string) => p.replace(/[\s-]+/g, "").trim();
+
+const normalizeMarketingPhone = (value: string) => {
+  const digits = value.replace(/\D/g, "");
+  if (digits.startsWith("256")) return `+${digits}`;
+  if (digits.startsWith("0")) return `+256${digits.slice(1)}`;
+  return `+256${digits}`;
+};
 
 
 
@@ -39,6 +48,81 @@ export const appRouter = createRouter({
   trust: trustRouter,
   bootstrap: bootstrapRouter,
   migrate: migrateRouter,
+
+  marketing: createRouter({
+    subscribe: publicQuery
+      .input(z.object({
+        name: z.string().trim().max(255).optional(),
+        email: z.string().trim().max(255).optional(),
+        phone: z.string().trim().max(32).optional(),
+        emailOptIn: z.boolean(),
+        whatsappOptIn: z.boolean(),
+        consentAccepted: z.boolean(),
+        source: z.enum(["homepage", "checkout", "account"]).default("homepage"),
+        website: z.string().max(200).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        if (input.website) return { ok: true };
+        if (!input.consentAccepted || (!input.emailOptIn && !input.whatsappOptIn)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Choose Email or WhatsApp and accept the marketing consent." });
+        }
+
+        const email = input.email?.toLowerCase() || null;
+        const phone = input.phone ? normalizeMarketingPhone(input.phone) : null;
+        if (input.emailOptIn && (!email || !z.string().email().safeParse(email).success)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Enter a valid email address for email offers." });
+        }
+        if (input.whatsappOptIn && (!phone || !/^\+256\d{9}$/.test(phone))) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Enter a valid Ugandan WhatsApp number." });
+        }
+
+        const db = getDb();
+        const match = email && phone
+          ? or(eq(marketingSubscribers.email, email), eq(marketingSubscribers.phone, phone))
+          : email
+            ? eq(marketingSubscribers.email, email)
+            : eq(marketingSubscribers.phone, phone!);
+        const [existing] = await db.select().from(marketingSubscribers).where(match).limit(1);
+        const now = new Date();
+
+        if (existing) {
+          await db.update(marketingSubscribers).set({
+            name: input.name || existing.name,
+            ...(email ? { email, emailOptIn: input.emailOptIn, emailUnsubscribedAt: input.emailOptIn ? null : existing.emailUnsubscribedAt } : {}),
+            ...(phone ? { phone, whatsappOptIn: input.whatsappOptIn, whatsappUnsubscribedAt: input.whatsappOptIn ? null : existing.whatsappUnsubscribedAt } : {}),
+            consentSource: input.source,
+            consentVersion: "2026-09-01",
+            consentedAt: now,
+          }).where(eq(marketingSubscribers.id, existing.id));
+        } else {
+          await db.insert(marketingSubscribers).values({
+            name: input.name || null,
+            email,
+            phone,
+            emailOptIn: input.emailOptIn,
+            whatsappOptIn: input.whatsappOptIn,
+            consentSource: input.source,
+            consentVersion: "2026-09-01",
+            unsubscribeToken: randomBytes(24).toString("hex"),
+            consentedAt: now,
+          });
+        }
+        return { ok: true };
+      }),
+    unsubscribe: publicQuery
+      .input(z.object({ token: z.string().length(48), channel: z.enum(["email", "whatsapp", "all"]) }))
+      .mutation(async ({ input }) => {
+        const db = getDb();
+        const [subscriber] = await db.select().from(marketingSubscribers).where(eq(marketingSubscribers.unsubscribeToken, input.token)).limit(1);
+        if (!subscriber) return { ok: false };
+        const now = new Date();
+        await db.update(marketingSubscribers).set({
+          ...(input.channel !== "whatsapp" ? { emailOptIn: false, emailUnsubscribedAt: now } : {}),
+          ...(input.channel !== "email" ? { whatsappOptIn: false, whatsappUnsubscribedAt: now } : {}),
+        }).where(eq(marketingSubscribers.id, subscriber.id));
+        return { ok: true };
+      }),
+  }),
 
   products: createRouter({
     homepageGroceries: publicQuery.query(async () => {

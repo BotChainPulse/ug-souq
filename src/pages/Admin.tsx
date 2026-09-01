@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Store, Package, ShoppingCart, Users, CreditCard,
   Truck, RotateCcw, Megaphone, Link2, Settings, FileText, LogOut,
   Search, CheckCircle, AlertTriangle, Check, X, DollarSign,
-  TrendingUp, TrendingDown, Save, RefreshCw
+  TrendingUp, TrendingDown, Save, RefreshCw, Mail, MessageCircle
 } from 'lucide-react'
 
 const STATUS_LABEL: Record<string, string> = {
@@ -546,6 +546,44 @@ function Affiliates({ adminKey }: { adminKey: string }) {
 }
 
 // ============================================
+// MARKETING CONSENT
+// ============================================
+function MarketingSubscribers({ adminKey }: { adminKey: string }) {
+  const { data, isLoading, error, refetch } = trpc.admin.marketingSubscribers.useQuery({ key: adminKey }, { enabled: !!adminKey })
+  if (isLoading) return <Loading />
+  if (error) return <QueryError title="Failed to load marketing subscribers" error={error.message} onRetry={() => refetch()} />
+  const rows = data?.rows ?? []
+  const totals = data?.totals ?? { subscribers: 0, email: 0, whatsapp: 0 }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Card title="Active subscribers" value={String(totals.subscribers)} icon={Users} color="green" />
+        <Card title="Email opt-ins" value={String(totals.email)} icon={Mail} color="blue" />
+        <Card title="WhatsApp opt-ins" value={String(totals.whatsapp)} icon={MessageCircle} color="green" />
+      </div>
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        Sending is not connected yet. These are consented contacts ready for Brevo and Africa’s Talking after provider credentials are added.
+      </div>
+      <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white">
+        <div className="border-b border-neutral-200 p-4"><h3 className="font-semibold">Subscriber consent register</h3><p className="mt-1 text-xs text-neutral-500">Only active channel opt-ins should receive promotional campaigns.</p></div>
+        {rows.length === 0 ? <p className="p-6 text-sm text-neutral-500">No marketing subscribers yet.</p> : (
+          <div className="divide-y divide-neutral-100">
+            {rows.map((row) => (
+              <div key={row.id} className="grid gap-2 p-4 text-sm sm:grid-cols-[1fr_1fr_auto] sm:items-center">
+                <div className="min-w-0"><p className="truncate font-semibold">{row.name || 'UGSouq shopper'}</p><p className="truncate text-xs text-neutral-500">{row.email || 'No email'} · {row.phone || 'No WhatsApp number'}</p></div>
+                <div className="flex flex-wrap gap-2"><span className={`rounded-full px-2 py-1 text-[11px] font-bold ${row.emailOptIn ? 'bg-blue-50 text-blue-700' : 'bg-neutral-100 text-neutral-400'}`}>Email {row.emailOptIn ? 'active' : 'off'}</span><span className={`rounded-full px-2 py-1 text-[11px] font-bold ${row.whatsappOptIn ? 'bg-emerald-50 text-emerald-700' : 'bg-neutral-100 text-neutral-400'}`}>WhatsApp {row.whatsappOptIn ? 'active' : 'off'}</span></div>
+                <div className="text-xs text-neutral-400 sm:text-right"><p>{row.consentSource}</p><p>{new Date(row.consentedAt).toLocaleDateString()}</p></div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ============================================
 // AUDIT LOG
 // ============================================
 function AuditLog({ adminKey }: { adminKey: string }) {
@@ -672,6 +710,7 @@ export default function Admin() {
     { id: "deliveries", label: "Deliveries", icon: Truck },
     { id: "returns", label: "Returns", icon: RotateCcw },
     { id: "ads", label: "Seller Ads", icon: Megaphone },
+    { id: "marketing", label: "Marketing", icon: Mail },
     { id: "affiliates", label: "Affiliates", icon: Link2 },
     { id: "audit", label: "Audit Log", icon: FileText },
     { id: "settings", label: "Settings", icon: Settings },
@@ -744,6 +783,7 @@ export default function Admin() {
           {tab === "deliveries" && <Deliveries adminKey={adminKey} />}
           {tab === "returns" && <Returns adminKey={adminKey} />}
           {tab === "ads" && <SellerAds adminKey={adminKey} />}
+          {tab === "marketing" && <MarketingSubscribers adminKey={adminKey} />}
           {tab === "affiliates" && <Affiliates adminKey={adminKey} />}
           {tab === "audit" && <AuditLog adminKey={adminKey} />}
           {tab === "settings" && <AdminSettings adminKey={adminKey} />}

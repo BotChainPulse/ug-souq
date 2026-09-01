@@ -7,7 +7,7 @@ import { createContext } from "./context";
 import { env } from "./lib/env";
 import { isValidFlutterwaveWebhook, verifyPlusPayment } from "./plus";
 
-async function ensureCheckoutSchema() {
+async function ensureStartupSchema() {
   const { getDb } = await import("./queries/connection");
   const db = getDb();
   const raw: any = (db as any).$client;
@@ -41,6 +41,26 @@ async function ensureCheckoutSchema() {
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       verified_at TIMESTAMP NULL,
       INDEX idx_plus_payments_customer (customer_id)
+    )
+  `);
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS marketing_subscribers (
+      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(255) NULL,
+      email VARCHAR(255) NULL UNIQUE,
+      phone VARCHAR(32) NULL UNIQUE,
+      email_opt_in BOOLEAN NOT NULL DEFAULT FALSE,
+      whatsapp_opt_in BOOLEAN NOT NULL DEFAULT FALSE,
+      consent_source VARCHAR(64) NOT NULL DEFAULT 'homepage',
+      consent_version VARCHAR(32) NOT NULL DEFAULT '2026-09-01',
+      unsubscribe_token VARCHAR(64) NOT NULL UNIQUE,
+      consented_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      email_unsubscribed_at TIMESTAMP NULL,
+      whatsapp_unsubscribed_at TIMESTAMP NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_marketing_email_opt_in (email_opt_in),
+      INDEX idx_marketing_whatsapp_opt_in (whatsapp_opt_in)
     )
   `);
 }
@@ -217,7 +237,7 @@ app.all("/api/*", (c) => c.json({ error: "Not Found" }, 404));
 export default app;
 
 if (env.isProduction) {
-  await ensureCheckoutSchema();
+  await ensureStartupSchema();
   const { serve } = await import("@hono/node-server");
   const { serveStaticFiles } = await import("./lib/vite");
   serveStaticFiles(app);
