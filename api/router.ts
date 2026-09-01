@@ -535,8 +535,27 @@ export const appRouter = createRouter({
       }))
       .mutation(async ({ input }) => {
         const db = getDb();
-        const [seller] = await db.select().from(sellers).where(eq(sellers.phone, input.phone.trim()));
-        if (!seller) throw new Error("No shop registered with this phone number. Register your shop first.");
+        const digits = input.phone.replace(/\D/g, "");
+        const canonicalPhone = digits.startsWith("256") ? `0${digits.slice(3)}` : digits.length === 9 ? `0${digits}` : digits;
+        const allSellers = await db.select().from(sellers);
+        const seller = allSellers.find((candidate) => {
+          const candidateDigits = candidate.phone.replace(/\D/g, "");
+          const candidatePhone = candidateDigits.startsWith("256") ? `0${candidateDigits.slice(3)}` : candidateDigits.length === 9 ? `0${candidateDigits}` : candidateDigits;
+          return candidatePhone === canonicalPhone;
+        });
+        if (!seller) throw new TRPCError({ code: "NOT_FOUND", message: "No shop is registered with this phone number." });
+        if (seller.status !== "approved") throw new TRPCError({ code: "BAD_REQUEST", message: "Your shop must be approved before booking an advert." });
+
+        const sellerListings = await db.select().from(listings).where(eq(listings.sellerId, seller.id));
+        if (!sellerListings.some((listing) => listing.status === "approved")) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "You need at least one approved product listing before booking an advert." });
+        }
+
+        const existingBookings = await db.select().from(sellerAdBookings).where(eq(sellerAdBookings.sellerId, seller.id));
+        const openBooking = existingBookings.find((booking) => ["booked", "paid", "active"].includes(booking.status));
+        if (openBooking) {
+          throw new TRPCError({ code: "CONFLICT", message: `Your shop already has advert booking AD-${openBooking.id} (${openBooking.status}).` });
+        }
 
         const amount = input.planType === "weekly" ? 25000 : 50000;
         const [row] = await db.insert(sellerAdBookings).values({
@@ -546,7 +565,7 @@ export const appRouter = createRouter({
           status: "booked",
           notes: input.notes ?? "Seller ad plan booking",
         }).$returningId();
-        return { id: row.id, amount };
+        return { id: row.id, reference: `AD-${row.id}`, amount, shopName: seller.shopName, planType: input.planType };
       }),
   }),
 
