@@ -1,4 +1,5 @@
 import { Routes, Route, useLocation } from 'react-router'
+import { useEffect } from 'react'
 import { CartProvider } from './lib/cart'
 import ChatBot from './components/ChatBot'
 import SponsoredBanner from './components/SponsoredBanner'
@@ -46,6 +47,10 @@ import Plus from './pages/Plus'
 export default function App() {
   const location = useLocation()
   const isAdminRoute = location.pathname.startsWith('/admin')
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+  }, [location.pathname, location.search])
 
   return (
     <CartProvider>

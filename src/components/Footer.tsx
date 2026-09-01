@@ -1,16 +1,20 @@
 import { Link } from 'react-router'
+import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { ChevronDown, MessageCircle } from 'lucide-react'
 import { WA_LINK } from '../lib/site'
 
 function FooterGroup({ title, children }: { title: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false)
+  const contentId = `footer-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
+
   return (
-    <details className="group border-t border-neutral-800 py-1 sm:border-0 sm:py-0 sm:[&>ul]:!block">
-      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between py-2 font-bold text-white marker:content-none sm:pointer-events-none sm:min-h-0 sm:cursor-default sm:py-0 [&::-webkit-details-marker]:hidden">
-        {title}<ChevronDown size={17} className="text-neutral-400 transition group-open:rotate-180 sm:hidden" />
-      </summary>
-      <ul className="space-y-2 pb-3 text-sm text-neutral-300 sm:mt-3 sm:pb-0">{children}</ul>
-    </details>
+    <section className="border-t border-neutral-800 py-1 sm:border-0 sm:py-0">
+      <button type="button" aria-expanded={open} aria-controls={contentId} onClick={() => setOpen((value) => !value)} className="flex min-h-11 w-full cursor-pointer items-center justify-between py-2 text-left font-bold text-white sm:min-h-0 sm:cursor-default sm:py-0">
+        {title}<ChevronDown size={17} className={`text-neutral-400 transition sm:hidden ${open ? 'rotate-180' : ''}`} />
+      </button>
+      <ul id={contentId} className={`${open ? 'block' : 'hidden'} space-y-2 pb-3 text-sm text-neutral-300 sm:mt-3 sm:block sm:pb-0`}>{children}</ul>
+    </section>
   )
 }
 
