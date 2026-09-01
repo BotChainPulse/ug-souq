@@ -50,7 +50,7 @@ export default function App() {
   return (
     <CartProvider>
       {!isAdminRoute && <ChatBot />}
-      {!isAdminRoute && <SponsoredBanner />}
+      {!isAdminRoute && location.pathname !== '/' && <SponsoredBanner />}
       {isAdminRoute && <AdminNavigationBridge />}
       <Routes>
         <Route path="/" element={<Home />} />

@@ -616,6 +616,17 @@ export const adminRouter = createRouter({
       requireAdmin(input.key);
       const db = getDb();
       const [before] = await db.select().from(sellerAdBookings).where(eq(sellerAdBookings.id, input.id));
+      if (!before) throw new TRPCError({ code: "NOT_FOUND", message: "Seller ad booking not found" });
+      if (input.status === "active") {
+        const [approvedListing] = await db
+          .select({ id: listings.id })
+          .from(listings)
+          .where(and(eq(listings.sellerId, before.sellerId), eq(listings.status, "approved")))
+          .limit(1);
+        if (!approvedListing) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Approve at least one seller listing before activating this campaign." });
+        }
+      }
       await db.update(sellerAdBookings).set({ status: input.status }).where(eq(sellerAdBookings.id, input.id));
       const [after] = await db.select().from(sellerAdBookings).where(eq(sellerAdBookings.id, input.id));
       await writeAudit({ key: input.key, action: "seller_ad_booking.status.changed", entityType: "seller_ad_booking", entityId: input.id, beforeState: before, afterState: after });

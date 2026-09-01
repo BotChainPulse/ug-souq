@@ -4,6 +4,7 @@ import { Heart, Store, BadgePercent, Grid3X3, Smartphone, Cpu, Refrigerator, Arm
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import MarketingSignup from '../components/MarketingSignup'
+import SponsoredCarousel from '../components/SponsoredCarousel'
 import { trpc } from '@/providers/trpc'
 import { fmt, useCart } from '../lib/cart'
 import { ORANGE } from '../lib/site'
@@ -83,6 +84,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <SponsoredCarousel />
 
       <section className="mx-auto max-w-7xl px-3 pt-5 sm:px-4">
         <div className="mb-3 flex items-center justify-between"><h2 className="text-lg font-extrabold sm:text-2xl">Shop by category</h2><Link to="/catalog" className="text-xs font-bold text-emerald-700">View all →</Link></div>

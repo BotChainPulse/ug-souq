@@ -160,6 +160,38 @@ export const appRouter = createRouter({
     }),
     bySlug: publicQuery.input(z.object({ slug: z.string() })).query(async ({ input }) => {
       const db = getDb();
+      const listingMatch = /^listing-(\d+)$/.exec(input.slug);
+      if (listingMatch) {
+        const listingId = Number(listingMatch[1]);
+        const [listingRow] = await db
+          .select({ listing: listings, seller: sellers })
+          .from(listings)
+          .innerJoin(sellers, eq(listings.sellerId, sellers.id))
+          .where(eq(listings.id, listingId));
+        if (!listingRow || listingRow.listing.status !== "approved") return null;
+        const { listing, seller } = listingRow;
+        return {
+          id: listing.id,
+          sellerId: listing.sellerId,
+          name: listing.name,
+          slug: input.slug,
+          category: listing.category,
+          price: listing.price,
+          oldPrice: listing.oldPrice,
+          image: listing.imageData ?? "/images/product-default.png",
+          stock: listing.stock,
+          condition: listing.condition,
+          warrantyMonths: listing.warrantyMonths,
+          flashSale: false,
+          createdAt: listing.createdAt,
+          sellerName: seller.shopName,
+          sellerVerified: seller.verified,
+          sellerRating: seller.rating / 10,
+          sellerPhone: seller.phone,
+          sellerDistrict: seller.district,
+          discount: listing.oldPrice ? Math.round((1 - listing.price / listing.oldPrice) * 100) : 0,
+        };
+      }
       const [row] = await db
         .select({ product: products, seller: sellers })
         .from(products)
