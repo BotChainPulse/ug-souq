@@ -149,8 +149,13 @@ app.get("/api/ads/active", async (c) => {
       planType: booking.planType,
       startsAt,
       expiresAt,
-      headline: listing?.name ? `${listing.name} from ${seller.shopName}` : `Shop ${seller.shopName} on UG Souq`,
+      listingId: listing?.id ?? null,
+      headline: listing?.name ?? `Shop ${seller.shopName} on UG Souq`,
       image: listing?.imageData ?? "/images/product-default.png",
+      price: listing?.price ?? null,
+      oldPrice: listing?.oldPrice ?? null,
+      stock: listing?.stock ?? null,
+      targetPath: listing ? `/product/listing-${listing.id}` : `/seller/${seller.id}`,
     };
   }));
 
