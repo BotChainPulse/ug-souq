@@ -4,8 +4,9 @@ import { eq, desc, and, like, gte, lte, sql } from "drizzle-orm";
 import { createHash, createHmac } from "crypto";
 import { createRouter, publicQuery } from "./middleware";
 import { getDb } from "./queries/connection";
+import { releaseOrderInventoryOnCancellation } from "./orderPayments";
 import {
-  sellers, orders, orderItems, affiliates, products, listings,
+  sellers, orders, orderItems, orderPayments, affiliates, products, listings,
   sellerAdBookings, deliveryPartners, adminAuditLogs, payouts,
   platformSettings, sellerContracts, notifications, returns, customers, marketingSubscribers
 } from "../db/schema";
@@ -222,7 +223,7 @@ export const adminRouter = createRouter({
       revenue: rows.filter((o) => o.status === st).reduce((s, o) => s + o.total, 0),
     }));
 
-    const paymentBreakdown = ["unpaid", "pending_confirmation", "paid"].map((ps) => ({
+    const paymentBreakdown = ["unpaid", "pending", "pending_confirmation", "paid", "failed", "refunded"].map((ps) => ({
       status: ps,
       count: rows.filter((o) => o.paymentStatus === ps).length,
     }));
@@ -360,6 +361,7 @@ export const adminRouter = createRouter({
         deliveryPartnerId: (o as any).deliveryPartnerId ?? null,
         paidOut: (o as any).paidOut ?? false,
         items: await db.select().from(orderItems).where(eq(orderItems.orderId, o.id)),
+        paymentAttempts: await db.select().from(orderPayments).where(eq(orderPayments.orderId, o.id)).orderBy(desc(orderPayments.createdAt)),
       })),
     );
     return withItems;
@@ -374,6 +376,9 @@ export const adminRouter = createRouter({
       const updates: any = { status: input.status };
       if (input.status === "delivered") updates.deliveredAt = new Date();
       await db.update(orders).set(updates).where(eq(orders.id, input.id));
+      if (input.status === "cancelled" && before.status !== "delivered") {
+        await releaseOrderInventoryOnCancellation(input.id);
+      }
       const [after] = await db.select().from(orders).where(eq(orders.id, input.id));
       await writeAudit({ key: input.key, action: "order.status.changed", entityType: "order", entityId: input.id, beforeState: before, afterState: after });
 
@@ -384,12 +389,19 @@ export const adminRouter = createRouter({
     }),
 
   setPaymentStatus: publicQuery
-    .input(z.object({ key: z.string(), id: z.number(), status: z.enum(["unpaid", "pending_confirmation", "paid"]) }))
+    .input(z.object({ key: z.string(), id: z.number(), status: z.enum(["unpaid", "pending", "pending_confirmation", "paid", "failed", "refunded"]) }))
     .mutation(async ({ input }) => {
       requireAdmin(input.key);
       const db = getDb();
       const [before] = await db.select().from(orders).where(eq(orders.id, input.id));
+      if (!before) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+      if (before.paymentMethod === "flutterwave" && input.status === "paid") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Flutterwave orders can only become paid after provider verification." });
+      }
       await db.update(orders).set({ paymentStatus: input.status }).where(eq(orders.id, input.id));
+      if (input.status === "refunded" && before.status !== "delivered") {
+        await releaseOrderInventoryOnCancellation(input.id);
+      }
       const [after] = await db.select().from(orders).where(eq(orders.id, input.id));
       await writeAudit({ key: input.key, action: "order.payment_status.changed", entityType: "order", entityId: input.id, beforeState: before, afterState: after });
 

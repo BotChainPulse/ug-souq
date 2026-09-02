@@ -76,3 +76,13 @@ export default defineConfig([
 <!-- Build trigger: 2026-08-08T22:16:25.805506 -->
 
 <!-- Deploy trigger: Aug 11 2026 -->
+
+## Flutterwave order checkout
+
+UGSouq uses Flutterwave hosted checkout for ordinary mobile-money and card payments. Configure these Railway Variables:
+
+- `FLW_SECRET_KEY`: use a Test secret while developing; replace it with the approved Uganda Live secret only when production payments are ready.
+- `FLW_WEBHOOK_SECRET`: a random secret chosen by UGSouq and saved identically in Railway and Flutterwave Dashboard.
+- `APP_URL`: the public site origin, for example `https://www.ugsouq.com`.
+
+After deploying the order-payment routes, configure the Flutterwave webhook URL as `https://www.ugsouq.com/api/flutterwave/webhook`. Never put secret values in GitHub, frontend code, screenshots, chat, or documentation.

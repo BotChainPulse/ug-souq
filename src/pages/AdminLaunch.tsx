@@ -229,12 +229,13 @@ export default function AdminLaunch() {
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-mono font-extrabold">{order.code}</span>
                           <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold">{ORDER_LABELS[order.status] ?? order.status}</span>
-                          <span className={`rounded-full px-2 py-1 text-xs font-bold ${order.paymentStatus === 'paid' ? 'bg-emerald-100 text-emerald-700' : order.paymentStatus === 'pending_confirmation' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>{String(order.paymentStatus).replace('_', ' ')}</span>
+                          <span className={`rounded-full px-2 py-1 text-xs font-bold ${order.paymentStatus === 'paid' ? 'bg-emerald-100 text-emerald-700' : ['pending', 'pending_confirmation'].includes(order.paymentStatus) ? 'bg-amber-100 text-amber-700' : order.paymentStatus === 'refunded' ? 'bg-sky-100 text-sky-700' : 'bg-red-100 text-red-700'}`}>{String(order.paymentStatus).replaceAll('_', ' ')}</span>
                         </div>
                         <p className="mt-2 text-xl font-extrabold">{money(order.total)}</p>
                         <p className="mt-1 text-sm text-slate-600">{order.customerName} · {order.phone}</p>
                         <p className="mt-1 text-sm text-slate-500">{order.address}</p>
                         <p className="mt-2 text-xs text-slate-400">{order.items?.length ?? 0} item(s) · {String(order.paymentMethod ?? '').replaceAll('_', ' ')}</p>
+                        {order.paymentRef && <p className="mt-1 break-all text-xs text-slate-400">Payment reference: {order.paymentRef}</p>}
                       </div>
 
                       <div className="w-full lg:w-80 space-y-2">

@@ -1,11 +1,12 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, desc, asc, like, or } from "drizzle-orm";
+import { and, eq, desc, asc, gte, like, or, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { createRouter, publicQuery, COMMISSION_RATE } from "./middleware";
 import { getDb } from "./queries/connection";
 import { sellers, products, restaurants, menuItems, orders, orderItems, affiliates, listings, customers, deliveryPartners, sellerAdBookings, notifications, plusMemberships, plusPayments, marketingSubscribers } from "../db/schema";
 import { createPlusCheckout, plusPlan } from "./plus";
+import { createOrderCheckout, releaseExpiredOrderReservations, serverDeliveryFee } from "./orderPayments";
 import { adminRouter } from "./admin";
 import { trustRouter } from "./trust";
 import { bootstrapRouter } from "./bootstrap";
@@ -171,6 +172,7 @@ export const appRouter = createRouter({
         if (!listingRow || listingRow.listing.status !== "approved") return null;
         const { listing, seller } = listingRow;
         return {
+          kind: "listing" as const,
           id: listing.id,
           sellerId: listing.sellerId,
           name: listing.name,
@@ -199,6 +201,7 @@ export const appRouter = createRouter({
         .where(eq(products.slug, input.slug));
       if (!row) return null;
       return {
+        kind: "product" as const,
         ...row.product,
         sellerName: row.seller.shopName,
         sellerVerified: row.seller.verified,
@@ -370,47 +373,86 @@ export const appRouter = createRouter({
       .input(z.object({
         customerName: z.string().min(2),
         phone: z.string().min(9),
+        email: z.string().email().optional(),
         address: z.string().min(5),
-        paymentMethod: z.enum(["mtn_momo", "airtel_money", "cash"]),
+        paymentMethod: z.enum(["flutterwave", "cash"]),
+        deliveryZone: z.enum(["kampala", "upcountry"]),
+        deliveryMethod: z.enum(["door", "pickup"]),
         items: z.array(z.object({
-          itemType: z.enum(["product", "menu_item"]),
+          itemType: z.enum(["product", "listing", "menu_item"]),
           itemId: z.number(),
-          name: z.string(),
-          price: z.number(),
-          qty: z.number().min(1),
+          qty: z.number().int().min(1).max(99),
         })).min(1),
-        deliveryFee: z.number().default(0),
       }))
       .mutation(async ({ input }) => {
+        if (input.paymentMethod === "flutterwave" && !input.email) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Enter an email address for the Flutterwave receipt." });
+        }
+        await releaseExpiredOrderReservations();
         const db = getDb();
-        const subtotal = input.items.reduce((s, i) => s + i.price * i.qty, 0);
         const phone = normPhone(input.phone);
-        const commissionFee = Math.round(subtotal * COMMISSION_RATE);
-        await upsertCustomer(db, input.customerName, phone, input.address);
-        const [customer] = await db.select().from(customers).where(eq(customers.phone, phone));
-        const [membership] = customer
-          ? await db.select().from(plusMemberships).where(eq(plusMemberships.customerId, customer.id))
-          : [];
-        // Do not trust a browser-provided delivery discount. A currently active membership is the only source of truth.
-        const plusActive = Boolean(membership?.status === "active" && membership.expiresAt && membership.expiresAt > new Date());
-        const deliveryFee = plusActive ? 0 : input.deliveryFee;
-        const total = subtotal + deliveryFee;
-        const [row] = await db.insert(orders).values({
-          code: orderCode(),
-          customerName: input.customerName,
-          phone,
-          address: input.address,
-          paymentMethod: input.paymentMethod,
-          subtotal,
-          deliveryFee,
-          commissionFee,
-          total,
-        }).$returningId();
-        await db.insert(orderItems).values(
-          input.items.map((i) => ({ orderId: row.id, ...i })),
-        );
-        const [order] = await db.select().from(orders).where(eq(orders.id, row.id));
-        return order;
+        const order = await db.transaction(async (tx) => {
+          const authoritativeItems: Array<{
+            itemType: "product" | "listing" | "menu_item";
+            itemId: number;
+            name: string;
+            price: number;
+            qty: number;
+          }> = [];
+
+          for (const requested of input.items) {
+            if (requested.itemType === "product") {
+              const [product] = await tx.select().from(products).where(eq(products.id, requested.itemId));
+              if (!product) throw new TRPCError({ code: "NOT_FOUND", message: "A product in your cart is no longer available." });
+              const stockResult: any = await tx.update(products)
+                .set({ stock: sql`${products.stock} - ${requested.qty}` })
+                .where(and(eq(products.id, product.id), gte(products.stock, requested.qty)));
+              const affectedRows = Number(stockResult?.[0]?.affectedRows ?? stockResult?.affectedRows ?? 0);
+              if (affectedRows !== 1) throw new TRPCError({ code: "CONFLICT", message: `${product.name} does not have enough stock for this quantity.` });
+              authoritativeItems.push({ itemType: "product", itemId: product.id, name: product.name, price: product.price, qty: requested.qty });
+            } else if (requested.itemType === "listing") {
+              const [listing] = await tx.select().from(listings).where(and(eq(listings.id, requested.itemId), eq(listings.status, "approved")));
+              if (!listing) throw new TRPCError({ code: "NOT_FOUND", message: "A seller item in your cart is no longer available." });
+              const stockResult: any = await tx.update(listings)
+                .set({ stock: sql`${listings.stock} - ${requested.qty}` })
+                .where(and(eq(listings.id, listing.id), eq(listings.status, "approved"), gte(listings.stock, requested.qty)));
+              const affectedRows = Number(stockResult?.[0]?.affectedRows ?? stockResult?.affectedRows ?? 0);
+              if (affectedRows !== 1) throw new TRPCError({ code: "CONFLICT", message: `${listing.name} does not have enough stock for this quantity.` });
+              authoritativeItems.push({ itemType: "listing", itemId: listing.id, name: listing.name, price: listing.price, qty: requested.qty });
+            } else {
+              const [menuItem] = await tx.select().from(menuItems).where(eq(menuItems.id, requested.itemId));
+              if (!menuItem) throw new TRPCError({ code: "NOT_FOUND", message: "A food item in your cart is no longer available." });
+              authoritativeItems.push({ itemType: "menu_item", itemId: menuItem.id, name: menuItem.name, price: menuItem.price, qty: requested.qty });
+            }
+          }
+
+          await upsertCustomer(tx, input.customerName.trim(), phone, input.address);
+          const [customer] = await tx.select().from(customers).where(eq(customers.phone, phone));
+          const [membership] = customer
+            ? await tx.select().from(plusMemberships).where(eq(plusMemberships.customerId, customer.id))
+            : [];
+          const plusActive = Boolean(membership?.status === "active" && membership.expiresAt && membership.expiresAt > new Date());
+          const subtotal = authoritativeItems.reduce((sum, item) => sum + item.price * item.qty, 0);
+          const deliveryFee = serverDeliveryFee(input.deliveryZone, input.deliveryMethod, plusActive);
+          const commissionFee = Math.round(subtotal * COMMISSION_RATE);
+          const total = subtotal + deliveryFee;
+          const isCash = input.paymentMethod === "cash";
+          const [row] = await tx.insert(orders).values({
+            code: orderCode(), customerName: input.customerName.trim(), phone,
+            email: input.email?.toLowerCase() ?? null, address: input.address,
+            paymentMethod: input.paymentMethod, paymentStatus: isCash ? "unpaid" : "pending",
+            inventoryStatus: isCash ? "committed" : "reserved",
+            reservationExpiresAt: isCash ? null : new Date(Date.now() + 60 * 60 * 1000),
+            subtotal, deliveryFee, commissionFee, total,
+          }).$returningId();
+          await tx.insert(orderItems).values(authoritativeItems.map((item) => ({ orderId: row.id, ...item })));
+          const [created] = await tx.select().from(orders).where(eq(orders.id, row.id));
+          return created;
+        });
+
+        if (input.paymentMethod === "cash") return { order, checkoutUrl: null };
+        const checkout = await createOrderCheckout({ order, email: input.email! });
+        return { order, checkoutUrl: checkout.checkoutUrl };
       }),
     byPhone: publicQuery.input(z.object({ phone: z.string().min(9) })).query(async ({ input }) => {
       const db = getDb();
@@ -694,4 +736,3 @@ export const appRouter = createRouter({
 });
 
 export type AppRouter = typeof appRouter;
-

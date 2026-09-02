@@ -32,7 +32,7 @@ export default function ProductDetailPage() {
 
   const onAdd = () => {
     if (!p) return
-    add({ itemType: 'product', itemId: p.id, name: p.name, price: p.price, image: p.image, sellerId: p.sellerId, sellerName: p.sellerName })
+    add({ itemType: p.kind, itemId: p.id, name: p.name, price: p.price, image: p.image, sellerId: p.sellerId, sellerName: p.sellerName })
     setAdded(true)
     setTimeout(() => setAdded(false), 1400)
   }
@@ -232,4 +232,3 @@ export default function ProductDetailPage() {
     </div>
   )
 }
-

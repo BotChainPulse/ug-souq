@@ -1,6 +1,6 @@
 import { Component, useState } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useParams, useSearchParams } from 'react-router'
 import { ArrowLeft, CheckCircle2, CircleDashed, MapPin, Package, ReceiptText, Truck, XCircle } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -22,6 +22,7 @@ const STAGES = [
 function paymentMethodLabel(method: string) {
   if (method === 'mtn_momo') return 'MTN MoMo'
   if (method === 'airtel_money') return 'Airtel Money'
+  if (method === 'flutterwave') return 'Flutterwave — mobile money or card'
   return 'Cash on delivery'
 }
 
@@ -67,6 +68,8 @@ class OrderDetailsBoundary extends Component<{ children: ReactNode }, { failed: 
 
 function OrderDetailsPage() {
   const { code = '' } = useParams()
+  const [searchParams] = useSearchParams()
+  const paymentResult = searchParams.get('payment')
   const savedPhone = localStorage.getItem(SAVED_PHONE_KEY) ?? getAccount()?.phone ?? ''
   const [phone, setPhone] = useState(savedPhone)
   const [lookupPhone, setLookupPhone] = useState(savedPhone)
@@ -92,6 +95,11 @@ function OrderDetailsPage() {
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6 sm:py-10">
         <Link to="/orders" className="inline-flex min-h-11 items-center gap-2 text-sm font-bold text-emerald-700"><ArrowLeft size={17} /> Back to My Orders</Link>
         <h1 className="mt-2 flex items-center gap-2 text-2xl font-extrabold"><ReceiptText size={24} style={{ color: ORANGE }} /> Order details</h1>
+
+        {paymentResult === 'successful' && <p className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-bold text-emerald-800">Payment verified successfully. Your order is now paid.</p>}
+        {paymentResult === 'cancelled' && <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-800">Payment was cancelled. No successful charge was recorded.</p>}
+        {paymentResult === 'failed' && <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-800">We could not verify this payment. Please do not pay again until you check the order status.</p>}
+        {paymentResult === 'review' && <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-900">Payment was received, but this order needs stock review. UGSouq support must arrange fulfilment or a refund.</p>}
 
         {!lookupPhone && (
           <div className="mt-5 rounded-2xl border border-neutral-200 bg-white p-5">
