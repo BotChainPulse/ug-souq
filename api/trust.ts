@@ -11,7 +11,7 @@ import {
 const normPhone = (p: string) => p.replace(/[\s-]+/g, "").trim();
 
 function requireAdmin(key: string) {
-  if (key !== (process.env.ADMIN_KEY ?? "ugsouq-admin-2026")) {
+  if (!process.env.ADMIN_KEY || key !== process.env.ADMIN_KEY) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid admin key" });
   }
 }

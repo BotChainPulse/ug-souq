@@ -748,7 +748,7 @@ export default function Admin() {
             </button>
             <h2 className="font-semibold text-sm">{tabs.find((t) => t.id === tab)?.label}</h2>
           </div>
-          <div className="text-xs text-neutral-500">Key: {adminKey.slice(0, 8)}...</div>
+          <div className="text-xs font-medium text-emerald-700">Authenticated administrator</div>
         </header>
 
         <div className="p-4 lg:p-6 max-w-6xl mx-auto">

@@ -14,6 +14,7 @@ import Cart from './pages/Cart'
 import TrackOrder from './pages/TrackOrder'
 import Returns from './pages/Returns'
 import Privacy from './pages/Privacy'
+import DeleteAccount from './pages/DeleteAccount'
 import Terms from './pages/Terms'
 import SearchResults from './pages/SearchResults'
 import SellerListings from './pages/SellerListings'
@@ -73,6 +74,7 @@ export default function App() {
         <Route path="/deliveries" element={<Deliveries />} />
         <Route path="/returns" element={<Returns />} />
         <Route path="/privacy" element={<Privacy />} />
+        <Route path="/delete-account" element={<DeleteAccount />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/search" element={<SearchResults />} />
         <Route path="/promotions" element={<Promotions />} />

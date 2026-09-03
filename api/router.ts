@@ -634,24 +634,15 @@ export const appRouter = createRouter({
         : null;
       return { customer: customer ?? null, orders: withItems, membership: activeMembership, membershipRecord: membership ?? null };
     }),
-    // Buyer deletes their account: customer record + all their orders are removed
+    // Destructive deletion must not be authorised by a phone number alone.
+    // Requests are received through /delete-account and completed after identity verification.
     deleteAccount: publicQuery
       .input(z.object({ phone: z.string().min(9) }))
-      .mutation(async ({ input }) => {
-        const db = getDb();
-        const phone = normPhone(input.phone);
-        const myOrders = await db.select({ id: orders.id }).from(orders).where(eq(orders.phone, phone));
-        for (const o of myOrders) {
-          await db.delete(orderItems).where(eq(orderItems.orderId, o.id));
-        }
-        const [customer] = await db.select().from(customers).where(eq(customers.phone, phone));
-        if (customer) {
-          await db.delete(plusPayments).where(eq(plusPayments.customerId, customer.id));
-          await db.delete(plusMemberships).where(eq(plusMemberships.customerId, customer.id));
-        }
-        await db.delete(orders).where(eq(orders.phone, phone));
-        await db.delete(customers).where(eq(customers.phone, phone));
-        return { ok: true, removedOrders: myOrders.length };
+      .mutation(() => {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Use the verified account deletion request at /delete-account.",
+        });
       }),
   }),
 

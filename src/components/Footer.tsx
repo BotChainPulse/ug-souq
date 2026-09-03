@@ -53,11 +53,12 @@ export default function Footer() {
             <li><Link to="/track" className="hover:text-white">Track your order</Link></li>
             <li><Link to="/returns" className="hover:text-white">Returns & refunds</Link></li>
             <li><Link to="/privacy" className="hover:text-white">Privacy & data protection</Link></li>
+            <li><Link to="/delete-account" className="hover:text-white">Delete account & data</Link></li>
             <li><Link to="/terms" className="hover:text-white">Terms & conditions</Link></li>
         </FooterGroup>
       </div>
       <div className="border-t border-neutral-800 px-4 pb-24 pt-4 text-center text-[11px] leading-relaxed text-neutral-500 sm:pb-4">
-        © 2026 UG Souq Ltd · Kampala, Uganda<br className="sm:hidden" /> · MTN MoMo & Airtel Money accepted
+        © 2026 UG Souq · Kampala, Uganda<br className="sm:hidden" /> · MTN MoMo & Airtel Money accepted
       </div>
     </footer>
   )
