@@ -11,7 +11,7 @@ FROM node:22-alpine
 WORKDIR /app
 RUN npm install -g npm@latest
 COPY package.json ./
-RUN npm install --omit=dev
+RUN npm install --include=dev
 COPY --from=build /app/dist ./dist
 COPY drizzle.config.ts ./
 COPY db ./db
