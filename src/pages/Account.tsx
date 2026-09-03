@@ -124,6 +124,7 @@ export default function AccountPage() {
     { icon: Settings, label: 'Preferences', to: '/preferences' },
     { icon: Bell, label: 'Notifications', to: '/notifications' },
     { icon: Lock, label: 'Account Security', to: '/account-security' },
+    { icon: Trash2, label: 'Delete account & data', to: '/delete-account' },
   ]
 
   if (!account || editing) {
