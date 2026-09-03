@@ -10,7 +10,7 @@ import {
   platformSettings, sellerContracts, notifications, returns, customers, marketingSubscribers
 } from "../db/schema";
 
-const ADMIN_KEY = process.env.ADMIN_KEY ?? "ugsouq-admin-2026";
+const ADMIN_KEY = process.env.ADMIN_KEY;
 
 function requireAdmin(key: string) {
   if (key !== ADMIN_KEY) throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid admin key" });
