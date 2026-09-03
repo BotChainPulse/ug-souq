@@ -198,7 +198,7 @@ app.post("/api/plus/webhook", async (c) => {
 // GET /api/accounts/summary?key=ADMIN_KEY
 app.get("/api/accounts/summary", async (c) => {
   const key = c.req.query("key") ?? "";
-  if (key !== (process.env.ADMIN_KEY ?? "ugsouq-admin-2026")) {
+  if (!process.env.ADMIN_KEY || key !== process.env.ADMIN_KEY) {
     return c.json({ error: "Unauthorized" }, 401);
   }
   const { getDb } = await import("./queries/connection");
