@@ -109,3 +109,9 @@ Before Play Console submission:
 7. Complete the Data Safety form from the final evidence.
 8. Compare every answer with the live privacy policy.
 9. Capture screenshots and retain the completed review with the release version.
+
+## Google Play reference sources
+
+- User Data policy: https://support.google.com/googleplay/android-developer/answer/10144311
+- Data Safety form: https://support.google.com/googleplay/android-developer/answer/10787469
+- Account deletion requirements: https://support.google.com/googleplay/android-developer/answer/13327111
