@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "./queries/connection";
 import { customers, plusMemberships, plusPayments } from "../db/schema";
+import { appUrl, flutterwave, isValidFlutterwaveWebhook } from "./flutterwave";
 
-const FLW_BASE = "https://api.flutterwave.com/v3";
 const PLUS_PRICE_UGX = Math.max(1, Number.parseInt(process.env.PLUS_MONTHLY_PRICE_UGX ?? "10000", 10) || 10000);
 const PLUS_DURATION_DAYS = Math.max(1, Number.parseInt(process.env.PLUS_DURATION_DAYS ?? "30", 10) || 30);
 
@@ -12,27 +12,8 @@ export const plusPlan = {
   durationDays: PLUS_DURATION_DAYS,
 };
 
-function appUrl() {
-  const value = process.env.APP_URL?.replace(/\/$/, "");
-  if (!value) throw new Error("Plus payments are not configured. Set APP_URL in Railway Variables.");
-  return value;
-}
-
-function flutterwaveSecret() {
-  const key = process.env.FLW_SECRET_KEY;
-  if (!key) throw new Error("Plus payments are not configured. Set FLW_SECRET_KEY in Railway Variables.");
-  return key;
-}
-
 function reference() {
   return `PLUS-${Date.now()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
-}
-
-async function flutterwave(path: string, init: RequestInit = {}) {
-  return fetch(`${FLW_BASE}${path}`, {
-    ...init,
-    headers: { Authorization: `Bearer ${flutterwaveSecret()}`, "Content-Type": "application/json", ...init.headers },
-  });
 }
 
 export async function createPlusCheckout({ customer, email }: { customer: typeof customers.$inferSelect; email: string }) {
@@ -103,9 +84,4 @@ export async function verifyPlusPayment(transactionId: string, expectedReference
   return { ok: true, reference: payment.reference, expiresAt };
 }
 
-export function isValidFlutterwaveWebhook(signature: string | undefined) {
-  const secret = process.env.FLW_WEBHOOK_SECRET;
-  // Refuse webhook activation unless its signing secret is explicitly configured.
-  return Boolean(secret && signature && signature === secret);
-}
-
+export { isValidFlutterwaveWebhook };

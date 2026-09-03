@@ -1,11 +1,11 @@
 import {useState,  useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import {Heart,  BadgeCheck, Check, MessageCircle, RefreshCcw, ShoppingCart, Star, Store, Timer } from 'lucide-react'
+import { BadgeCheck, Check, RefreshCcw, ShoppingCart, Star, Store, Timer } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { trpc } from '@/providers/trpc'
 import { fmt, useCart } from '../lib/cart'
-import { ORANGE, WHATSAPP_INTL } from '../lib/site'
+import { ORANGE } from '../lib/site'
 import { CATEGORIES, categoryName } from '../lib/categories'
 
 export default function Catalog() {
@@ -25,14 +25,6 @@ export default function Catalog() {
 
   const { data: items, isLoading } = trpc.products.browse.useQuery({ category, condition, deals })
   const { add } = useCart()
-  const [wishlist, setWishlist] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem('wishlist') || '[]') } catch { return [] }
-  })
-  const toggleWish = (id: string) => {
-    const next = wishlist.includes(id) ? wishlist.filter(w => w !== id) : [...wishlist, id]
-    setWishlist(next)
-    localStorage.setItem('wishlist', JSON.stringify(next))
-  }
   const [added, setAdded] = useState<string | null>(null)
 
   const setFilter = (key: string, value: string | null) => {
@@ -139,37 +131,24 @@ export default function Catalog() {
                     ) : (
                       <span className="block text-[11px] text-neutral-400 mb-1.5"><Link to={`/seller/${p.sellerId}`} className="hover:underline">{p.sellerName}</Link></span>
                     )}
-                    {p.kind === 'product' ? (
-                      <Link to={`/product/${p.slug}`}><h3 className="text-sm font-medium leading-snug line-clamp-2 min-h-[2.6em] hover:text-orange-600">{p.name}</h3></Link>
-                    ) : (
-                      <h3 className="text-sm font-medium leading-snug line-clamp-2 min-h-[2.6em]">{p.name}</h3>
-                    )}
+                    <Link to={`/product/${p.slug}`}><h3 className="text-sm font-medium leading-snug line-clamp-2 min-h-[2.6em] hover:text-orange-600">{p.name}</h3></Link>
                     <div className="mt-2 flex items-baseline gap-2">
                       <span className="font-extrabold" style={{ color: ORANGE }}>{fmt(p.price)}</span>
                       {p.oldPrice && <span className="text-xs text-neutral-400 line-through">{fmt(p.oldPrice)}</span>}
                     </div>
                     <p className="mt-1 flex items-center gap-1 text-[11px] text-neutral-500"><Star size={12} className="text-amber-500" fill="currentColor" /> {'sellerRating' in p ? Number(p.sellerRating).toFixed(1) : 'Verified'} seller {p.stock > 0 ? '· In stock' : '· Out of stock'}</p>
-                    {p.kind === 'product' ? (
-                      <button
-                        onClick={() => {
-                          add({ itemType: 'product', itemId: p.id, name: p.name, price: p.price, image: p.image, sellerId: p.sellerId, sellerName: p.sellerName })
-                          setAdded(key)
-                          setTimeout(() => setAdded(null), 1200)
-                        }}
-                        className="mt-3 w-full flex items-center justify-center gap-2 text-sm font-bold text-white py-3 rounded-xl transition-colors shadow-sm active:scale-95"
-                        style={{ background: added === key ? '#16a34a' : ORANGE }}
-                      >
-                        {added === key ? <><Check size={14} /> Added</> : <><ShoppingCart size={14} /> Add to cart</>}
-                      </button>
-                    ) : (
-                      <a
-                        href={`https://wa.me/${WHATSAPP_INTL}?text=${encodeURIComponent(`Hi UG Souq, I want to buy: ${p.name} (${fmt(p.price)}) from ${p.sellerName}`)}`}
-                        target="_blank" rel="noreferrer"
-                        className="mt-3 w-full flex items-center justify-center gap-1.5 text-xs font-bold text-white py-2.5 rounded-full bg-green-600 hover:bg-green-700 transition-colors"
-                      >
-                        <MessageCircle size={14} /> Buy via WhatsApp
-                      </a>
-                    )}
+                    <button
+                      onClick={() => {
+                        add({ itemType: p.kind, itemId: p.id, name: p.name, price: p.price, image: p.image, sellerId: p.sellerId, sellerName: p.sellerName })
+                        setAdded(key)
+                        setTimeout(() => setAdded(null), 1200)
+                      }}
+                      disabled={p.stock <= 0}
+                      className="mt-3 w-full flex items-center justify-center gap-2 text-sm font-bold text-white py-3 rounded-xl transition-colors shadow-sm active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                      style={{ background: added === key ? '#16a34a' : ORANGE }}
+                    >
+                      {p.stock <= 0 ? 'Out of stock' : added === key ? <><Check size={14} /> Added</> : <><ShoppingCart size={14} /> Add to cart</>}
+                    </button>
                   </div>
                 </div>
               )
@@ -191,4 +170,3 @@ export default function Catalog() {
     </div>
   )
 }
-

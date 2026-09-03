@@ -5,13 +5,65 @@ import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "./router";
 import { createContext } from "./context";
 import { env } from "./lib/env";
-import { isValidFlutterwaveWebhook, verifyPlusPayment } from "./plus";
+import { verifyPlusPayment } from "./plus";
+import { isValidFlutterwaveWebhook } from "./flutterwave";
+import { cancelOrderPayment, verifyOrderPayment } from "./orderPayments";
 
 async function ensureStartupSchema() {
   const { getDb } = await import("./queries/connection");
   const db = getDb();
   const raw: any = (db as any).$client;
   const client: any = typeof raw.promise === "function" ? raw.promise() : raw;
+
+  async function addOrderColumnIfMissing(columnName: string, definition: string) {
+    const [rows] = await client.query(
+      `SELECT 1
+       FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'orders'
+         AND COLUMN_NAME = ?
+       LIMIT 1`,
+      [columnName],
+    );
+
+    if (Array.isArray(rows) && rows.length > 0) return;
+
+    try {
+      await client.query(`ALTER TABLE orders ADD COLUMN \`${columnName}\` ${definition}`);
+    } catch (error: any) {
+      // A second replica may add the column after the existence check.
+      if (error?.code !== "ER_DUP_FIELDNAME") throw error;
+    }
+  }
+
+  await addOrderColumnIfMissing("email", "VARCHAR(255) NULL AFTER phone");
+  await addOrderColumnIfMissing(
+    "inventory_status",
+    "ENUM('reserved','committed','released','not_applicable') NOT NULL DEFAULT 'not_applicable' AFTER payment_ref",
+  );
+  await addOrderColumnIfMissing(
+    "reservation_expires_at",
+    "TIMESTAMP NULL AFTER inventory_status",
+  );
+  await client.query(`ALTER TABLE orders MODIFY COLUMN payment_method ENUM('mtn_momo','airtel_money','flutterwave','cash') NOT NULL`);
+  await client.query(`ALTER TABLE orders MODIFY COLUMN payment_status ENUM('unpaid','pending','pending_confirmation','paid','failed','refunded') NOT NULL DEFAULT 'unpaid'`);
+  await client.query(`ALTER TABLE order_items MODIFY COLUMN item_type ENUM('product','listing','menu_item') NOT NULL`);
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS order_payments (
+      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      order_id BIGINT UNSIGNED NOT NULL,
+      reference VARCHAR(128) NOT NULL UNIQUE,
+      transaction_id VARCHAR(128) NULL UNIQUE,
+      amount INT NOT NULL,
+      currency VARCHAR(8) NOT NULL DEFAULT 'UGX',
+      status ENUM('pending','successful','failed','cancelled','refunded') NOT NULL DEFAULT 'pending',
+      provider_response JSON NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      verified_at TIMESTAMP NULL,
+      INDEX idx_order_payments_order (order_id),
+      INDEX idx_order_payments_status (status)
+    )
+  `);
 
   await client.query(`
     CREATE TABLE IF NOT EXISTS plus_memberships (
@@ -191,6 +243,44 @@ app.post("/api/plus/webhook", async (c) => {
     return c.json({ received: true });
   } catch (error) {
     console.error("[PLUS] webhook verification failed", error);
+    return c.json({ received: false }, 400);
+  }
+});
+
+app.get("/api/orders/payment/callback", async (c) => {
+  const transactionId = c.req.query("transaction_id");
+  const txRef = c.req.query("tx_ref") ?? "";
+  const status = c.req.query("status");
+  const base = (process.env.APP_URL ?? "").replace(/\/$/, "");
+  if (!base) return c.json({ error: "APP_URL is not configured" }, 500);
+  try {
+    if (!transactionId || status === "cancelled") {
+      const cancelled = txRef ? await cancelOrderPayment(txRef) : null;
+      return c.redirect(`${base}${cancelled?.code ? `/orders/${cancelled.code}` : "/account"}?payment=cancelled`);
+    }
+    const result = await verifyOrderPayment(transactionId, txRef);
+    const paymentResult = result.ok ? (result.requiresReview ? "review" : "successful") : "failed";
+    return c.redirect(`${base}/orders/${result.code}?payment=${paymentResult}`);
+  } catch (error) {
+    console.error("[ORDER PAYMENT] callback verification failed", error);
+    return c.redirect(`${base}/account?payment=failed`);
+  }
+});
+
+// Configure this single URL in Flutterwave Dashboard > Settings > Webhooks.
+app.post("/api/flutterwave/webhook", async (c) => {
+  const signature = c.req.header("verif-hash");
+  if (!isValidFlutterwaveWebhook(signature)) return c.json({ error: "Invalid webhook signature" }, 401);
+  const payload: any = await c.req.json().catch(() => null);
+  const transactionId = payload?.data?.id ?? payload?.data?.transaction_id;
+  const txRef = String(payload?.data?.tx_ref ?? "");
+  if (!transactionId || payload?.event !== "charge.completed") return c.json({ received: true });
+  try {
+    if (txRef.startsWith("ORDER-")) await verifyOrderPayment(String(transactionId), txRef);
+    else if (txRef.startsWith("PLUS-")) await verifyPlusPayment(String(transactionId), txRef);
+    return c.json({ received: true });
+  } catch (error) {
+    console.error("[FLUTTERWAVE] webhook verification failed", error);
     return c.json({ received: false }, 400);
   }
 });

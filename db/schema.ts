@@ -101,14 +101,17 @@ export const orders = mysqlTable("orders", {
   code: varchar("code", { length: 16 }).notNull(),
   customerName: varchar("customer_name", { length: 255 }).notNull(),
   phone: varchar("phone", { length: 32 }).notNull(),
+  email: varchar("email", { length: 255 }),
   address: text("address").notNull(),
-  paymentMethod: mysqlEnum("payment_method", ["mtn_momo", "airtel_money", "cash"]).notNull(),
+  paymentMethod: mysqlEnum("payment_method", ["mtn_momo", "airtel_money", "flutterwave", "cash"]).notNull(),
   subtotal: int("subtotal").notNull(),
   deliveryFee: int("delivery_fee").notNull().default(0),
   total: int("total").notNull(),
   status: mysqlEnum("status", ["placed", "confirmed", "pending_delivery", "on_the_way", "delivered", "cancelled"]).notNull().default("placed"),
-  paymentStatus: mysqlEnum("payment_status", ["unpaid", "pending_confirmation", "paid"]).notNull().default("unpaid"),
+  paymentStatus: mysqlEnum("payment_status", ["unpaid", "pending", "pending_confirmation", "paid", "failed", "refunded"]).notNull().default("unpaid"),
   paymentRef: varchar("payment_ref", { length: 64 }),
+  inventoryStatus: mysqlEnum("inventory_status", ["reserved", "committed", "released", "not_applicable"]).notNull().default("not_applicable"),
+  reservationExpiresAt: timestamp("reservation_expires_at"),
   deliveryPartnerId: bigint("delivery_partner_id", { mode: "number", unsigned: true }),
   deliveryAssignedAt: timestamp("delivery_assigned_at"),
   deliveryNotes: text("delivery_notes"),
@@ -119,10 +122,23 @@ export const orders = mysqlTable("orders", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const orderPayments = mysqlTable("order_payments", {
+  id: serial("id").primaryKey(),
+  orderId: bigint("order_id", { mode: "number", unsigned: true }).notNull(),
+  reference: varchar("reference", { length: 128 }).notNull().unique(),
+  transactionId: varchar("transaction_id", { length: 128 }).unique(),
+  amount: int("amount").notNull(),
+  currency: varchar("currency", { length: 8 }).notNull().default("UGX"),
+  status: mysqlEnum("status", ["pending", "successful", "failed", "cancelled", "refunded"]).notNull().default("pending"),
+  providerResponse: json("provider_response"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  verifiedAt: timestamp("verified_at"),
+});
+
 export const orderItems = mysqlTable("order_items", {
   id: serial("id").primaryKey(),
   orderId: bigint("order_id", { mode: "number", unsigned: true }).notNull(),
-  itemType: mysqlEnum("item_type", ["product", "menu_item"]).notNull(),
+  itemType: mysqlEnum("item_type", ["product", "listing", "menu_item"]).notNull(),
   itemId: bigint("item_id", { mode: "number", unsigned: true }).notNull(),
   name: varchar("name", { length: 255 }).notNull(),
   price: int("price").notNull(),
@@ -426,4 +442,3 @@ export const sellerSubscriptions = mysqlTable("seller_subscriptions", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
 });
-

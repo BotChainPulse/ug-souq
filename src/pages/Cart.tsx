@@ -16,15 +16,16 @@ export default function Cart() {
   const [form, setForm] = useState({
     name: acc?.name ?? '',
     phone: acc?.phone ?? '',
+    email: '',
     address: acc?.location ?? '',
-    payment: 'mtn_momo' as 'mtn_momo' | 'airtel_money' | 'cash',
+    payment: 'flutterwave' as 'flutterwave' | 'cash',
   })
   const createOrder = trpc.orders.create.useMutation()
   const [placed, setPlaced] = useState<{
     code: string
     total: number
     phone: string
-    payment: 'mtn_momo' | 'airtel_money' | 'cash'
+    payment: 'cash'
   } | null>(null)
 
   const [zoneId, setZoneId] = useState('kampala')
@@ -52,6 +53,7 @@ export default function Cart() {
   const valid =
     form.name.length >= 2 &&
     form.phone.length >= 9 &&
+    (form.payment === 'cash' || /^\S+@\S+\.\S+$/.test(form.email)) &&
     (shipMethod === 'pickup' ? !!station : form.address.length >= 5)
 
   const submit = async () => {
@@ -63,16 +65,16 @@ export default function Cart() {
     const order = await createOrder.mutateAsync({
       customerName: form.name,
       phone: form.phone,
+      email: form.payment === 'flutterwave' ? form.email : undefined,
       address: delivery,
       paymentMethod: form.payment,
+      deliveryZone: zoneId as 'kampala' | 'upcountry',
+      deliveryMethod: shipMethod,
       items: items.map((i) => ({
-        itemType: i.itemType,
-        itemId: i.itemId,
-        name: i.name,
-        price: i.price,
+        itemType: i.itemType === 'menu_item' ? 'menu_item' as const : i.itemType === 'listing' ? 'listing' as const : 'product' as const,
+        itemId: Number(i.itemId),
         qty: i.qty,
       })),
-      deliveryFee,
     })
 
     saveAccount({
@@ -80,13 +82,17 @@ export default function Cart() {
       phone: form.phone.replace(/[\s-]+/g, ''),
       location: form.address.trim(),
     })
-    setPlaced({
-      code: order.code,
-      total: order.total,
-      phone: form.phone.replace(/[\s-]+/g, ''),
-      payment: form.payment,
-    })
     clear()
+    if (order.checkoutUrl) {
+      window.location.assign(order.checkoutUrl)
+      return
+    }
+    setPlaced({
+      code: order.order.code,
+      total: order.order.total,
+      phone: form.phone.replace(/[\s-]+/g, ''),
+      payment: 'cash',
+    })
   }
 
   return (
@@ -244,6 +250,20 @@ export default function Cart() {
                       />
                     </div>
 
+                    {form.payment === 'flutterwave' && (
+                      <div className="sm:col-span-2">
+                        <label className="mb-1.5 block text-sm font-semibold">Email for payment receipt *</label>
+                        <input
+                          type="email"
+                          value={form.email}
+                          onChange={(e) => setForm({ ...form, email: e.target.value })}
+                          className="w-full rounded-xl border border-neutral-300 px-3.5 py-2.5 text-sm outline-none focus:border-neutral-500"
+                          placeholder="you@example.com"
+                          autoComplete="email"
+                        />
+                      </div>
+                    )}
+
                     {shipMethod === 'door' && (
                       <div className="sm:col-span-2">
                         <label className="mb-1.5 block text-sm font-semibold">
@@ -351,11 +371,10 @@ export default function Cart() {
 
                   <div className="mt-6 border-t border-neutral-100 pt-5">
                     <h3 className="text-sm font-extrabold">Choose payment method</h3>
-                    <div className="mt-3 grid grid-cols-3 gap-2">
+                    <div className="mt-3 grid grid-cols-2 gap-2">
                       {(
                         [
-                          ['mtn_momo', 'MTN MoMo'],
-                          ['airtel_money', 'Airtel Money'],
+                          ['flutterwave', 'Mobile money / card'],
                           ['cash', 'Cash on delivery'],
                         ] as const
                       ).map(([v, l]) => (
@@ -371,7 +390,7 @@ export default function Cart() {
                         >
                           <span className="block">{l}</span>
                           <span className="mt-1 block text-[10px] font-medium text-neutral-500">
-                            {v === 'cash' ? 'Pay on arrival' : 'Mobile payment'}
+                            {v === 'cash' ? 'Pay on arrival' : 'MTN, Airtel or card via Flutterwave'}
                           </span>
                         </button>
                       ))}
@@ -423,13 +442,13 @@ export default function Cart() {
                         'Placing order…'
                       ) : (
                         <>
-                          Place order — {fmt(total)} <ChevronRight size={17} />
+                          {form.payment === 'flutterwave' ? 'Continue to secure payment' : 'Place order'} — {fmt(total)} <ChevronRight size={17} />
                         </>
                       )}
                     </button>
                     {createOrder.isError && (
                       <p className="mt-2 text-center text-sm text-red-600">
-                        Something went wrong — please try again.
+                        {createOrder.error.message || 'Something went wrong — please try again.'}
                       </p>
                     )}
                     <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-[11px] text-neutral-500">

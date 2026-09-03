@@ -87,6 +87,27 @@ CREATE TABLE IF NOT EXISTS plus_payments (
 );
 
 -- ============================================
+-- 4B. SECURE FLUTTERWAVE ORDER PAYMENTS
+-- ============================================
+ALTER TABLE orders MODIFY COLUMN payment_method ENUM('mtn_momo','airtel_money','flutterwave','cash') NOT NULL;
+ALTER TABLE orders MODIFY COLUMN payment_status ENUM('unpaid','pending','pending_confirmation','paid','failed','refunded') NOT NULL DEFAULT 'unpaid';
+ALTER TABLE order_items MODIFY COLUMN item_type ENUM('product','listing','menu_item') NOT NULL;
+CREATE TABLE IF NOT EXISTS order_payments (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  order_id BIGINT UNSIGNED NOT NULL,
+  reference VARCHAR(128) NOT NULL UNIQUE,
+  transaction_id VARCHAR(128) NULL UNIQUE,
+  amount INT NOT NULL,
+  currency VARCHAR(8) NOT NULL DEFAULT 'UGX',
+  status ENUM('pending','successful','failed','cancelled','refunded') NOT NULL DEFAULT 'pending',
+  provider_response JSON NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  verified_at TIMESTAMP NULL,
+  INDEX idx_order_payments_order (order_id),
+  INDEX idx_order_payments_status (status)
+);
+
+-- ============================================
 -- 5. CREATE seller_contracts table
 -- ============================================
 CREATE TABLE IF NOT EXISTS seller_contracts (
@@ -152,6 +173,36 @@ async function run() {
 
   console.log('🔌 Connecting to database...');
   const conn = await mysql.createConnection(url);
+
+  async function addOrderColumnIfMissing(columnName, definition) {
+    const [rows] = await conn.query(
+      `SELECT 1
+       FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'orders'
+         AND COLUMN_NAME = ?
+       LIMIT 1`,
+      [columnName],
+    );
+
+    if (Array.isArray(rows) && rows.length > 0) return;
+
+    try {
+      await conn.query(`ALTER TABLE orders ADD COLUMN \`${columnName}\` ${definition}`);
+    } catch (err) {
+      if (err?.code !== 'ER_DUP_FIELDNAME') throw err;
+    }
+  }
+
+  await addOrderColumnIfMissing('email', 'VARCHAR(255) NULL AFTER phone');
+  await addOrderColumnIfMissing(
+    'inventory_status',
+    "ENUM('reserved','committed','released','not_applicable') NOT NULL DEFAULT 'not_applicable' AFTER payment_ref",
+  );
+  await addOrderColumnIfMissing(
+    'reservation_expires_at',
+    'TIMESTAMP NULL AFTER inventory_status',
+  );
 
   console.log('🚀 Running migration...');
   const statements = SQL.split(';').map(s => s.trim()).filter(s => s.length > 0);

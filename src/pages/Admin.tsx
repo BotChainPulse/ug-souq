@@ -39,8 +39,8 @@ function StatusBadge({ status }: { status: string }) {
 
 function PaymentBadge({ status }: { status: string | null | undefined }) {
   const s = status || "unpaid"
-  const cls = s === "paid" ? "bg-emerald-100 text-emerald-700" : s === "pending_confirmation" ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"
-  const text = s === "paid" ? "Paid" : s === "pending_confirmation" ? "Confirming" : "Unpaid"
+  const cls = s === "paid" ? "bg-emerald-100 text-emerald-700" : s === "pending" || s === "pending_confirmation" ? "bg-amber-100 text-amber-700" : s === "refunded" ? "bg-sky-100 text-sky-700" : "bg-red-100 text-red-700"
+  const text = s === "pending_confirmation" ? "Confirming" : s.replaceAll('_', ' ')
   return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cls}`}>{text}</span>
 }
 
@@ -277,6 +277,7 @@ function Orders({ adminKey }: { adminKey: string }) {
               </div>
               <p className="font-extrabold text-lg mb-1">UGX {Number(o?.total ?? 0).toLocaleString()}</p>
               <p className="text-sm text-neutral-600">{o?.customerName ?? "-"} · {o?.phone ?? "-"} · {String(o?.address ?? "").slice(0,60)} · {o?.createdAt ? new Date(o.createdAt).toLocaleString("en-UG") : "-"}</p>
+              {o?.paymentRef && <p className="mt-1 break-all text-xs text-neutral-500">Payment reference: {o.paymentRef}</p>}
               {canCancel && (
                 <div className="mt-3">
                   <button onClick={() => { if (!oid) return; if (window.confirm('Cancel this order?')) setStatus.mutate({ key: adminKey, id: oid, status: 'cancelled' }) }} disabled={setStatus.isLoading}

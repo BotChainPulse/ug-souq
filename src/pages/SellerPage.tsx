@@ -12,13 +12,10 @@ export default function SellerPage() {
   const sellerId = Number(id)
   const { data, isLoading } = trpc.products.bySeller.useQuery({ sellerId }, { enabled: !!sellerId })
   const { add } = useCart()
-  const [added, setAdded] = useState(null)
+  const [added, setAdded] = useState<number | null>(null)
 
-  const onAdd = (p) => {
-    // The live order schema intentionally accepts only product/menu_item.
-    // Seller listings are marketplace products at checkout, so keep them on the
-    // existing product path instead of introducing a new DB enum at runtime.
-    add({ itemType: 'product', itemId: p.id, name: p.name, price: p.price })
+  const onAdd = (p: { id: number; name: string; price: number; kind: 'product' | 'listing' }) => {
+    add({ itemType: p.kind === 'listing' ? 'listing' : 'product', itemId: p.id, name: p.name, price: p.price })
     setAdded(p.id)
     setTimeout(() => setAdded(null), 1400)
   }
