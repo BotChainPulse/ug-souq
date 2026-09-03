@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createRouter, publicQuery } from "./middleware";
 import { getDb } from "./queries/connection";
 
-const ADMIN_KEY = process.env.ADMIN_KEY ?? "ugsouq-admin-2026";
+const ADMIN_KEY = process.env.ADMIN_KEY;
 
 export const migrateRouter = createRouter({
   runMigration: publicQuery
