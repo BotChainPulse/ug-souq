@@ -15,9 +15,36 @@ async function ensureStartupSchema() {
   const raw: any = (db as any).$client;
   const client: any = typeof raw.promise === "function" ? raw.promise() : raw;
 
-  await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS email VARCHAR(255) NULL AFTER phone`);
-  await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS inventory_status ENUM('reserved','committed','released','not_applicable') NOT NULL DEFAULT 'not_applicable' AFTER payment_ref`);
-  await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS reservation_expires_at TIMESTAMP NULL AFTER inventory_status`);
+  async function addOrderColumnIfMissing(columnName: string, definition: string) {
+    const [rows] = await client.query(
+      `SELECT 1
+       FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'orders'
+         AND COLUMN_NAME = ?
+       LIMIT 1`,
+      [columnName],
+    );
+
+    if (Array.isArray(rows) && rows.length > 0) return;
+
+    try {
+      await client.query(`ALTER TABLE orders ADD COLUMN \`${columnName}\` ${definition}`);
+    } catch (error: any) {
+      // A second replica may add the column after the existence check.
+      if (error?.code !== "ER_DUP_FIELDNAME") throw error;
+    }
+  }
+
+  await addOrderColumnIfMissing("email", "VARCHAR(255) NULL AFTER phone");
+  await addOrderColumnIfMissing(
+    "inventory_status",
+    "ENUM('reserved','committed','released','not_applicable') NOT NULL DEFAULT 'not_applicable' AFTER payment_ref",
+  );
+  await addOrderColumnIfMissing(
+    "reservation_expires_at",
+    "TIMESTAMP NULL AFTER inventory_status",
+  );
   await client.query(`ALTER TABLE orders MODIFY COLUMN payment_method ENUM('mtn_momo','airtel_money','flutterwave','cash') NOT NULL`);
   await client.query(`ALTER TABLE orders MODIFY COLUMN payment_status ENUM('unpaid','pending','pending_confirmation','paid','failed','refunded') NOT NULL DEFAULT 'unpaid'`);
   await client.query(`ALTER TABLE order_items MODIFY COLUMN item_type ENUM('product','listing','menu_item') NOT NULL`);
