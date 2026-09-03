@@ -139,3 +139,9 @@ Do not submit the Data Safety form until the signed Android App Bundle has been 
 - the external account-deletion URL;
 - the in-app account-deletion path; and
 - the developer identity shown in Play Console.
+
+## Reference sources
+
+- Uganda Data Protection and Privacy Act: https://www.nita.go.ug/laws-and-regulations/data-protection-and-privacy-act-no-9-2019
+- NITA-U privacy notice structure: https://www.nita.go.ug/data-protection-privacy-notice
+- PDPO registration portal: https://pdpo.go.ug/register
