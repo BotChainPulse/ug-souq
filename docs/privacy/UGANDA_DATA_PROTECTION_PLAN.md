@@ -1,7 +1,7 @@
 # UG Souq data-protection implementation plan
 
-Status: operational draft for owner and legal review  
-Scope: ugsouq.com, the planned UG Souq Android app, Railway services and the shared production database  
+Status: operational draft for owner and legal review
+Scope: ugsouq.com, the planned UG Souq Android app, Railway services and the shared production database
 Last reviewed: 3 September 2026
 
 This document is an internal implementation record. It is not a substitute for advice from a Ugandan lawyer.
