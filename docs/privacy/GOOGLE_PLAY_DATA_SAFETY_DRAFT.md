@@ -1,10 +1,10 @@
 # UG Souq Google Play privacy and Data Safety draft
 
-Status: draft only — do not submit until the final Android App Bundle and SDK list are available  
-Planned app: UG Souq  
-Backend: the existing ugsouq.com service and Railway database; no separate store  
-Public privacy-policy URL: https://www.ugsouq.com/privacy  
-External account-deletion URL: https://www.ugsouq.com/delete-account  
+Status: draft only — do not submit until the final Android App Bundle and SDK list are available
+Planned app: UG Souq
+Backend: the existing ugsouq.com service and Railway database; no separate store
+Public privacy-policy URL: https://www.ugsouq.com/privacy
+External account-deletion URL: https://www.ugsouq.com/delete-account
 Last reviewed: 3 September 2026
 
 ## Play privacy-policy checks
