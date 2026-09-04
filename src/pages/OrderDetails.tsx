@@ -67,12 +67,13 @@ class OrderDetailsBoundary extends Component<{ children: ReactNode }, { failed: 
 
 function OrderDetailsPage() {
   const { code = '' } = useParams()
-  const savedPhone = localStorage.getItem(SAVED_PHONE_KEY) ?? getAccount()?.phone ?? ''
+  const savedPhone = (localStorage.getItem(SAVED_PHONE_KEY) ?? getAccount()?.phone ?? '').trim()
   const [phone, setPhone] = useState(savedPhone)
   const [lookupPhone, setLookupPhone] = useState(savedPhone)
-  const canLoad = code.length >= 4 && lookupPhone.trim().length >= 9
+  const hasValidPhone = lookupPhone.trim().length >= 9
+  const canLoad = code.trim().length >= 4 && hasValidPhone
   const orderQuery = trpc.orders.track.useQuery(
-    { code: code.toUpperCase(), phone: lookupPhone },
+    { code: code.trim().toUpperCase(), phone: lookupPhone.trim() },
     { enabled: canLoad, retry: false },
   )
   const order = orderQuery.data
@@ -93,7 +94,7 @@ function OrderDetailsPage() {
         <Link to="/orders" className="inline-flex min-h-11 items-center gap-2 text-sm font-bold text-emerald-700"><ArrowLeft size={17} /> Back to My Orders</Link>
         <h1 className="mt-2 flex items-center gap-2 text-2xl font-extrabold"><ReceiptText size={24} style={{ color: ORANGE }} /> Order details</h1>
 
-        {!lookupPhone && (
+        {!hasValidPhone && (
           <div className="mt-5 rounded-2xl border border-neutral-200 bg-white p-5">
             <p className="text-sm text-neutral-600">Enter the phone number used for this order to protect your order details.</p>
             <div className="mt-3 flex gap-2">
