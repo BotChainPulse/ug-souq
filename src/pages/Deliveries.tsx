@@ -43,12 +43,13 @@ export default function DeliveriesPage() {
   }, [])
 
 
-  const { data: ordersData, isLoading } = trpc.orders.myOrders.useQuery(
-    { phone: account?.phone ?? '' },
-    { enabled: !!account?.phone },
+  const accountPhone = account?.phone?.trim() ?? ''
+  const { data: ordersData, isLoading, isError, refetch } = trpc.orders.byPhone.useQuery(
+    { phone: accountPhone },
+    { enabled: accountPhone.length >= 9, retry: false },
   )
 
-  const orders = (ordersData as any)?.orders ?? ordersData ?? []
+  const orders = Array.isArray(ordersData) ? ordersData : []
 
   if (loadingAccount || isLoading) {
     return (
@@ -68,7 +69,7 @@ export default function DeliveriesPage() {
         <h1 className="text-lg font-bold text-gray-900">My Deliveries</h1>
       </div>
 
-      {!account ? (
+      {!account || accountPhone.length < 9 ? (
         <div className="flex flex-col items-center justify-center mt-20 text-gray-400 px-4">
           <Truck size={64} className="mb-4 text-gray-300" />
           <p className="text-lg font-medium">Sign in to see deliveries</p>
@@ -80,6 +81,18 @@ export default function DeliveriesPage() {
               Go to Account
             </button>
           </Link>
+        </div>
+      ) : isError ? (
+        <div className="mx-4 mt-10 rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
+          <AlertCircle size={36} className="mx-auto text-red-500" />
+          <p className="mt-3 font-bold text-red-800">Unable to load deliveries</p>
+          <p className="mt-1 text-sm text-red-700">Check your connection and try again.</p>
+          <button
+            onClick={() => refetch()}
+            className="mt-4 rounded-full bg-red-700 px-5 py-2.5 text-sm font-bold text-white"
+          >
+            Try again
+          </button>
         </div>
       ) : orders.length === 0 ? (
         <div className="flex flex-col items-center justify-center mt-20 text-gray-400 px-4">
@@ -205,7 +218,7 @@ export default function DeliveriesPage() {
                 )}
 
                 {/* Track Button */}
-                <Link to={`/track-order?code=${order.code}`}>
+                <Link to={`/orders/${encodeURIComponent(order.code ?? '')}`}>
                   <button
                     className="w-full mt-3 py-2.5 text-sm font-bold border rounded-xl hover:bg-orange-50"
                     style={{ color: ORANGE, borderColor: '#fed7aa' }}

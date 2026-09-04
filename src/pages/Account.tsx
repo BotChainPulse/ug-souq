@@ -5,7 +5,7 @@ import {
   CircleCheckBig, Truck, XCircle, CircleDashed, Trash2,
   HelpCircle, MessageCircle, Mail, Star, Ticket, Heart,
   Store, Clock, CreditCard, ChevronRight, Home, Grid3X3,
-  ShoppingCart, Bell, Wallet, ShieldCheck, Globe, Settings,
+  ShoppingCart, Bell, ShieldCheck, Globe, Settings,
   Lock, Undo2, MapPinned, Facebook, Instagram, Linkedin,
   Edit3
 } from 'lucide-react'
@@ -200,15 +200,14 @@ export default function AccountPage() {
           </div>
           <div className="flex-1 min-w-0">
             <h2 className="text-lg font-bold text-gray-900 truncate">
-              {account.name || 'Lutwama Reagan'}
+              {account.name || 'Customer'}
             </h2>
-            <p className="text-sm text-gray-500 truncate">reagz.lutwama700@gmail.com</p>
             <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
               <span className="flex items-center gap-1">
-                <Phone size={12} /> {account.phone || '0708813419'}
+                <Phone size={12} /> {account.phone}
               </span>
               <span className="flex items-center gap-1">
-                <MapPin size={12} /> {account.location || 'Mpigi'}
+                <MapPin size={12} /> {account.location || 'Location not added'}
               </span>
             </div>
           </div>
@@ -279,42 +278,6 @@ export default function AccountPage() {
         </Link>
       </div>
 
-      {/* Wallet / Credits */}
-      <Link to="/account">
-        <div className="mx-3 mt-3 bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl" style={{ backgroundColor: '#fff3e6' }}>
-              <Wallet size={20} style={{ color: ORANGE }} />
-            </div>
-            <span className="font-medium text-gray-900 text-sm">UG Souq Credits</span>
-          </div>
-          <div className="flex items-center gap-1 text-gray-400">
-            <span className="text-sm">UGX 0</span>
-            <ChevronRight size={16} />
-          </div>
-        </div>
-      </Link>
-
-      {/* Promo Card */}
-      <div className="mx-3 mt-3 bg-white rounded-2xl p-4 shadow-sm">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="font-bold text-gray-900 text-sm">UG Souq Credit Card</p>
-            <p className="text-xs text-gray-500 mt-1">• Get 20% off + free delivery</p>
-            <p className="text-xs text-gray-500">• UGX 5,000 welcome bonus</p>
-            <button className="mt-3 bg-gray-900 text-white text-xs font-bold px-4 py-2 rounded-xl">
-              Apply Now
-            </button>
-          </div>
-          <div
-            className="w-16 h-10 rounded-lg flex items-center justify-center text-white font-bold text-xs"
-            style={{ backgroundColor: ORANGE }}
-          >
-            UG S
-          </div>
-        </div>
-      </div>
-
       {/* Menu List */}
       <div className="mx-3 mt-3 bg-white rounded-2xl shadow-sm overflow-hidden">
         {menuItems.map((item, idx) => (
@@ -364,7 +327,7 @@ export default function AccountPage() {
           </div>
           <div className="space-y-3">
             {orders.slice(0, 3).map((o: any) => (
-              <Link key={o.id} to={`/track-order?code=${o.code}`}
+              <Link key={o.id} to={`/orders/${encodeURIComponent(o.code)}`}
                 className="block bg-white rounded-xl p-4 shadow-sm border border-gray-100">
                 <div className="flex items-center justify-between mb-2">
                   <div>
@@ -378,12 +341,12 @@ export default function AccountPage() {
                 {o.items?.map((it: any, idx: number) => (
                   <div key={idx} className="flex items-center justify-between py-1">
                     <span className="text-sm text-gray-700">{it.qty}× {it.name}</span>
-                    <span className="text-sm font-semibold text-gray-900">UGX {fmt(it.price * it.qty)}</span>
+                    <span className="text-sm font-semibold text-gray-900">{fmt(it.price * it.qty)}</span>
                   </div>
                 ))}
                 <div className="flex items-center justify-between pt-2 mt-2 border-t border-gray-100">
                   <span className="text-xs text-gray-500">Total ({paymentLabel({ paymentMethod: o.paymentMethod, paymentStatus: o.paymentStatus }).text})</span>
-                  <span className="font-bold text-sm" style={{ color: ORANGE }}>UGX {fmt(o.total)}</span>
+                  <span className="font-bold text-sm" style={{ color: ORANGE }}>{fmt(o.total)}</span>
                 </div>
               </Link>
             ))}
