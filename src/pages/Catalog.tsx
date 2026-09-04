@@ -125,11 +125,19 @@ export default function Catalog() {
                         <RefreshCcw size={11} /> {p.condition === 'refurbished' ? `Refurb · ${p.warrantyMonths}mo warranty` : 'Used'}
                       </span>
                     )}
-                    {p.sellerVerified && (
-                      <span className="absolute top-3 right-3 bg-white/95 rounded-full p-1 shadow" title="Verified seller">
-                        <BadgeCheck size={16} className="text-sky-600" />
-                      </span>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => toggleWish(key)}
+                      aria-label={wishlist.includes(key) ? `Remove ${p.name} from wishlist` : `Add ${p.name} to wishlist`}
+                      aria-pressed={wishlist.includes(key)}
+                      className="absolute top-3 right-3 bg-white/95 rounded-full p-2 shadow hover:bg-white transition-colors"
+                      title={wishlist.includes(key) ? 'Remove from wishlist' : 'Add to wishlist'}
+                    >
+                      <Heart
+                        size={18}
+                        className={wishlist.includes(key) ? 'fill-red-500 text-red-500' : 'text-neutral-600'}
+                      />
+                    </button>
                   </div>
                   <div className="p-4">
                     {p.sellerVerified ? (
