@@ -1,4 +1,5 @@
 {
+  "id": "/",
   "name": "UG Souq",
   "short_name": "UG Souq",
   "description": "Uganda's online market — phones, fashion, farm produce and food delivery, paid with MTN MoMo & Airtel Money.",
@@ -9,8 +10,37 @@
   "background_color": "#faf9f7",
   "theme_color": "#e85d04",
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Shop UG Souq",
+      "short_name": "Shop",
+      "description": "Browse products and offers on UG Souq",
+      "url": "/",
+      "icons": [
+        { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }
+      ]
+    },
+    {
+      "name": "Sell on UG Souq",
+      "short_name": "Sell",
+      "description": "List a product for sale on UG Souq",
+      "url": "/sell",
+      "icons": [
+        { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }
+      ]
+    },
+    {
+      "name": "My Orders",
+      "short_name": "Orders",
+      "description": "View and track your UG Souq orders",
+      "url": "/orders",
+      "icons": [
+        { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }
+      ]
+    }
   ]
 }
