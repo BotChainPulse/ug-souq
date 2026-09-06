@@ -1,4 +1,4 @@
-const CACHE = 'ugsouq-v3'
+const CACHE = 'ugsouq-v4'
 const SHELL = ['/', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png']
 
 self.addEventListener('install', (e) => {
@@ -14,13 +14,18 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url)
-  // Never cache API calls — always hit the network
+  // Never cache API calls — always hit the network.
   if (url.pathname.startsWith('/api/')) return
   if (e.request.method !== 'GET') return
 
-  // Deployments generate new JavaScript filenames. Always get the newest page
-  // and code first so cached HTML can never point at a removed application file.
-  if (e.request.mode === 'navigate' || ['script', 'style'].includes(e.request.destination)) {
+  // App navigation, code, and the web app manifest should prefer the network.
+  // This prevents an installed PWA from holding on to stale shortcut metadata
+  // after a deployment, while retaining an offline fallback.
+  if (
+    e.request.mode === 'navigate' ||
+    ['script', 'style', 'manifest'].includes(e.request.destination) ||
+    url.pathname === '/manifest.webmanifest'
+  ) {
     e.respondWith(
       fetch(e.request)
         .then((res) => {
