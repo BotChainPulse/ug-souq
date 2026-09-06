@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import { MessageCircle, X, Send } from 'lucide-react'
 import { ORANGE, WA_LINK } from '../lib/site'
 
@@ -32,13 +32,36 @@ function answer(q: string): Msg {
 }
 
 export default function ChatBot() {
+  const location = useLocation()
   const [open, setOpen] = useState(false)
   const [role, setRole] = useState<'buyer' | 'seller' | null>(null)
   const [msgs, setMsgs] = useState<Msg[]>([])
   const [input, setInput] = useState('')
+  const [obscured, setObscured] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [msgs, open])
+
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return
+    const targets = Array.from(document.querySelectorAll<HTMLElement>('[data-chatbot-obscure]'))
+    if (!targets.length) {
+      setObscured(false)
+      return
+    }
+
+    const visible = new Set<Element>()
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) visible.add(entry.target)
+        else visible.delete(entry.target)
+      })
+      setObscured(visible.size > 0)
+    }, { threshold: 0.08 })
+
+    targets.forEach((target) => observer.observe(target))
+    return () => observer.disconnect()
+  }, [location.pathname])
 
   const greet = (r: 'buyer' | 'seller') => {
     setRole(r)
@@ -65,11 +88,11 @@ export default function ChatBot() {
 
   return (
     <>
-      {!open && (
+      {!open && !obscured && (
         <button onClick={() => setOpen(true)} aria-label="Open chat"
-          className="fixed bottom-20 right-4 z-50 grid h-12 w-12 place-items-center rounded-full text-white shadow-xl transition-transform hover:scale-105 sm:bottom-5 sm:right-5 sm:h-14 sm:w-14"
+          className="fixed bottom-20 right-3 z-50 grid h-11 w-11 place-items-center rounded-full text-white shadow-lg transition-transform hover:scale-105 sm:bottom-5 sm:right-5 sm:h-14 sm:w-14"
           style={{ background: ORANGE }}>
-          <MessageCircle size={24} />
+          <MessageCircle size={21} className="sm:h-6 sm:w-6" />
         </button>
       )}
       {open && (
