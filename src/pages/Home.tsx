@@ -93,7 +93,7 @@ export default function HomePage() {
           {homeTiles.map((slug) => { const Icon = categoryIcons[slug] ?? Grid3X3; return (
             <Link key={slug} to={`/catalog?category=${slug}`} className="min-w-0 text-center">
               <span className="mx-auto grid aspect-square w-full max-w-20 place-items-center rounded-2xl bg-white shadow-sm ring-1 ring-neutral-200"><Icon size={23} className="text-emerald-700" /></span>
-              <span className="mt-1.5 block truncate text-[10px] font-semibold sm:text-xs">{categoryName(slug)}</span>
+              <span className="mt-1.5 block min-h-8 line-clamp-2 text-[10px] font-semibold leading-tight sm:text-xs">{categoryName(slug)}</span>
             </Link>
           )})}
         </div>
@@ -115,7 +115,7 @@ export default function HomePage() {
                 <div className="p-2.5 sm:p-3">
                   <span className="block truncate text-[10px] font-semibold text-emerald-700">{p.sellerVerified && <BadgeCheck size={11} className="mr-1 inline" />}{p.sellerName}</span>
                   <Link to={`/product/${p.slug}`}><h3 className="mt-1 line-clamp-2 min-h-[2.4em] text-xs font-semibold leading-snug sm:text-sm">{p.name}</h3></Link>
-                  <div className="mt-1.5"><span className="text-sm font-extrabold sm:text-base">{fmt(p.price)}</span>{p.oldPrice && <span className="ml-1.5 text-[10px] text-neutral-400 line-through">{fmt(p.oldPrice)}</span>}</div>
+                  <div className="mt-1.5 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5"><span className="whitespace-nowrap text-sm font-extrabold sm:text-base">{fmt(p.price)}</span>{p.oldPrice && <span className="whitespace-nowrap text-[10px] text-neutral-400 line-through">{fmt(p.oldPrice)}</span>}</div>
                   <div className="mt-1 flex items-center justify-between"><span className="flex items-center gap-1 text-[10px] text-neutral-500"><Star size={11} className="fill-amber-400 text-amber-400" />{p.sellerRating.toFixed(1)}</span><button onClick={() => onAdd(p.id, p.name, p.price)} aria-label="Add to cart" className="grid h-8 w-8 place-items-center rounded-lg text-white active:scale-95" style={{ background: ORANGE }}>{added === p.id ? <Check size={15} /> : <ShoppingCart size={15} />}</button></div>
                 </div>
               </article>
@@ -141,7 +141,7 @@ export default function HomePage() {
                 <div className="p-2.5 sm:p-3">
                   <span className="block truncate text-[10px] font-semibold text-emerald-700">{p.sellerVerified && <BadgeCheck size={11} className="mr-1 inline" />}{p.sellerName}</span>
                   <Link to={`/product/${p.slug}`}><h3 className="mt-1 line-clamp-2 min-h-[2.4em] text-xs font-semibold leading-snug sm:text-sm">{p.name}</h3></Link>
-                  <div className="mt-1.5 flex flex-wrap items-baseline gap-x-1.5"><span className="text-sm font-extrabold sm:text-base">{fmt(p.price)}</span>{p.oldPrice && <span className="text-[10px] text-neutral-400 line-through">{fmt(p.oldPrice)}</span>}</div>
+                  <div className="mt-1.5 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5"><span className="whitespace-nowrap text-sm font-extrabold sm:text-base">{fmt(p.price)}</span>{p.oldPrice && <span className="whitespace-nowrap text-[10px] text-neutral-400 line-through">{fmt(p.oldPrice)}</span>}</div>
                   <div className="mt-1 flex items-center justify-between"><span className="flex items-center gap-1 text-[10px] text-neutral-500"><Star size={11} className="fill-amber-400 text-amber-400" />{p.sellerRating.toFixed(1)}</span><button onClick={() => onAdd(p.id, p.name, p.price)} aria-label={`Add ${p.name} to cart`} className="grid h-8 w-8 place-items-center rounded-lg text-white active:scale-95" style={{ background: ORANGE }}>{added === p.id ? <Check size={15} /> : <ShoppingCart size={15} />}</button></div>
                 </div>
               </article>
