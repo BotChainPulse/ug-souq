@@ -104,7 +104,15 @@ export default function AccountPage() {
 
   const orders = ordersData ?? []
   const plusActive = Boolean(profileData?.membership)
-  const [wishlistCount] = useState(() => loadWishlist().length)
+  const [wishlist] = useState(loadWishlist)
+  const { data: catalogItems, isLoading: wishlistLoading } = trpc.products.browse.useQuery(
+    {},
+    { enabled: wishlist.length > 0 },
+  )
+  const wishlistItems = wishlist.map((key) => ({
+    key,
+    item: catalogItems?.find((item) => `${item.kind}-${item.id}` === key),
+  }))
 
   const menuItems = [
     { icon: MapPinned, label: 'Addresses', to: '/addresses' },
@@ -240,8 +248,8 @@ export default function AccountPage() {
             <p className="font-bold text-gray-900 text-sm">My Orders</p>
             <div className="flex gap-1 mt-2">
               {orders.slice(0, 3).map((o: any, i: number) => (
-                <div key={i} className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center text-xs">
-                  📦
+                <div key={i} className="flex h-8 w-8 items-center justify-center rounded bg-orange-50" aria-label={`Order ${o.code || i + 1}`}>
+                  <Package size={15} style={{ color: ORANGE }} />
                 </div>
               ))}
               {orders.length === 0 && (
@@ -259,13 +267,18 @@ export default function AccountPage() {
           <div className="bg-white rounded-2xl p-4 shadow-sm">
             <div className="flex items-center justify-between mb-2">
               <Heart size={20} className="text-red-500" />
-              <span className="text-xs text-gray-400">{wishlistCount} items</span>
+              <span className="text-xs text-gray-400">{wishlist.length} {wishlist.length === 1 ? 'item' : 'items'}</span>
             </div>
             <p className="font-bold text-gray-900 text-sm">My Wishlist</p>
-            <div className="flex gap-1 mt-2">
-              <div className="w-8 h-8 rounded bg-gray-100" />
-              <div className="w-8 h-8 rounded bg-gray-100" />
-              <div className="w-8 h-8 rounded bg-gray-100" />
+            <div className="mt-2 flex min-h-8 items-center gap-1">
+              {wishlistLoading
+                ? [...Array(Math.min(wishlist.length, 3))].map((_, index) => <span key={index} className="h-8 w-8 animate-pulse rounded-md bg-gray-100" />)
+                : wishlistItems.slice(0, 3).map(({ key, item }) => item ? (
+                  <img key={key} src={item.image || '/images/product-default.png'} alt={item.name} className="h-8 w-8 rounded-md border border-gray-100 bg-white object-contain" />
+                ) : (
+                  <span key={key} className="grid h-8 w-8 place-items-center rounded-md bg-gray-50 text-gray-300"><Heart size={14} /></span>
+                ))}
+              {wishlist.length === 0 && <span className="text-[11px] leading-tight text-gray-400">Save products to see them here</span>}
             </div>
           </div>
         </Link>
