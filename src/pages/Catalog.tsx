@@ -7,6 +7,7 @@ import { trpc } from '@/providers/trpc'
 import { fmt, useCart } from '../lib/cart'
 import { ORANGE, WHATSAPP_INTL } from '../lib/site'
 import { CATEGORIES, categoryName } from '../lib/categories'
+import { loadWishlist, saveWishlist, toggleWishlist } from '../lib/wishlist'
 
 export default function Catalog() {
   const [params, setParams] = useSearchParams()
@@ -25,13 +26,11 @@ export default function Catalog() {
 
   const { data: items, isLoading } = trpc.products.browse.useQuery({ category, condition, deals })
   const { add } = useCart()
-  const [wishlist, setWishlist] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem('wishlist') || '[]') } catch { return [] }
-  })
+  const [wishlist, setWishlist] = useState<string[]>(loadWishlist)
   const toggleWish = (id: string) => {
-    const next = wishlist.includes(id) ? wishlist.filter(w => w !== id) : [...wishlist, id]
+    const next = toggleWishlist(wishlist, id)
     setWishlist(next)
-    localStorage.setItem('wishlist', JSON.stringify(next))
+    saveWishlist(next)
   }
   const [added, setAdded] = useState<string | null>(null)
 

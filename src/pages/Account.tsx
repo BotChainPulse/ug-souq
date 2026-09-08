@@ -16,6 +16,7 @@ import { fmt } from '../lib/cart'
 import { ORANGE } from '../lib/site'
 import { getAccount, saveAccount, clearAccount, type Account } from '../lib/account'
 import { paymentLabel } from '../lib/payStatus'
+import { loadWishlist } from '../lib/wishlist'
 
 function StatusPill({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string; Icon: any }> = {
@@ -103,15 +104,7 @@ export default function AccountPage() {
 
   const orders = ordersData ?? []
   const plusActive = Boolean(profileData?.membership)
-  const [wishlistCount, setWishlistCount] = useState(0)
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('wishlist') || '[]')
-      setWishlistCount(Array.isArray(saved) ? saved.length : 0)
-    } catch {
-      setWishlistCount(0)
-    }
-  }, [])
+  const [wishlistCount] = useState(() => loadWishlist().length)
 
   const menuItems = [
     { icon: MapPinned, label: 'Addresses', to: '/addresses' },

@@ -9,6 +9,7 @@ import { trpc } from '@/providers/trpc'
 import { fmt, useCart } from '../lib/cart'
 import { ORANGE } from '../lib/site'
 import { categoryName } from '../lib/categories'
+import { loadWishlist, saveWishlist, toggleWishlist, wishlistKey } from '../lib/wishlist'
 
 const services = [
   { icon: Store, label: 'Super Mall', to: '/mall' },
@@ -46,13 +47,13 @@ export default function HomePage() {
   const { data: products, isLoading } = trpc.products.flashSale.useQuery()
   const { data: groceryProducts, isLoading: groceriesLoading } = trpc.products.homepageGroceries.useQuery()
   const { add } = useCart()
-  const [wishlist, setWishlist] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('wishlist') || '[]') } catch { return [] } })
+  const [wishlist, setWishlist] = useState<string[]>(loadWishlist)
   const [added, setAdded] = useState<number | null>(null)
   const toggleWish = (id: string | number) => {
-    const key = String(id)
-    const next = wishlist.includes(key) ? wishlist.filter((w) => w !== key) : [...wishlist, key]
-    setWishlist(next); localStorage.setItem('wishlist', JSON.stringify(next))
+    const next = toggleWishlist(wishlist, wishlistKey('product', id))
+    setWishlist(next); saveWishlist(next)
   }
+  const isWished = (id: string | number) => wishlist.includes(wishlistKey('product', id))
   const onAdd = (id: number, name: string, price: number) => {
     add({ itemType: 'product', itemId: id, name, price }); setAdded(id); setTimeout(() => setAdded(null), 1200)
   }
@@ -110,7 +111,7 @@ export default function HomePage() {
               <article key={p.id} className="group overflow-hidden rounded-xl border border-neutral-200 bg-white transition hover:shadow-md">
                 <div className="relative bg-neutral-50"><Link to={`/product/${p.slug}`}><img src={p.image} alt={p.name} className="aspect-square w-full object-contain" loading="lazy" /></Link>
                   {p.discount > 0 && <span className="absolute left-2 top-2 rounded-md bg-emerald-700 px-1.5 py-1 text-[10px] font-extrabold text-white">−{p.discount}%</span>}
-                  <button onClick={(e) => { e.preventDefault(); toggleWish(p.id) }} className="absolute right-2 top-2 rounded-full bg-white p-1.5 shadow"><Heart size={15} className={wishlist.includes(String(p.id)) ? 'fill-red-500 text-red-500' : 'text-neutral-500'} /></button>
+                  <button onClick={(e) => { e.preventDefault(); toggleWish(p.id) }} className="absolute right-2 top-2 rounded-full bg-white p-1.5 shadow" aria-label={isWished(p.id) ? `Remove ${p.name} from wishlist` : `Add ${p.name} to wishlist`} aria-pressed={isWished(p.id)}><Heart size={15} className={isWished(p.id) ? 'fill-red-500 text-red-500' : 'text-neutral-500'} /></button>
                 </div>
                 <div className="p-2.5 sm:p-3">
                   <span className="block truncate text-[10px] font-semibold text-emerald-700">{p.sellerVerified && <BadgeCheck size={11} className="mr-1 inline" />}{p.sellerName}</span>
@@ -135,7 +136,7 @@ export default function HomePage() {
               <article key={p.id} className="group overflow-hidden rounded-xl border border-neutral-200 bg-white transition hover:shadow-md">
                 <div className="relative bg-neutral-50"><Link to={`/product/${p.slug}`}><img src={p.image} alt={p.name} className="aspect-square w-full object-contain" loading="lazy" /></Link>
                   {p.discount > 0 && <span className="absolute left-2 top-2 rounded-md bg-emerald-700 px-1.5 py-1 text-[10px] font-extrabold text-white">−{p.discount}%</span>}
-                  <button onClick={(e) => { e.preventDefault(); toggleWish(p.id) }} className="absolute right-2 top-2 rounded-full bg-white p-1.5 shadow" aria-label={wishlist.includes(String(p.id)) ? `Remove ${p.name} from wishlist` : `Add ${p.name} to wishlist`}><Heart size={15} className={wishlist.includes(String(p.id)) ? 'fill-red-500 text-red-500' : 'text-neutral-500'} /></button>
+                  <button onClick={(e) => { e.preventDefault(); toggleWish(p.id) }} className="absolute right-2 top-2 rounded-full bg-white p-1.5 shadow" aria-label={isWished(p.id) ? `Remove ${p.name} from wishlist` : `Add ${p.name} to wishlist`} aria-pressed={isWished(p.id)}><Heart size={15} className={isWished(p.id) ? 'fill-red-500 text-red-500' : 'text-neutral-500'} /></button>
                   <span className="absolute bottom-2 left-2 rounded-full bg-neutral-950/85 px-2 py-1 text-[9px] font-extrabold uppercase tracking-wide text-white">UG Souq</span>
                 </div>
                 <div className="p-2.5 sm:p-3">
