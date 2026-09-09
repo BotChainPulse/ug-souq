@@ -132,6 +132,10 @@ export const orderItems = mysqlTable("order_items", {
   name: varchar("name", { length: 255 }).notNull(),
   price: int("price").notNull(),
   qty: int("qty").notNull(),
+  sellerId: bigint("seller_id", { mode: "number", unsigned: true }),
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 4 }).notNull().default("0.0000"),
+  commissionFee: int("commission_fee").notNull().default(0),
+  sellerNet: int("seller_net").notNull().default(0),
 });
 
 export const customers = mysqlTable("customers", {
@@ -423,12 +427,25 @@ export const sellerSubscriptions = mysqlTable("seller_subscriptions", {
   sellerId: bigint("seller_id", { mode: "number", unsigned: true }).notNull().unique(),
   tier: mysqlEnum("tier", ["free", "basic", "verified", "premium"]).notNull().default("free"),
   monthlyFee: int("monthly_fee").notNull().default(0),
-  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).notNull().default("10.00"),
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).notNull().default("7.00"),
   features: json("features").$type<string[]>().default([]),
   startedAt: timestamp("started_at").notNull().defaultNow(),
   expiresAt: timestamp("expires_at"),
-  isActive: boolean("is_active").notNull().default(true),
+  isActive: boolean("is_active").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+});
+
+export const sellerPlanPayments = mysqlTable("seller_plan_payments", {
+  id: serial("id").primaryKey(),
+  sellerId: bigint("seller_id", { mode: "number", unsigned: true }).notNull(),
+  plan: mysqlEnum("plan", ["pro"]).notNull().default("pro"),
+  months: int("months").notNull().default(1),
+  amount: int("amount").notNull(),
+  paymentReference: varchar("payment_reference", { length: 128 }).notNull().unique(),
+  status: mysqlEnum("status", ["confirmed", "refunded"]).notNull().default("confirmed"),
+  confirmedBy: varchar("confirmed_by", { length: 64 }).notNull().default("admin-review"),
+  confirmedAt: timestamp("confirmed_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

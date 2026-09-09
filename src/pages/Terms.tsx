@@ -45,6 +45,7 @@ export default function Terms() {
 
         <Section title="7. Sellers and verification">
           <p>Sellers must provide a valid National ID or passport, a verifiable business location, and (where applicable) a TIN. Verified sellers display a blue badge. Verification confirms identity and location checks were completed — it is not a guarantee of product quality, but unverified sellers are ranked lower and may be restricted.</p>
+          <p>The Free seller plan includes up to five active or pending listing slots and a 7% marketplace commission on each seller item subtotal. Seller Pro is UGX 30,000 per 30 days, includes up to 50 listing slots, and reduces that commission to 5%. Delivery fees are excluded from seller commission. Paid advertising and verification are separate from Seller Pro.</p>
           <p>Sellers are responsible for the accuracy of their listings, lawful ownership of goods, and honouring warranties they advertise. Sellers who repeatedly cancel orders, sell counterfeit goods, or abuse buyers are suspended or removed.</p>
         </Section>
 

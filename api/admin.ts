@@ -7,8 +7,10 @@ import { getDb } from "./queries/connection";
 import {
   sellers, orders, orderItems, affiliates, products, listings,
   sellerAdBookings, deliveryPartners, adminAuditLogs, payouts,
-  platformSettings, sellerContracts, notifications, returns, customers, marketingSubscribers
+  platformSettings, sellerContracts, notifications, returns, customers, marketingSubscribers,
+  sellerSubscriptions, sellerPlanPayments
 } from "../db/schema";
+import { FREE_LISTING_LIMIT, PRO_COMMISSION_RATE, PRO_LISTING_LIMIT, PRO_MONTHLY_FEE, sellerPlan } from "./sellerPolicy";
 
 const ADMIN_KEY = process.env.ADMIN_KEY;
 
@@ -260,6 +262,8 @@ export const adminRouter = createRouter({
 
     // Get contract status for each seller
     const contractRows = await db.select().from(sellerContracts);
+    const subscriptionRows = await db.select().from(sellerSubscriptions);
+    const listingRows = await db.select().from(listings);
     const contractMap = new Map<number, typeof contractRows>();
     for (const c of contractRows) {
       const list = contractMap.get(Number(c.sellerId)) ?? [];
@@ -267,10 +271,16 @@ export const adminRouter = createRouter({
       contractMap.set(Number(c.sellerId), list);
     }
 
-    return filtered.map((s) => ({
-      ...s,
-      contracts: contractMap.get(Number(s.id)) ?? [],
-    })).sort((a, b) => (a.status === "pending" ? -1 : 0) - (b.status === "pending" ? -1 : 0));
+    const subscriptionMap = new Map(subscriptionRows.map((subscription) => [Number(subscription.sellerId), subscription]));
+    return filtered.map((s) => {
+      const plan = sellerPlan(subscriptionMap.get(Number(s.id)));
+      const listingsUsed = listingRows.filter((listing) => Number(listing.sellerId) === Number(s.id) && !["rejected", "terminated"].includes(listing.status)).length;
+      return {
+        ...s,
+        contracts: contractMap.get(Number(s.id)) ?? [],
+        plan: { ...plan, listingsUsed, freeLimit: FREE_LISTING_LIMIT, proLimit: PRO_LISTING_LIMIT, proMonthlyFee: PRO_MONTHLY_FEE },
+      };
+    }).sort((a, b) => (a.status === "pending" ? -1 : 0) - (b.status === "pending" ? -1 : 0));
   }),
 
   setSellerStatus: publicQuery
@@ -326,6 +336,50 @@ export const adminRouter = createRouter({
         entityType: "seller", entityId: input.id, beforeState: before, afterState: after,
       });
       return { ok: true };
+    }),
+
+  setSellerPlan: publicQuery
+    .input(z.object({
+      key: z.string(), sellerId: z.number(), plan: z.enum(["free", "pro"]),
+      months: z.number().int().min(1).max(12).default(1),
+      paymentReference: z.string().trim().max(128).optional(),
+    }))
+    .mutation(async ({ input }) => {
+      requireAdmin(input.key);
+      const db = getDb();
+      const [seller] = await db.select().from(sellers).where(eq(sellers.id, input.sellerId));
+      if (!seller) throw new TRPCError({ code: "NOT_FOUND", message: "Seller not found." });
+      if (input.plan === "pro" && !input.paymentReference) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Record the confirmed payment reference before activating Seller Pro." });
+      }
+      const now = new Date();
+      const { before, after } = await db.transaction(async (tx) => {
+        const [before] = await tx.select().from(sellerSubscriptions).where(eq(sellerSubscriptions.sellerId, input.sellerId)).for("update");
+        const activeUntil = before?.isActive && before.expiresAt && before.expiresAt > now ? before.expiresAt : now;
+        const expiresAt = input.plan === "pro"
+          ? new Date(activeUntil.getTime() + input.months * 30 * 24 * 60 * 60 * 1000)
+          : null;
+        const values = input.plan === "pro"
+          ? { tier: "premium" as const, monthlyFee: PRO_MONTHLY_FEE, commissionRate: (PRO_COMMISSION_RATE * 100).toFixed(2), features: ["50 active listings", "5% marketplace commission"], startedAt: now, expiresAt, isActive: true }
+          : { tier: "free" as const, monthlyFee: 0, commissionRate: "7.00", features: ["5 active listings", "7% marketplace commission"], startedAt: now, expiresAt: null, isActive: false };
+        if (input.plan === "pro") {
+          await tx.insert(sellerPlanPayments).values({
+            sellerId: input.sellerId, plan: "pro", months: input.months,
+            amount: PRO_MONTHLY_FEE * input.months,
+            paymentReference: input.paymentReference!,
+          });
+        }
+        await tx.insert(sellerSubscriptions).values({ sellerId: input.sellerId, ...values }).onDuplicateKeyUpdate({ set: { ...values, updatedAt: now } });
+        const [after] = await tx.select().from(sellerSubscriptions).where(eq(sellerSubscriptions.sellerId, input.sellerId));
+        return { before, after };
+      });
+      await writeAudit({
+        key: input.key,
+        action: input.plan === "pro" ? "seller.plan.pro_activated" : "seller.plan.free_restored",
+        entityType: "seller", entityId: input.sellerId, beforeState: before, afterState: after,
+        meta: { months: input.months, paymentReference: input.paymentReference || null, expectedAmount: input.plan === "pro" ? PRO_MONTHLY_FEE * input.months : 0 },
+      });
+      return { ok: true, plan: sellerPlan(after) };
     }),
 
   // ============================================
@@ -388,16 +442,24 @@ export const adminRouter = createRouter({
     }
 
     const withItems = await Promise.all(
-      filtered.map(async (o) => ({
-        ...o,
-        customerName: (o as any).customerName ?? 'Unknown',
-        phone: (o as any).phone ?? '',
-        address: (o as any).address ?? '',
-        paymentMethod: (o as any).paymentMethod ?? '',
-        deliveryPartnerId: (o as any).deliveryPartnerId ?? null,
-        paidOut: (o as any).paidOut ?? false,
-        items: await db.select().from(orderItems).where(eq(orderItems.orderId, o.id)),
-      })),
+      filtered.map(async (o) => {
+        const items = await db.select().from(orderItems).where(eq(orderItems.orderId, o.id));
+        return {
+          ...o,
+          customerName: (o as any).customerName ?? 'Unknown',
+          phone: (o as any).phone ?? '',
+          address: (o as any).address ?? '',
+          paymentMethod: (o as any).paymentMethod ?? '',
+          deliveryPartnerId: (o as any).deliveryPartnerId ?? null,
+          paidOut: (o as any).paidOut ?? false,
+          items: items.map((item) => {
+            const gross = Number(item.price) * Number(item.qty);
+            const recordedFee = Number(item.commissionFee ?? 0);
+            const commissionFee = recordedFee > 0 ? recordedFee : Math.round(gross * Number(o.commissionFee ?? 0) / Math.max(1, Number(o.subtotal ?? 0)));
+            return { ...item, commissionFee, sellerNet: Number(item.sellerNet ?? 0) || gross - commissionFee };
+          }),
+        };
+      }),
     );
     return withItems;
   }),
@@ -407,11 +469,28 @@ export const adminRouter = createRouter({
     .mutation(async ({ input }) => {
       requireAdmin(input.key);
       const db = getDb();
-      const [before] = await db.select().from(orders).where(eq(orders.id, input.id));
-      const updates: any = { status: input.status };
-      if (input.status === "delivered") updates.deliveredAt = new Date();
-      await db.update(orders).set(updates).where(eq(orders.id, input.id));
-      const [after] = await db.select().from(orders).where(eq(orders.id, input.id));
+      const { before, after } = await db.transaction(async (tx) => {
+        const [before] = await tx.select().from(orders).where(eq(orders.id, input.id)).for("update");
+        if (!before) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found." });
+        if (before.status === "cancelled" && input.status !== "cancelled") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "A cancelled order cannot be reopened; create a new order instead." });
+        }
+        if (input.status === "cancelled" && before.status !== "cancelled") {
+          const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, input.id));
+          for (const item of items) {
+            if (item.itemType === "product") {
+              await tx.update(products).set({ stock: sql`${products.stock} + ${item.qty}` }).where(eq(products.id, item.itemId));
+            } else if (item.itemType === "listing") {
+              await tx.update(listings).set({ stock: sql`${listings.stock} + ${item.qty}` }).where(eq(listings.id, item.itemId));
+            }
+          }
+        }
+        const updates: any = { status: input.status };
+        if (input.status === "delivered") updates.deliveredAt = new Date();
+        await tx.update(orders).set(updates).where(eq(orders.id, input.id));
+        const [after] = await tx.select().from(orders).where(eq(orders.id, input.id));
+        return { before, after };
+      });
       await writeAudit({ key: input.key, action: "order.status.changed", entityType: "order", entityId: input.id, beforeState: before, afterState: after });
 
       if (input.status === "delivered" && after.paymentStatus === "paid") {
@@ -678,12 +757,14 @@ export const adminRouter = createRouter({
     const db = getDb();
     const rows = await db.select().from(orders).orderBy(desc(orders.createdAt)).limit(500);
     const adRows = await db.select().from(sellerAdBookings).orderBy(desc(sellerAdBookings.createdAt)).limit(500);
+    const planPayments = await db.select().from(sellerPlanPayments).where(eq(sellerPlanPayments.status, "confirmed"));
     const active = rows.filter((o) => o.status !== "cancelled");
     const paid = active.filter((o) => o.paymentStatus === "paid");
     const deliveryIncomeBooked = active.reduce((s, o) => s + Math.round(o.deliveryFee * 0.1), 0);
     const deliveryIncomeRealized = paid.reduce((s, o) => s + Math.round(o.deliveryFee * 0.1), 0);
     const adBooked = adRows.filter((a) => a.status !== "cancelled").reduce((s, a) => s + a.amount, 0);
     const adRealized = adRows.filter((a) => ["paid", "active", "completed"].includes(a.status)).reduce((s, a) => s + a.amount, 0);
+    const sellerPlanRevenue = planPayments.reduce((sum, payment) => sum + payment.amount, 0);
     const commissionBooked = active.reduce((s, o) => s + o.commissionFee, 0);
     const commissionRealized = paid.reduce((s, o) => s + o.commissionFee, 0);
 
@@ -719,8 +800,9 @@ export const adminRouter = createRouter({
         deliveryIncome10pctRealized: deliveryIncomeRealized,
         adRevenueBooked: adBooked,
         adRevenueRealized: adRealized,
-        grossPlatformIncomeBooked: commissionBooked + deliveryIncomeBooked + adBooked,
-        grossPlatformIncomeRealized: commissionRealized + deliveryIncomeRealized + adRealized,
+        sellerPlanRevenue,
+        grossPlatformIncomeBooked: commissionBooked + deliveryIncomeBooked + adBooked + sellerPlanRevenue,
+        grossPlatformIncomeRealized: commissionRealized + deliveryIncomeRealized + adRealized + sellerPlanRevenue,
         sellerPayoutsOwed: active.reduce((s, o) => s + (o.subtotal - o.commissionFee), 0),
         sellerPayoutsSent: totalPayoutsSent,
         sellerPayoutsPending: active.reduce((s, o) => s + (o.subtotal - o.commissionFee), 0) - totalPayoutsSent,
@@ -728,9 +810,10 @@ export const adminRouter = createRouter({
         awaitingBuyerPayment: active.filter((o) => o.paymentStatus !== "paid").reduce((s, o) => s + o.total, 0),
       },
       incomeStreams: [
-        { stream: "Product commission", booked: commissionBooked, realized: commissionRealized, rule: "7% of product subtotal" },
+        { stream: "Marketplace commission", booked: commissionBooked, realized: commissionRealized, rule: "7% Free / 5% Seller Pro, recorded per seller line" },
         { stream: "Delivery income", booked: deliveryIncomeBooked, realized: deliveryIncomeRealized, rule: "10% of delivery fee" },
         { stream: "Seller ad revenue", booked: adBooked, realized: adRealized, rule: "Weekly UGX 25,000 / Monthly UGX 50,000" },
+        { stream: "Seller Pro", booked: sellerPlanRevenue, realized: sellerPlanRevenue, rule: "UGX 30,000 per 30 days" },
       ],
       entries,
     };
@@ -749,6 +832,7 @@ export const adminRouter = createRouter({
       const allPartners = await db.select().from(deliveryPartners);
       const allAffiliates = await db.select().from(affiliates);
       const adBookings = await db.select().from(sellerAdBookings);
+      const planPayments = await db.select().from(sellerPlanPayments).where(eq(sellerPlanPayments.status, "confirmed"));
 
       const activeOrders = allOrders.filter((o) => o.status !== "cancelled");
       const paidOrders = allOrders.filter((o) => o.status !== "cancelled" && o.paymentStatus === "paid");
@@ -768,26 +852,43 @@ export const adminRouter = createRouter({
       }
 
       const allOrderItems = await db.select().from(orderItems);
-      const orderSellerMap = new Map<number, number>();
-      for (const oi of allOrderItems) {
-        if (!orderSellerMap.has(oi.orderId)) orderSellerMap.set(oi.orderId, oi.sellerId);
-      }
+      const productRows = await db.select().from(products);
+      const listingRows = await db.select().from(listings);
+      const productSeller = new Map(productRows.map((product) => [Number(product.id), Number(product.sellerId)]));
+      const listingSeller = new Map(listingRows.map((listing) => [Number(listing.id), Number(listing.sellerId)]));
+      const activeOrderById = new Map(activeOrders.map((order) => [Number(order.id), order]));
+      const paidOrderIds = new Set(paidOrders.map((order) => Number(order.id)));
+      const sellerOrderIds = new Map<number, Set<number>>();
 
-      for (const o of activeOrders) {
-        const sellerId = orderSellerMap.get(o.id);
-        if (sellerId && sellerMap.has(sellerId)) {
-          const entry = sellerMap.get(sellerId)!;
-          entry.orders += 1;
-          entry.totalSales += o.subtotal;
-          entry.commissionBooked += o.commissionFee;
-          entry.payoutOwed += (o.subtotal - o.commissionFee);
-        }
+      for (const item of allOrderItems) {
+        const order = activeOrderById.get(Number(item.orderId));
+        if (!order) continue;
+        const legacySellerId = item.itemType === "product"
+          ? productSeller.get(Number(item.itemId))
+          : item.itemType === "listing"
+            ? listingSeller.get(Number(item.itemId))
+            : null;
+        const sellerId = Number(item.sellerId ?? legacySellerId ?? 0);
+        if (!sellerId || !sellerMap.has(sellerId)) continue;
+        const lineGross = Number(item.price) * Number(item.qty);
+        const storedCommission = Number(item.commissionFee ?? 0);
+        const lineCommission = storedCommission > 0
+          ? storedCommission
+          : Math.round(lineGross * Number(order.commissionFee ?? 0) / Math.max(1, Number(order.subtotal ?? 0)));
+        const storedNet = Number(item.sellerNet ?? 0);
+        const lineNet = storedNet > 0 ? storedNet : lineGross - lineCommission;
+        const entry = sellerMap.get(sellerId)!;
+        entry.totalSales += lineGross;
+        entry.commissionBooked += lineCommission;
+        entry.payoutOwed += lineNet;
+        if (paidOrderIds.has(Number(order.id))) entry.commissionRealized += lineCommission;
+        const seen = sellerOrderIds.get(sellerId) ?? new Set<number>();
+        seen.add(Number(order.id));
+        sellerOrderIds.set(sellerId, seen);
       }
-      for (const o of paidOrders) {
-        const sellerId = orderSellerMap.get(o.id);
-        if (sellerId && sellerMap.has(sellerId)) {
-          sellerMap.get(sellerId)!.commissionRealized += o.commissionFee;
-        }
+      for (const [sellerId, orderIds] of sellerOrderIds) {
+        const entry = sellerMap.get(sellerId);
+        if (entry) entry.orders = orderIds.size;
       }
 
       // --- RIDER COMMISSIONS ---
@@ -832,8 +933,9 @@ export const adminRouter = createRouter({
         referrals: 0, commissionBooked: 0, commissionRealized: 0,
       }));
 
-      const adBooked = adBookings.reduce((s, b) => s + (b.status !== "cancelled" ? b.price : 0), 0);
-      const adRealized = adBookings.reduce((s, b) => s + (b.status === "paid" || b.status === "completed" ? b.price : 0), 0);
+      const adBooked = adBookings.reduce((s, b) => s + (b.status !== "cancelled" ? b.amount : 0), 0);
+      const adRealized = adBookings.reduce((s, b) => s + (["paid", "active", "completed"].includes(b.status) ? b.amount : 0), 0);
+      const sellerPlanRevenue = planPayments.reduce((sum, payment) => sum + payment.amount, 0);
       const commissionBooked = activeOrders.reduce((s, o) => s + o.commissionFee, 0);
       const commissionRealized = paidOrders.reduce((s, o) => s + o.commissionFee, 0);
       const deliveryIncomeBooked = activeOrders.reduce((s, o) => s + Math.round(o.deliveryFee * 0.1), 0);
@@ -845,16 +947,18 @@ export const adminRouter = createRouter({
           commissionBooked, commissionRealized,
           deliveryIncomeBooked, deliveryIncomeRealized,
           adRevenueBooked: adBooked, adRevenueRealized: adRealized,
-          grossPlatformIncomeBooked: commissionBooked + deliveryIncomeBooked + adBooked,
-          grossPlatformIncomeRealized: commissionRealized + deliveryIncomeRealized + adRealized,
+          sellerPlanRevenue,
+          grossPlatformIncomeBooked: commissionBooked + deliveryIncomeBooked + adBooked + sellerPlanRevenue,
+          grossPlatformIncomeRealized: commissionRealized + deliveryIncomeRealized + adRealized + sellerPlanRevenue,
         },
         sellers: Array.from(sellerMap.values()).filter((s) => s.orders > 0 || s.status === "approved"),
         riders: Array.from(riderMap.values()).filter((r) => r.orders > 0 || r.status === "approved"),
         affiliates: affiliateList,
         streams: [
-          { stream: "Product commission (sellers)", booked: commissionBooked, realized: commissionRealized, rule: "7% of product subtotal" },
+          { stream: "Marketplace commission (sellers)", booked: commissionBooked, realized: commissionRealized, rule: "7% Free / 5% Seller Pro, calculated per seller line" },
           { stream: "Delivery platform fee (riders)", booked: deliveryIncomeBooked, realized: deliveryIncomeRealized, rule: "10% of delivery fee" },
           { stream: "Seller ad revenue", booked: adBooked, realized: adRealized, rule: "Weekly UGX 25,000 / Monthly UGX 50,000" },
+          { stream: "Seller Pro", booked: sellerPlanRevenue, realized: sellerPlanRevenue, rule: "UGX 30,000 per 30 days" },
           { stream: "Affiliate commission", booked: 0, realized: 0, rule: "Not yet configured" },
         ],
       };
@@ -890,6 +994,8 @@ export const adminRouter = createRouter({
 
       const productRows = await db.select().from(products);
       const productById = new Map(productRows.map((p) => [Number(p.id), p]));
+      const listingRows = await db.select().from(listings);
+      const listingById = new Map(listingRows.map((listing) => [Number(listing.id), listing]));
 
       const grouped = new Map<
         number,
@@ -907,29 +1013,30 @@ export const adminRouter = createRouter({
         const items = await db
           .select()
           .from(orderItems)
-          .where(and(eq(orderItems.orderId, order.id), eq(orderItems.itemType, "product")));
+          .where(eq(orderItems.orderId, order.id));
 
         if (items.length === 0) continue;
 
-        const perSellerGross = new Map<number, number>();
-        let grossTotal = 0;
+        const perSellerNet = new Map<number, number>();
 
         for (const it of items) {
-          const product = productById.get(Number(it.itemId));
-          if (!product) continue;
+          const legacySellerId = it.itemType === "product"
+            ? productById.get(Number(it.itemId))?.sellerId
+            : it.itemType === "listing"
+              ? listingById.get(Number(it.itemId))?.sellerId
+              : null;
+          const sid = Number(it.sellerId ?? legacySellerId ?? 0);
+          if (!sid) continue;
           const lineTotal = Number(it.price) * Number(it.qty);
-          grossTotal += lineTotal;
-          const sid = Number(product.sellerId);
-          perSellerGross.set(sid, (perSellerGross.get(sid) ?? 0) + lineTotal);
+          const storedNet = Number(it.sellerNet ?? 0);
+          const fallbackCommission = Math.round(lineTotal * Number(order.commissionFee ?? 0) / Math.max(1, Number(order.subtotal ?? 0)));
+          const sellerNet = storedNet > 0 ? storedNet : lineTotal - fallbackCommission;
+          perSellerNet.set(sid, (perSellerNet.get(sid) ?? 0) + sellerNet);
         }
 
-        if (grossTotal <= 0) continue;
-
-        for (const [sid, sellerGross] of perSellerGross.entries()) {
+        for (const [sid, payoutNet] of perSellerNet.entries()) {
           const seller = sellerById.get(sid);
           if (!seller) continue;
-          const allocatedCommission = Math.round((sellerGross / grossTotal) * Number(order.commissionFee ?? 0));
-          const payoutNet = sellerGross - allocatedCommission;
           if (payoutNet <= 0) continue;
 
           const row = grouped.get(sid);

@@ -42,7 +42,7 @@ const TABLES = [
     \`condition\` enum('new','refurbished','used') NOT NULL DEFAULT 'new',
     \`warranty_months\` int NOT NULL DEFAULT 0, \`image_note\` varchar(255) NOT NULL,
     \`image_data\` mediumtext,
-    \`status\` enum('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+    \`status\` enum('pending','approved','rejected','suspended','terminated') NOT NULL DEFAULT 'pending',
     \`created_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
   `CREATE TABLE IF NOT EXISTS restaurants (
@@ -75,7 +75,29 @@ const TABLES = [
   `CREATE TABLE IF NOT EXISTS order_items (
     \`id\` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
     \`order_id\` bigint unsigned NOT NULL, \`item_type\` enum('product','listing','menu_item') NOT NULL,
-    \`item_id\` bigint unsigned NOT NULL, \`name\` varchar(255) NOT NULL, \`price\` int NOT NULL, \`qty\` int NOT NULL
+    \`item_id\` bigint unsigned NOT NULL, \`name\` varchar(255) NOT NULL, \`price\` int NOT NULL, \`qty\` int NOT NULL,
+    \`seller_id\` bigint unsigned NULL, \`commission_rate\` decimal(5,4) NOT NULL DEFAULT 0.0000,
+    \`commission_fee\` int NOT NULL DEFAULT 0, \`seller_net\` int NOT NULL DEFAULT 0
+  )`,
+  `CREATE TABLE IF NOT EXISTS seller_subscriptions (
+    \`id\` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    \`seller_id\` bigint unsigned NOT NULL UNIQUE,
+    \`tier\` enum('free','basic','verified','premium') NOT NULL DEFAULT 'free',
+    \`monthly_fee\` int NOT NULL DEFAULT 0, \`commission_rate\` decimal(5,2) NOT NULL DEFAULT 7.00,
+    \`features\` json NULL, \`started_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    \`expires_at\` timestamp NULL, \`is_active\` boolean NOT NULL DEFAULT false,
+    \`created_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE IF NOT EXISTS seller_plan_payments (
+    \`id\` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    \`seller_id\` bigint unsigned NOT NULL, \`plan\` enum('pro') NOT NULL DEFAULT 'pro',
+    \`months\` int NOT NULL DEFAULT 1, \`amount\` int NOT NULL,
+    \`payment_reference\` varchar(128) NOT NULL UNIQUE,
+    \`status\` enum('confirmed','refunded') NOT NULL DEFAULT 'confirmed',
+    \`confirmed_by\` varchar(64) NOT NULL DEFAULT 'admin-review',
+    \`confirmed_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    \`created_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
   `CREATE TABLE IF NOT EXISTS customers (
     \`id\` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -166,6 +188,10 @@ const ALTERS = [
   "ALTER TABLE sellers ADD COLUMN \`seller_contract_accepted\` boolean NOT NULL DEFAULT false",
   "ALTER TABLE sellers ADD COLUMN \`commission_terms_accepted_at\` timestamp NULL",
   "ALTER TABLE sellers ADD COLUMN \`seller_contract_accepted_at\` timestamp NULL",
+  "ALTER TABLE order_items ADD COLUMN \`seller_id\` bigint unsigned NULL",
+  "ALTER TABLE order_items ADD COLUMN \`commission_rate\` decimal(5,4) NOT NULL DEFAULT 0.0000",
+  "ALTER TABLE order_items ADD COLUMN \`commission_fee\` int NOT NULL DEFAULT 0",
+  "ALTER TABLE order_items ADD COLUMN \`seller_net\` int NOT NULL DEFAULT 0",
   "UPDATE orders SET commission_fee = ROUND(subtotal * 0.07) WHERE commission_fee = 0 AND subtotal > 0",
 ];
 

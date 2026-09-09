@@ -97,6 +97,7 @@ function Sellers({ adminKey }: { adminKey: string }) {
   )
   const setSellerStatus = trpc.admin.setSellerStatus.useMutation({ onSuccess: () => refetch() })
   const setSellerVerification = trpc.admin.setSellerVerification.useMutation({ onSuccess: () => refetch() })
+  const setSellerPlan = trpc.admin.setSellerPlan.useMutation({ onSuccess: () => refetch() })
   const list = (data as any[]) ?? []
   if (isLoading) return <Loading />
   if (error) return <QueryError title="Failed to load sellers" error={error.message} onRetry={() => refetch()} />
@@ -132,6 +133,10 @@ function Sellers({ adminKey }: { adminKey: string }) {
               </div>
               <p className="text-sm text-neutral-600">{s?.ownerName ?? "-"} · {s?.phone ?? "-"} · {s?.district ?? "-"}</p>
               <p className="text-xs text-neutral-400 mt-1">{s?.totalListings ?? 0} listings · {s?.totalOrders ?? 0} orders · Joined {s?.createdAt ? new Date(s.createdAt).toLocaleDateString() : "-"}</p>
+              <div className="mt-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-700">
+                <b>{s?.plan?.tier === 'pro' ? 'Seller Pro' : 'Free seller'}</b> · {s?.plan?.listingsUsed ?? 0}/{s?.plan?.listingLimit ?? 5} listing slots · {Math.round(Number(s?.plan?.commissionRate ?? 0.07) * 100)}% commission
+                {s?.plan?.expiresAt && <span> · expires {new Date(s.plan.expiresAt).toLocaleDateString()}</span>}
+              </div>
               {status === "pending" && (
                 <div className="mt-3 flex gap-2">
                   <button onClick={() => { if (!sid) return; if (window.confirm(`Approve ${s?.shopName}?`)) setSellerStatus.mutate({ key: adminKey, id: sid, status: "approved" }) }} disabled={setSellerStatus.isLoading}
@@ -142,6 +147,28 @@ function Sellers({ adminKey }: { adminKey: string }) {
               )}
               {status === "approved" && (
                 <div className="mt-3 flex flex-wrap gap-2">
+                  {s?.plan?.tier !== 'pro' ? (
+                    <button onClick={() => {
+                      if (!sid) return
+                      const reference = window.prompt(`Enter the confirmed payment reference for ${s?.shopName}. Seller Pro is UGX ${Number(s?.plan?.proMonthlyFee ?? 30000).toLocaleString()} for 30 days.`)
+                      if (reference?.trim()) setSellerPlan.mutate({ key: adminKey, sellerId: sid, plan: 'pro', months: 1, paymentReference: reference.trim() })
+                    }} disabled={setSellerPlan.isPending}
+                      className="text-sm px-3 py-1.5 bg-violet-600 text-white rounded-lg disabled:opacity-50">Activate Seller Pro</button>
+                  ) : (
+                    <>
+                      <button onClick={() => {
+                        if (!sid) return
+                        const reference = window.prompt(`Enter the confirmed renewal payment reference for ${s?.shopName}. This adds 30 days.`)
+                        if (reference?.trim()) setSellerPlan.mutate({ key: adminKey, sellerId: sid, plan: 'pro', months: 1, paymentReference: reference.trim() })
+                      }} disabled={setSellerPlan.isPending}
+                        className="text-sm px-3 py-1.5 bg-violet-600 text-white rounded-lg disabled:opacity-50">Extend Pro 30 days</button>
+                      <button onClick={() => {
+                        if (!sid) return
+                        if (window.confirm(`Return ${s?.shopName} to the free seller plan?`)) setSellerPlan.mutate({ key: adminKey, sellerId: sid, plan: 'free', months: 1 })
+                      }} disabled={setSellerPlan.isPending}
+                        className="text-sm px-3 py-1.5 bg-neutral-700 text-white rounded-lg disabled:opacity-50">Return to Free</button>
+                    </>
+                  )}
                   {!s?.verified ? (
                     <button onClick={() => {
                       if (!sid) return
@@ -263,6 +290,7 @@ function Orders({ adminKey }: { adminKey: string }) {
     { enabled: !!adminKey, retry: false }
   )
   const setStatus = trpc.admin.setOrderStatus.useMutation({ onSuccess: () => refetch() })
+  const setPaymentStatus = trpc.admin.setPaymentStatus.useMutation({ onSuccess: () => refetch() })
   const list = (data as any)?.orders ?? (data as any[]) ?? []
   if (isLoading) return <Loading />
   return (
@@ -295,12 +323,31 @@ function Orders({ adminKey }: { adminKey: string }) {
               </div>
               <p className="font-extrabold text-lg mb-1">UGX {Number(o?.total ?? 0).toLocaleString()}</p>
               <p className="text-sm text-neutral-600">{o?.customerName ?? "-"} · {o?.phone ?? "-"} · {String(o?.address ?? "").slice(0,60)} · {o?.createdAt ? new Date(o.createdAt).toLocaleString("en-UG") : "-"}</p>
-              {canCancel && (
-                <div className="mt-3">
-                  <button onClick={() => { if (!oid) return; if (window.confirm('Cancel this order?')) setStatus.mutate({ key: adminKey, id: oid, status: 'cancelled' }) }} disabled={setStatus.isLoading}
+              <div className="mt-3 overflow-hidden rounded-lg border border-neutral-200 text-xs">
+                {(o?.items ?? []).map((item: any) => (
+                  <div key={item.id} className="flex flex-wrap justify-between gap-2 border-b border-neutral-100 px-3 py-2 last:border-0">
+                    <span><b>{item.name}</b> · {item.qty} × UGX {Number(item.price).toLocaleString()} · {item.itemType === 'listing' ? 'Seller listing' : item.itemType}</span>
+                    <span className="text-neutral-500">Commission UGX {Number(item.commissionFee ?? 0).toLocaleString()} · Seller net UGX {Number(item.sellerNet ?? 0).toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg bg-neutral-50 p-3 text-xs sm:grid-cols-4">
+                <span>Subtotal<br/><b>UGX {Number(o?.subtotal ?? 0).toLocaleString()}</b></span>
+                <span>Delivery<br/><b>UGX {Number(o?.deliveryFee ?? 0).toLocaleString()}</b></span>
+                <span>Commission<br/><b>UGX {Number(o?.commissionFee ?? 0).toLocaleString()}</b></span>
+                <span>Payment<br/><b>{String(o?.paymentMethod ?? '-').replaceAll('_', ' ')}</b></span>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                  <select value={status} onChange={(event) => setStatus.mutate({ key: adminKey, id: oid, status: event.target.value as typeof ORDER_STATUSES[number] })} disabled={setStatus.isPending} className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm">
+                    {ORDER_STATUSES.map((value) => <option key={value} value={value}>{STATUS_LABEL[value]}</option>)}
+                  </select>
+                  <select value={o?.paymentStatus ?? 'unpaid'} onChange={(event) => setPaymentStatus.mutate({ key: adminKey, id: oid, status: event.target.value as 'unpaid' | 'pending_confirmation' | 'paid' })} disabled={setPaymentStatus.isPending} className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm">
+                    <option value="unpaid">Unpaid</option><option value="pending_confirmation">Confirming</option><option value="paid">Paid</option>
+                  </select>
+                  {canCancel && <button onClick={() => { if (!oid) return; if (window.confirm('Cancel this order?')) setStatus.mutate({ key: adminKey, id: oid, status: 'cancelled' }) }} disabled={setStatus.isLoading}
                     className="text-sm px-3 py-1.5 bg-red-600 text-white rounded-lg disabled:opacity-50">Cancel order</button>
-                </div>
-              )}
+                  }
+              </div>
             </div>
           )
         })}
@@ -646,15 +693,23 @@ function AdminSettings({ adminKey }: { adminKey: string }) {
   const handleSave = () => updateSettings.mutate({ key: adminKey, ...form })
   const fields = [
     { key: "platformName", label: "Platform Name", type: "text" },
-    { key: "platformFeePercent", label: "Platform Commission (%)", type: "number" },
-    { key: "deliveryFeeBase", label: "Base Delivery Fee (UGX)", type: "number" },
-    { key: "freeDeliveryThreshold", label: "Free Delivery Threshold (UGX)", type: "number" },
-    { key: "minOrderAmount", label: "Minimum Order Amount (UGX)", type: "number" },
-    { key: "supportPhone", label: "Support Phone", type: "text" },
-    { key: "supportEmail", label: "Support Email", type: "text" },
+    { key: "platformEmail", label: "Support Email", type: "text" },
   ]
   return (
     <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="rounded-xl border border-neutral-200 bg-white p-4">
+          <h3 className="font-bold">Seller commercial policy</h3>
+          <p className="mt-2 text-sm text-neutral-600"><b>Free:</b> 5 listing slots · 7% commission</p>
+          <p className="mt-1 text-sm text-neutral-600"><b>Seller Pro:</b> UGX 30,000 / 30 days · 50 listing slots · 5% commission</p>
+          <p className="mt-2 text-xs text-neutral-500">Plans are activated from the Sellers tab after payment confirmation. Verification and advertising are separate.</p>
+        </div>
+        <div className="rounded-xl border border-neutral-200 bg-white p-4">
+          <h3 className="font-bold">Checkout accounting</h3>
+          <p className="mt-2 text-sm text-neutral-600">Commission is calculated per seller line. Delivery is excluded and follows the regional checkout schedule.</p>
+          <p className="mt-2 text-xs text-neutral-500">Changing an order later does not rewrite the original seller rate or net amount.</p>
+        </div>
+      </div>
       <div className="bg-white rounded-xl border border-neutral-200 p-4 space-y-4">
         {fields.map(f => (
           <div key={f.key}>

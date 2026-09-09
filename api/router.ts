@@ -2,9 +2,9 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, desc, asc, like, or, and, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
-import { createRouter, publicQuery, COMMISSION_RATE } from "./middleware";
+import { createRouter, publicQuery } from "./middleware";
 import { getDb } from "./queries/connection";
-import { sellers, products, restaurants, menuItems, orders, orderItems, affiliates, listings, customers, deliveryPartners, sellerAdBookings, notifications, plusMemberships, plusPayments, marketingSubscribers } from "../db/schema";
+import { sellers, products, restaurants, menuItems, orders, orderItems, affiliates, listings, customers, deliveryPartners, sellerAdBookings, notifications, plusMemberships, plusPayments, marketingSubscribers, sellerSubscriptions } from "../db/schema";
 import { createPlusCheckout, plusPlan } from "./plus";
 import { adminRouter } from "./admin";
 import { trustRouter } from "./trust";
@@ -12,6 +12,7 @@ import { bootstrapRouter } from "./bootstrap";
 import { migrateRouter } from "./migrate";
 import { syncDemoGroceries } from "./demoGroceries";
 import { getServerDeliveryQuote, validateRequestedItems } from "./orderValidation";
+import { commissionForLine, PRO_MONTHLY_FEE, sellerPlan } from "./sellerPolicy";
 
 function orderCode() {
   // Unambiguous alphabet: no O/0, I/1, L — buyers type these codes by hand
@@ -401,7 +402,19 @@ export const appRouter = createRouter({
             name: string;
             price: number;
             qty: number;
+            sellerId: number | null;
+            commissionRate: string;
+            commissionFee: number;
+            sellerNet: number;
           }> = [];
+
+          const commercialTerms = async (sellerId: number) => {
+            const [subscription] = await tx
+              .select()
+              .from(sellerSubscriptions)
+              .where(eq(sellerSubscriptions.sellerId, sellerId));
+            return sellerPlan(subscription);
+          };
 
           for (const requested of input.items) {
             if (requested.itemType === "product") {
@@ -418,7 +431,9 @@ export const appRouter = createRouter({
               await tx.update(products)
                 .set({ stock: sql`${products.stock} - ${requested.qty}` })
                 .where(eq(products.id, requested.itemId));
-              canonicalItems.push({ itemType: "product", itemId: row.item.id, name: row.item.name, price: row.item.price, qty: requested.qty });
+              const terms = await commercialTerms(row.item.sellerId);
+              const fee = commissionForLine(row.item.price, requested.qty, terms.commissionRate);
+              canonicalItems.push({ itemType: "product", itemId: row.item.id, name: row.item.name, price: row.item.price, qty: requested.qty, sellerId: row.item.sellerId, commissionRate: terms.commissionRate.toFixed(4), commissionFee: fee, sellerNet: row.item.price * requested.qty - fee });
               continue;
             }
 
@@ -440,7 +455,9 @@ export const appRouter = createRouter({
               await tx.update(listings)
                 .set({ stock: sql`${listings.stock} - ${requested.qty}` })
                 .where(eq(listings.id, requested.itemId));
-              canonicalItems.push({ itemType: "listing", itemId: row.item.id, name: row.item.name, price: row.item.price, qty: requested.qty });
+              const terms = await commercialTerms(row.item.sellerId);
+              const fee = commissionForLine(row.item.price, requested.qty, terms.commissionRate);
+              canonicalItems.push({ itemType: "listing", itemId: row.item.id, name: row.item.name, price: row.item.price, qty: requested.qty, sellerId: row.item.sellerId, commissionRate: terms.commissionRate.toFixed(4), commissionFee: fee, sellerNet: row.item.price * requested.qty - fee });
               continue;
             }
 
@@ -450,12 +467,12 @@ export const appRouter = createRouter({
               .innerJoin(restaurants, eq(menuItems.restaurantId, restaurants.id))
               .where(and(eq(menuItems.id, requested.itemId), eq(restaurants.open, true)));
             if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "A menu item in your cart is no longer available." });
-            canonicalItems.push({ itemType: "menu_item", itemId: row.item.id, name: row.item.name, price: row.item.price, qty: requested.qty });
+            canonicalItems.push({ itemType: "menu_item", itemId: row.item.id, name: row.item.name, price: row.item.price, qty: requested.qty, sellerId: null, commissionRate: "0.0000", commissionFee: 0, sellerNet: row.item.price * requested.qty });
           }
 
           const subtotal = canonicalItems.reduce((sum, item) => sum + item.price * item.qty, 0);
           const phone = normPhone(input.phone);
-          const commissionFee = Math.round(subtotal * COMMISSION_RATE);
+          const commissionFee = canonicalItems.reduce((sum, item) => sum + item.commissionFee, 0);
           await upsertCustomer(tx, input.customerName, phone, quotedDelivery.address);
           const [customer] = await tx.select().from(customers).where(eq(customers.phone, phone));
           const [membership] = customer
@@ -561,7 +578,19 @@ export const appRouter = createRouter({
       const [row] = await db.select().from(sellers).where(eq(sellers.phone, phone));
       if (!row) return null;
       const myListings = await db.select().from(listings).where(eq(listings.sellerId, row.id)).orderBy(desc(listings.createdAt));
-      return { ...row, listings: myListings };
+      const [subscription] = await db.select().from(sellerSubscriptions).where(eq(sellerSubscriptions.sellerId, row.id));
+      const plan = sellerPlan(subscription);
+      const listingsUsed = myListings.filter((listing) => !["rejected", "terminated"].includes(listing.status)).length;
+      return {
+        id: row.id,
+        shopName: row.shopName,
+        ownerName: row.ownerName,
+        district: row.district,
+        verified: row.verified,
+        status: row.status,
+        listings: myListings,
+        plan: { ...plan, listingsUsed, monthlyFee: PRO_MONTHLY_FEE },
+      };
     }),
     addListing: publicQuery
       .input(z.object({
@@ -581,6 +610,18 @@ export const appRouter = createRouter({
         const [seller] = await db.select().from(sellers).where(eq(sellers.phone, input.phone.trim()));
         if (!seller) throw new Error("No shop registered with this phone number. Register your shop first.");
         if (seller.status !== "approved") throw new Error("Your shop must be approved before you can list items.");
+        const [subscription] = await db.select().from(sellerSubscriptions).where(eq(sellerSubscriptions.sellerId, seller.id));
+        const plan = sellerPlan(subscription);
+        const sellerListings = await db.select().from(listings).where(eq(listings.sellerId, seller.id));
+        const listingsUsed = sellerListings.filter((listing) => !["rejected", "terminated"].includes(listing.status)).length;
+        if (listingsUsed >= plan.listingLimit) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: plan.tier === "free"
+              ? `Your five free listing slots are in use. Upgrade to Seller Pro for up to 50 active listings.`
+              : `Your Seller Pro limit of ${plan.listingLimit} active listings is in use. Contact support for a larger business plan.`,
+          });
+        }
         const [row] = await db.insert(listings).values({
           sellerId: seller.id,
           name: input.name,

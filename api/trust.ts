@@ -5,7 +5,7 @@ import { createRouter, publicQuery } from "./middleware";
 import { getDb } from "./queries/connection";
 import {
   escrowTransactions, souqHubs, communityAgents, groupOrders, groupOrderParticipants,
-  trustScores, sellerSubscriptions, orders, orderItems, sellers, products
+  trustScores, orders, orderItems, sellers, products
 } from "../db/schema";
 
 const normPhone = (p: string) => p.replace(/[\s-]+/g, "").trim();
@@ -247,11 +247,21 @@ export const trustRouter = createRouter({
       .mutation(async ({ input }) => {
         const db = getDb();
         requireAdmin(input.key);
-        await db.update(sellers).set({ status: "approved", verified: true }).where(eq(sellers.id, input.sellerId));
+        const awardingBadge = input.level !== "basic";
+        if (awardingBadge && (!input.checks?.idVerified || !input.checks?.locationVerified)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Identity and location checks are required before awarding a trust badge." });
+        }
+        await db.update(sellers).set({
+          status: "approved",
+          verified: awardingBadge,
+          identityCheckedAt: awardingBadge ? new Date() : null,
+          locationCheckedAt: awardingBadge ? new Date() : null,
+          verifiedAt: awardingBadge ? new Date() : null,
+          verifiedBy: awardingBadge ? "trust-review" : null,
+        }).where(eq(sellers.id, input.sellerId));
 
         const [existing] = await db.select().from(trustScores).where(eq(trustScores.sellerId, input.sellerId));
         const badge = input.level === "gold" ? "gold" : input.level === "premium" ? "platinum" : input.level === "verified" ? "verified" : "none";
-        const commissionRate = input.level === "premium" ? "5.00" : input.level === "verified" ? "7.00" : "10.00";
         const now = new Date(); const nextDue = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
 
         if (existing) {
@@ -273,13 +283,6 @@ export const trustRouter = createRouter({
             lastVerifiedAt: now, nextVerificationDue: nextDue, badge,
           });
         }
-        await db.insert(sellerSubscriptions).values({
-          sellerId: input.sellerId,
-          tier: input.level === "premium" ? "premium" : input.level === "verified" ? "verified" : "free",
-          commissionRate,
-        }).onDuplicateKeyUpdate({
-          set: { tier: input.level === "premium" ? "premium" : input.level === "verified" ? "verified" : "free", commissionRate, updatedAt: now }
-        });
         return { message: `Seller verified as ${input.level}` };
       }),
     adminList: publicQuery.input(z.object({ key: z.string() })).query(async ({ input }) => {

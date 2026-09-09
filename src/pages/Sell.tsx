@@ -80,6 +80,21 @@ export default function Sell() {
         </div>
       </section>
 
+      <section className="mx-auto mt-8 max-w-6xl px-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+            <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Free seller</p>
+            <h2 className="mt-1 text-lg font-extrabold">5 listing slots · 7% commission</h2>
+            <p className="mt-1 text-sm text-neutral-600">Start without a subscription. Commission applies only to the item subtotal when a sale is completed.</p>
+          </div>
+          <div className="rounded-2xl border border-violet-200 bg-violet-50 p-5">
+            <p className="text-xs font-bold uppercase tracking-wide text-violet-700">Seller Pro</p>
+            <h2 className="mt-1 text-lg font-extrabold">UGX 30,000 / 30 days</h2>
+            <p className="mt-1 text-sm text-neutral-600">Up to 50 listing slots and a reduced 5% commission. Verification and paid advertising remain separate.</p>
+          </div>
+        </div>
+      </section>
+
       {/* Seller ads plans */}
       <section className="mx-auto max-w-6xl px-4 mt-8">
         <div className="bg-orange-50 border border-orange-100 rounded-2xl p-6">

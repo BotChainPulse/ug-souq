@@ -4,7 +4,7 @@ import {
   MessageCircle, Package, Clock, CircleCheckBig, XCircle, Store,
   Smartphone, Info, RefreshCcw, Plus, BadgeCheck,
 } from 'lucide-react'
-import { ORANGE, WA_LINK } from '../lib/site'
+import { ORANGE, WA_LINK, WHATSAPP_INTL } from '../lib/site'
 import { trpc } from '@/providers/trpc'
 import { CATEGORIES } from '../lib/categories'
 import { Camera, X } from 'lucide-react'
@@ -88,9 +88,12 @@ export default function SellerListings() {
 
   const seller = lookup.data
   const approved = seller?.status === 'approved'
+  const plan = seller?.plan
+  const hasListingSlot = !plan || plan.listingsUsed < plan.listingLimit
 
   const canSubmit =
     approved &&
+    hasListingSlot &&
     form.name.trim().length >= 3 &&
     Number(form.price) >= 100 &&
     Number(form.stock) >= 1 &&
@@ -166,7 +169,8 @@ export default function SellerListings() {
           )}
 
           {seller && (
-            <div className="mt-4 flex items-center gap-3 bg-neutral-50 border border-neutral-200 rounded-xl p-4">
+            <div className="mt-4 bg-neutral-50 border border-neutral-200 rounded-xl p-4">
+              <div className="flex items-center gap-3">
               <span className="w-10 h-10 rounded-xl grid place-items-center text-white font-extrabold" style={{ background: ORANGE }}>
                 <Store size={18} />
               </span>
@@ -180,6 +184,15 @@ export default function SellerListings() {
                   {seller.status === 'approved' ? 'Approved — you can list items' : seller.status === 'pending' ? 'Still in review' : 'Rejected'}
                 </p>
               </div>
+              </div>
+              {plan && (
+                <div className="mt-3 flex flex-col gap-2 border-t border-neutral-200 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs text-neutral-600"><b>{plan.tier === 'pro' ? 'Seller Pro' : 'Free plan'}</b> · {plan.listingsUsed}/{plan.listingLimit} listing slots · {Math.round(plan.commissionRate * 100)}% commission</p>
+                  {plan.tier === 'free' && (
+                    <a href={`https://wa.me/${WHATSAPP_INTL}?text=${encodeURIComponent(`Hi UG Souq, I want to upgrade ${seller.shopName} to Seller Pro for UGX ${plan.monthlyFee.toLocaleString()} per month.`)}`} target="_blank" rel="noreferrer" className="text-xs font-bold text-violet-700 underline">Upgrade to Seller Pro</a>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -187,13 +200,20 @@ export default function SellerListings() {
         {/* Step 2: listing form */}
         {seller && !approved && (
           <div className="mt-6 bg-amber-50 border border-amber-200 rounded-2xl p-6 text-sm">
-            <b>Your shop is not approved yet.</b> Once our team approves your shop (1–2 business days), come back here to add your items.
+            <b>Your shop is not approved yet.</b> Once an administrator completes the review and approves your shop, come back here to add your items.
           </div>
         )}
 
         {approved && (
           <div className="mt-6 bg-white rounded-2xl border border-neutral-200 p-6">
             <h2 className="font-extrabold flex items-center gap-2"><Plus size={18} style={{ color: ORANGE }} /> 2. Item details</h2>
+
+            {!hasListingSlot && (
+              <div className="mt-4 rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-900">
+                <b>Your {plan?.tier === 'pro' ? 'Seller Pro' : 'free'} listing slots are full.</b>{' '}
+                {plan?.tier === 'free' ? 'Seller Pro allows up to 50 active listings and reduces marketplace commission from 7% to 5%.' : 'Contact seller support for a larger business arrangement.'}
+              </div>
+            )}
 
             {justAdded && (
               <div className="mt-4 bg-green-50 border border-green-200 rounded-xl p-4 text-sm text-green-800 flex items-center gap-2">
