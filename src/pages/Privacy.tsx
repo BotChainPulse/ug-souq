@@ -59,7 +59,7 @@ export default function Privacy() {
             <p><b>Sellers and delivery partners:</b> shop or business details, owner name, contact details, district or location, identity-document type and number, TIN where applicable, payout method and payout number, contracts, listings and performance records.</p>
             <p><b>Marketing subscribers:</b> name, email address or phone number, selected communication channels, consent source and date, and unsubscribe status.</p>
             <p><b>Technical and security information:</b> our hosting provider may process IP address, browser or device information, request logs and error information needed to deliver and protect the service.</p>
-            <p><b>Uploads:</b> product and advertising images submitted by sellers. The current seller-registration form records the selected identity document&apos;s file name but does not upload the document image contents.</p>
+            <p><b>Uploads:</b> product and advertising images submitted by sellers. The current public seller-registration form does not upload identity-document photographs.</p>
           </Section>
 
           <Section icon={FileText} title="Why we use this information">

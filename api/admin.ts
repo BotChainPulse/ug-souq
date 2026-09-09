@@ -281,13 +281,50 @@ export const adminRouter = createRouter({
       const [before] = await db.select().from(sellers).where(eq(sellers.id, input.id));
       await db.update(sellers).set({
         status: input.status,
-        verified: input.status === "approved",
+        // Approval permits a shop to operate. Verification is a separate, evidenced decision.
+        verified: input.status === "approved" ? Boolean(before?.verified) : false,
+        ...(input.status === "approved" ? {} : { verifiedAt: null, verifiedBy: null }),
       }).where(eq(sellers.id, input.id));
       const [after] = await db.select().from(sellers).where(eq(sellers.id, input.id));
       await writeAudit({ key: input.key, action: "seller.status.changed", entityType: "seller", entityId: input.id, beforeState: before, afterState: after });
       if (input.status === "approved") {
         await createNotification({ type: "seller_registered", title: "Seller Approved", message: `${after.shopName} has been approved.`, entityType: "seller", entityId: String(input.id) });
       }
+      return { ok: true };
+    }),
+
+  setSellerVerification: publicQuery
+    .input(z.object({
+      key: z.string(), id: z.number(), verified: z.boolean(),
+      identityChecked: z.boolean(), locationChecked: z.boolean(),
+      notes: z.string().trim().max(1000).optional(),
+    }))
+    .mutation(async ({ input }) => {
+      requireAdmin(input.key);
+      const db = getDb();
+      const [before] = await db.select().from(sellers).where(eq(sellers.id, input.id));
+      if (!before) throw new TRPCError({ code: "NOT_FOUND", message: "Seller not found." });
+      if (input.verified && before.status !== "approved") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Approve the shop before awarding verification." });
+      }
+      if (input.verified && (!input.identityChecked || !input.locationChecked)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Identity and location checks are both required." });
+      }
+      const now = new Date();
+      await db.update(sellers).set({
+        verified: input.verified,
+        identityCheckedAt: input.verified ? now : null,
+        locationCheckedAt: input.verified ? now : null,
+        verifiedAt: input.verified ? now : null,
+        verifiedBy: input.verified ? "admin-review" : null,
+        verificationNotes: input.notes || (input.verified ? "Identity and location checks attested by administrator." : "Verification revoked by administrator."),
+      }).where(eq(sellers.id, input.id));
+      const [after] = await db.select().from(sellers).where(eq(sellers.id, input.id));
+      await writeAudit({
+        key: input.key,
+        action: input.verified ? "seller.verification.awarded" : "seller.verification.revoked",
+        entityType: "seller", entityId: input.id, beforeState: before, afterState: after,
+      });
       return { ok: true };
     }),
 

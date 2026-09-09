@@ -55,15 +55,13 @@ export default function Cart() {
     (shipMethod === 'pickup' ? !!station : form.address.length >= 5)
 
   const submit = async () => {
-    const delivery =
-      shipMethod === 'pickup'
-        ? `Pickup: ${station!.name} (${station!.detail}) — ${zone.label}`
-        : `${form.address} — ${zone.label}, door delivery`
-
     const order = await createOrder.mutateAsync({
       customerName: form.name,
       phone: form.phone,
-      address: delivery,
+      address: form.address,
+      zoneId,
+      deliveryMethod: shipMethod,
+      stationId: shipMethod === 'pickup' ? station!.id : undefined,
       paymentMethod: form.payment,
       items: items.map((i) => ({
         itemType: i.itemType,
@@ -72,7 +70,6 @@ export default function Cart() {
         price: i.price,
         qty: i.qty,
       })),
-      deliveryFee,
     })
 
     saveAccount({

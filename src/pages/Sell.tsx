@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import {
-  Store, TrendingUp, Truck, ShieldCheck, BadgeCheck, Upload, MapPin, FileText,
+  Store, TrendingUp, Truck, ShieldCheck, BadgeCheck, MapPin, FileText,
   Check, ChevronLeft, ChevronRight, MessageCircle, CircleCheckBig, Info, Wallet,
 } from 'lucide-react'
 import { ORANGE, WA_LINK } from '../lib/site'
@@ -16,7 +16,7 @@ export default function Sell() {
   const [step, setStep] = useState(0)
   const [form, setForm] = useState({
     shop: '', name: '', phone: '', email: '',
-    idType: 'National ID', idNumber: '', idFile: '', district: '', landmark: '', tin: '',
+    idType: 'National ID', idNumber: '', district: '', landmark: '', tin: '',
     payout: 'MTN MoMo', payoutNumber: '',
     commissionTermsAccepted: false,
     sellerContractAccepted: false,
@@ -29,7 +29,7 @@ export default function Sell() {
     await register.mutateAsync({
       shopName: form.shop, ownerName: form.name, phone: form.phone,
       email: form.email || undefined, idType: form.idType, idNumber: form.idNumber,
-      idPhotoName: form.idFile, district: form.district, landmark: form.landmark,
+      district: form.district, landmark: form.landmark,
       tin: form.tin || undefined, payoutMethod: form.payout, payoutNumber: form.payoutNumber,
       commissionTermsAccepted: form.commissionTermsAccepted,
       sellerContractAccepted: form.sellerContractAccepted,
@@ -39,7 +39,7 @@ export default function Sell() {
 
   const stepValid = [
     form.shop && form.name && form.phone,
-    form.idNumber && form.idFile && form.district,
+    form.idNumber && form.district && form.landmark,
     form.payoutNumber && form.commissionTermsAccepted,
     form.sellerContractAccepted,
   ][step]
@@ -63,12 +63,12 @@ export default function Sell() {
       <section className="bg-neutral-900 text-white">
         <div className="mx-auto max-w-6xl px-4 py-14">
           <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">Start selling on UG Souq today</h1>
-          <p className="mt-3 text-neutral-300 max-w-xl">Reach buyers across Uganda, get paid by MoMo, and earn the blue Verified badge that puts your products at the top of search.</p>
+          <p className="mt-3 text-neutral-300 max-w-xl">Reach buyers across Uganda and apply for the blue Verified badge that prioritises trusted sellers in search.</p>
           <div className="mt-8 grid sm:grid-cols-3 gap-4">
             {[
               { icon: TrendingUp, t: 'Reach thousands of buyers', d: 'Your products appear in front of shoppers across Uganda, every day.' },
               { icon: Truck, t: 'Flexible delivery', d: 'Ship with Boda Send, your own rider, or drop-off points — you choose.' },
-              { icon: ShieldCheck, t: 'Get verified, sell more', d: 'Verified sellers rank first and convert better. Verification is free.' },
+              { icon: ShieldCheck, t: 'Build buyer trust', d: 'Eligible verified sellers receive a blue badge and search priority. Verification is free.' },
             ].map(({ icon: Icon, t, d }) => (
               <div key={t} className="bg-neutral-800 rounded-2xl p-5">
                 <Icon size={22} style={{ color: ORANGE }} />
@@ -113,7 +113,7 @@ export default function Sell() {
           <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
             {[
               { icon: FileText, t: 'Phone number & email', d: 'For your account and order alerts' },
-              { icon: BadgeCheck, t: 'National ID or Passport', d: 'Photo of the front — we verify the owner' },
+              { icon: BadgeCheck, t: 'National ID or Passport', d: 'Identity details for an administrator review' },
               { icon: MapPin, t: 'Business location', d: 'District + landmark (e.g. shop, market stall)' },
               { icon: FileText, t: 'TIN (optional)', d: 'URA tax number — required only for company accounts' },
             ].map(({ icon: Icon, t, d }) => (
@@ -144,7 +144,7 @@ export default function Sell() {
                 <CircleCheckBig size={48} className="mx-auto text-green-600" />
                 <h2 className="mt-4 font-extrabold text-xl">Application received!</h2>
                 <p className="mt-2 text-sm text-neutral-600 max-w-sm mx-auto">
-                  Your shop <b>{form.shop}</b> is now in review. Our verification team will check your ID and location within 1–2 business days, and we'll contact you on <b>{form.phone}</b> once your blue badge is active.
+                  Your shop <b>{form.shop}</b> is now in review. Approval and the blue badge are separate decisions. We will contact you on <b>{form.phone}</b> if more evidence is needed.
                 </p>
                 <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
                   <Link to="/sell/listings" className="inline-block text-sm font-bold text-white px-6 py-3 rounded-full" style={{ background: ORANGE }}>List your first item</Link>
@@ -166,7 +166,7 @@ export default function Sell() {
             {step === 1 && (
               <div className="space-y-4">
                 <h2 className="font-extrabold text-xl flex items-center gap-2"><BadgeCheck size={20} className="text-sky-600" /> Verification</h2>
-                <p className="text-sm text-neutral-600 bg-sky-50 border border-sky-100 rounded-xl p-3 flex gap-2"><Info size={16} className="shrink-0 text-sky-600 mt-0.5" /> This is what earns you the blue <b>Verified</b> badge and top placement. Our team reviews within 1–2 business days.</p>
+                <p className="text-sm text-neutral-600 bg-sky-50 border border-sky-100 rounded-xl p-3 flex gap-2"><Info size={16} className="shrink-0 text-sky-600 mt-0.5" /> These details begin the verification review. A blue badge is awarded only after an administrator confirms identity and business location.</p>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <Label>ID type *</Label>
@@ -178,16 +178,7 @@ export default function Sell() {
                   </div>
                   <Field label="ID number *" value={form.idNumber} onChange={(v) => set('idNumber', v)} placeholder="e.g. CMXXXXXXXXXX" />
                 </div>
-                <div>
-                  <Label>Upload ID photo (front) *</Label>
-                  <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-neutral-300 rounded-2xl py-8 cursor-pointer hover:border-orange-300 hover:bg-orange-50/40 transition-colors">
-                    <Upload size={22} className="text-neutral-400" />
-                    {form.idFile
-                      ? <span className="text-sm font-semibold text-green-700 flex items-center gap-1.5"><CircleCheckBig size={16} /> {form.idFile}</span>
-                      : <span className="text-sm text-neutral-500">Tap to upload — JPG or PNG, max 5MB</span>}
-                    <input type="file" accept="image/*" className="hidden" onChange={(e) => set('idFile', e.target.files?.[0]?.name ?? '')} />
-                  </label>
-                </div>
+                <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">UG Souq does not collect identity-document photographs in this form. If additional evidence is required, support will arrange a secure verification method. Never send a mobile-money PIN or password.</p>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <Label>Business district *</Label>
@@ -205,7 +196,7 @@ export default function Sell() {
             {step === 2 && (
               <div className="space-y-4">
                 <h2 className="font-extrabold text-xl flex items-center gap-2"><Wallet size={20} style={{ color: ORANGE }} /> Payout method</h2>
-                <p className="text-sm text-neutral-600">Sales are settled weekly (every Friday) directly to your mobile money.</p>
+                <p className="text-sm text-neutral-600">Available payout methods and settlement timing are confirmed during seller approval.</p>
                 <div className="grid grid-cols-2 gap-3">
                   {['MTN MoMo', 'Airtel Money'].map((m) => (
                     <button key={m} type="button" onClick={() => set('payout', m)}
@@ -233,7 +224,7 @@ export default function Sell() {
                 <div className="text-sm divide-y divide-neutral-100 border border-neutral-200 rounded-2xl overflow-hidden">
                   {[
                     ['Shop', form.shop], ['Owner', form.name], ['Phone', form.phone],
-                    ['ID', `${form.idType} · ${form.idNumber}`], ['ID photo', form.idFile],
+                    ['ID', `${form.idType} · ${form.idNumber}`],
                     ['Location', `${form.landmark ? form.landmark + ', ' : ''}${form.district}`],
                     ['TIN', form.tin || '—'], ['Payout', `${form.payout} · ${form.payoutNumber}`],
                   ].map(([k, v]) => (
@@ -273,7 +264,7 @@ export default function Sell() {
           </div>
         </div>
         <p className="mt-4 text-center text-xs text-neutral-500 flex items-center justify-center gap-1.5">
-          <ShieldCheck size={14} /> Your ID is encrypted, used only for verification, and never shown to buyers.
+          <ShieldCheck size={14} /> Your identity details are used for verification and are never shown to buyers.
         </p>
       </section>
     </div>

@@ -13,6 +13,28 @@ async function ensureStartupSchema() {
   const raw: any = (db as any).$client;
   const client: any = typeof raw.promise === "function" ? raw.promise() : raw;
 
+  const addColumn = async (sql: string) => {
+    try {
+      await client.query(sql);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (/duplicate column|already exists/i.test(message)) return;
+      throw error;
+    }
+  };
+
+  // Older databases did not distinguish curated products from seller listings.
+  // Keeping the types separate prevents an ID collision from charging for the wrong item.
+  await client.query(`
+    ALTER TABLE order_items
+    MODIFY COLUMN item_type ENUM('product','listing','menu_item') NOT NULL
+  `);
+  await addColumn(`ALTER TABLE sellers ADD COLUMN identity_checked_at TIMESTAMP NULL`);
+  await addColumn(`ALTER TABLE sellers ADD COLUMN location_checked_at TIMESTAMP NULL`);
+  await addColumn(`ALTER TABLE sellers ADD COLUMN verified_at TIMESTAMP NULL`);
+  await addColumn(`ALTER TABLE sellers ADD COLUMN verified_by VARCHAR(64) NULL`);
+  await addColumn(`ALTER TABLE sellers ADD COLUMN verification_notes TEXT NULL`);
+
   await client.query(`
     CREATE TABLE IF NOT EXISTS plus_memberships (
       id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

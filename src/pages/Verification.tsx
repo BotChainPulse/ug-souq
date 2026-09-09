@@ -5,10 +5,10 @@ import {
 import { ORANGE, WA_LINK } from '../lib/site'
 
 const checks = [
-  { icon: IdCard, t: 'Identity check 🪪', d: 'The seller uploads their National ID (Ndaga Muntu), passport or driving permit. We match the name to the shop owner and payout number.' },
-  { icon: MapPin, t: 'Business location', d: 'Every seller declares their district and physical landmark — shop, market stall or workshop — which our field agents can spot-check.' },
+  { icon: IdCard, t: 'Identity check 🪪', d: 'The seller provides National ID, passport or driving-permit details. An administrator must confirm the owner before awarding the badge.' },
+  { icon: MapPin, t: 'Business location', d: 'Every seller declares a district and physical landmark. UG Souq may contact the seller or arrange a location check when needed.' },
   { icon: FileText, t: 'Tax number (TIN)', d: 'Registered companies provide their URA TIN. Optional for individual traders, required for company accounts.' },
-  { icon: Star, t: 'Track record', d: 'The badge stays only while the seller keeps a 95%+ positive rating and honours returns. It is removed if standards slip.' },
+  { icon: Star, t: 'Ongoing standards', d: 'Verification can be removed if identity details change, complaints are upheld, or marketplace rules are breached.' },
 ]
 
 export default function Verification() {
@@ -53,7 +53,7 @@ export default function Verification() {
         <div className="mt-10 bg-neutral-900 text-white rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="flex-1">
             <h3 className="font-extrabold flex items-center gap-2"><ShieldCheck size={20} style={{ color: ORANGE }} /> Are you a seller?</h3>
-            <p className="text-sm text-neutral-300 mt-1">Verification is free and takes 1–2 business days. Verified sellers sell up to 3× more.</p>
+            <p className="text-sm text-neutral-300 mt-1">Verification is free. Review time depends on whether the submitted information can be confirmed.</p>
           </div>
           <Link to="/sell" className="inline-flex items-center gap-2 text-sm font-bold text-white px-6 py-3 rounded-full whitespace-nowrap" style={{ background: ORANGE }}>
             Get verified <ArrowRight size={16} />

@@ -96,6 +96,7 @@ function Sellers({ adminKey }: { adminKey: string }) {
     { enabled: !!adminKey }
   )
   const setSellerStatus = trpc.admin.setSellerStatus.useMutation({ onSuccess: () => refetch() })
+  const setSellerVerification = trpc.admin.setSellerVerification.useMutation({ onSuccess: () => refetch() })
   const list = (data as any[]) ?? []
   if (isLoading) return <Loading />
   if (error) return <QueryError title="Failed to load sellers" error={error.message} onRetry={() => refetch()} />
@@ -140,7 +141,24 @@ function Sellers({ adminKey }: { adminKey: string }) {
                 </div>
               )}
               {status === "approved" && (
-                <div className="mt-3 flex gap-2">
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {!s?.verified ? (
+                    <button onClick={() => {
+                      if (!sid) return
+                      if (window.confirm(`Award the blue tick to ${s?.shopName}? Confirm only after checking the owner's identity details and business location.`)) {
+                        setSellerVerification.mutate({ key: adminKey, id: sid, verified: true, identityChecked: true, locationChecked: true })
+                      }
+                    }} disabled={setSellerVerification.isPending}
+                      className="text-sm px-3 py-1.5 bg-sky-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-1"><CheckCircle size={14} /> Award blue tick</button>
+                  ) : (
+                    <button onClick={() => {
+                      if (!sid) return
+                      if (window.confirm(`Revoke the blue tick from ${s?.shopName}?`)) {
+                        setSellerVerification.mutate({ key: adminKey, id: sid, verified: false, identityChecked: false, locationChecked: false })
+                      }
+                    }} disabled={setSellerVerification.isPending}
+                      className="text-sm px-3 py-1.5 bg-slate-600 text-white rounded-lg disabled:opacity-50">Revoke blue tick</button>
+                  )}
                   <button onClick={() => { if (!sid) return; if (window.confirm(`Suspend ${s?.shopName}? They won't be able to list new items.`)) setSellerStatus.mutate({ key: adminKey, id: sid, status: "suspended" }) }} disabled={setSellerStatus.isLoading}
                     className="text-sm px-3 py-1.5 bg-amber-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-1"><AlertTriangle size={14} /> Suspend</button>
                   <button onClick={() => { if (!sid) return; if (window.confirm(`TERMINATE ${s?.shopName}? This is permanent!`)) setSellerStatus.mutate({ key: adminKey, id: sid, status: "terminated" }) }} disabled={setSellerStatus.isLoading}

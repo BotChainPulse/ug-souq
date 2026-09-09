@@ -20,8 +20,11 @@ const TABLES = [
     \`seller_contract_accepted\` boolean NOT NULL DEFAULT false,
     \`commission_terms_accepted_at\` timestamp NULL,
     \`seller_contract_accepted_at\` timestamp NULL,
-    \`verified\` boolean NOT NULL DEFAULT false, \`rating\` int NOT NULL DEFAULT 45,
-    \`status\` enum('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+    \`verified\` boolean NOT NULL DEFAULT false,
+    \`identity_checked_at\` timestamp NULL, \`location_checked_at\` timestamp NULL,
+    \`verified_at\` timestamp NULL, \`verified_by\` varchar(64) NULL, \`verification_notes\` text NULL,
+    \`rating\` int NOT NULL DEFAULT 45,
+    \`status\` enum('pending','approved','rejected','suspended','terminated') NOT NULL DEFAULT 'pending',
     \`created_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
   `CREATE TABLE IF NOT EXISTS products (
@@ -71,7 +74,7 @@ const TABLES = [
   )`,
   `CREATE TABLE IF NOT EXISTS order_items (
     \`id\` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    \`order_id\` bigint unsigned NOT NULL, \`item_type\` enum('product','menu_item') NOT NULL,
+    \`order_id\` bigint unsigned NOT NULL, \`item_type\` enum('product','listing','menu_item') NOT NULL,
     \`item_id\` bigint unsigned NOT NULL, \`name\` varchar(255) NOT NULL, \`price\` int NOT NULL, \`qty\` int NOT NULL
   )`,
   `CREATE TABLE IF NOT EXISTS customers (

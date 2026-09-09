@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, desc, asc, like, or } from "drizzle-orm";
+import { eq, desc, asc, like, or, and, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { createRouter, publicQuery, COMMISSION_RATE } from "./middleware";
 import { getDb } from "./queries/connection";
@@ -11,6 +11,7 @@ import { trustRouter } from "./trust";
 import { bootstrapRouter } from "./bootstrap";
 import { migrateRouter } from "./migrate";
 import { syncDemoGroceries } from "./demoGroceries";
+import { getServerDeliveryQuote, validateRequestedItems } from "./orderValidation";
 
 function orderCode() {
   // Unambiguous alphabet: no O/0, I/1, L — buyers type these codes by hand
@@ -171,6 +172,7 @@ export const appRouter = createRouter({
         if (!listingRow || listingRow.listing.status !== "approved") return null;
         const { listing, seller } = listingRow;
         return {
+          kind: "listing" as const,
           id: listing.id,
           sellerId: listing.sellerId,
           name: listing.name,
@@ -199,6 +201,7 @@ export const appRouter = createRouter({
         .where(eq(products.slug, input.slug));
       if (!row) return null;
       return {
+        kind: "product" as const,
         ...row.product,
         sellerName: row.seller.shopName,
         sellerVerified: row.seller.verified,
@@ -370,47 +373,118 @@ export const appRouter = createRouter({
       .input(z.object({
         customerName: z.string().min(2),
         phone: z.string().min(9),
-        address: z.string().min(5),
+        address: z.string().max(500).default(""),
+        zoneId: z.string().default("kampala"),
+        deliveryMethod: z.enum(["door", "pickup"]).default("door"),
+        stationId: z.string().optional(),
         paymentMethod: z.enum(["mtn_momo", "airtel_money", "cash"]),
         items: z.array(z.object({
-          itemType: z.enum(["product", "menu_item"]),
-          itemId: z.number(),
-          name: z.string(),
-          price: z.number(),
-          qty: z.number().min(1),
-        })).min(1),
-        deliveryFee: z.number().default(0),
+          itemType: z.enum(["product", "listing", "menu_item"]),
+          itemId: z.number().int().positive(),
+          // Kept optional for older clients. The server never trusts these display values.
+          name: z.string().optional(),
+          price: z.number().optional(),
+          qty: z.number().int().min(1).max(99),
+        })).min(1).max(50),
+        // Kept only so an older cached PWA can still submit. It is deliberately ignored.
+        deliveryFee: z.number().optional(),
       }))
       .mutation(async ({ input }) => {
         const db = getDb();
-        const subtotal = input.items.reduce((s, i) => s + i.price * i.qty, 0);
-        const phone = normPhone(input.phone);
-        const commissionFee = Math.round(subtotal * COMMISSION_RATE);
-        await upsertCustomer(db, input.customerName, phone, input.address);
-        const [customer] = await db.select().from(customers).where(eq(customers.phone, phone));
-        const [membership] = customer
-          ? await db.select().from(plusMemberships).where(eq(plusMemberships.customerId, customer.id))
-          : [];
-        // Do not trust a browser-provided delivery discount. A currently active membership is the only source of truth.
-        const plusActive = Boolean(membership?.status === "active" && membership.expiresAt && membership.expiresAt > new Date());
-        const deliveryFee = plusActive ? 0 : input.deliveryFee;
-        const total = subtotal + deliveryFee;
-        const [row] = await db.insert(orders).values({
-          code: orderCode(),
-          customerName: input.customerName,
-          phone,
-          address: input.address,
-          paymentMethod: input.paymentMethod,
-          subtotal,
-          deliveryFee,
-          commissionFee,
-          total,
-        }).$returningId();
-        await db.insert(orderItems).values(
-          input.items.map((i) => ({ orderId: row.id, ...i })),
-        );
-        const [order] = await db.select().from(orders).where(eq(orders.id, row.id));
-        return order;
+        validateRequestedItems(input.items);
+        const quotedDelivery = getServerDeliveryQuote(input);
+
+        return db.transaction(async (tx) => {
+          const canonicalItems: Array<{
+            itemType: "product" | "listing" | "menu_item";
+            itemId: number;
+            name: string;
+            price: number;
+            qty: number;
+          }> = [];
+
+          for (const requested of input.items) {
+            if (requested.itemType === "product") {
+              const [row] = await tx
+                .select({ item: products })
+                .from(products)
+                .innerJoin(sellers, eq(products.sellerId, sellers.id))
+                .where(and(eq(products.id, requested.itemId), eq(sellers.status, "approved")))
+                .for("update");
+              if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "A product in your cart is no longer available." });
+              if (row.item.stock < requested.qty) {
+                throw new TRPCError({ code: "CONFLICT", message: `${row.item.name} has only ${row.item.stock} left in stock.` });
+              }
+              await tx.update(products)
+                .set({ stock: sql`${products.stock} - ${requested.qty}` })
+                .where(eq(products.id, requested.itemId));
+              canonicalItems.push({ itemType: "product", itemId: row.item.id, name: row.item.name, price: row.item.price, qty: requested.qty });
+              continue;
+            }
+
+            if (requested.itemType === "listing") {
+              const [row] = await tx
+                .select({ item: listings })
+                .from(listings)
+                .innerJoin(sellers, eq(listings.sellerId, sellers.id))
+                .where(and(
+                  eq(listings.id, requested.itemId),
+                  eq(listings.status, "approved"),
+                  eq(sellers.status, "approved"),
+                ))
+                .for("update");
+              if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "A seller listing in your cart is no longer available." });
+              if (row.item.stock < requested.qty) {
+                throw new TRPCError({ code: "CONFLICT", message: `${row.item.name} has only ${row.item.stock} left in stock.` });
+              }
+              await tx.update(listings)
+                .set({ stock: sql`${listings.stock} - ${requested.qty}` })
+                .where(eq(listings.id, requested.itemId));
+              canonicalItems.push({ itemType: "listing", itemId: row.item.id, name: row.item.name, price: row.item.price, qty: requested.qty });
+              continue;
+            }
+
+            const [row] = await tx
+              .select({ item: menuItems })
+              .from(menuItems)
+              .innerJoin(restaurants, eq(menuItems.restaurantId, restaurants.id))
+              .where(and(eq(menuItems.id, requested.itemId), eq(restaurants.open, true)));
+            if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "A menu item in your cart is no longer available." });
+            canonicalItems.push({ itemType: "menu_item", itemId: row.item.id, name: row.item.name, price: row.item.price, qty: requested.qty });
+          }
+
+          const subtotal = canonicalItems.reduce((sum, item) => sum + item.price * item.qty, 0);
+          const phone = normPhone(input.phone);
+          const commissionFee = Math.round(subtotal * COMMISSION_RATE);
+          await upsertCustomer(tx, input.customerName, phone, quotedDelivery.address);
+          const [customer] = await tx.select().from(customers).where(eq(customers.phone, phone));
+          const [membership] = customer
+            ? await tx.select().from(plusMemberships).where(eq(plusMemberships.customerId, customer.id))
+            : [];
+          const plusActive = Boolean(
+            membership?.status === "active" &&
+            membership.expiresAt &&
+            membership.expiresAt > new Date(),
+          );
+          const deliveryFee = plusActive ? 0 : quotedDelivery.deliveryFee;
+          const total = subtotal + deliveryFee;
+          const [inserted] = await tx.insert(orders).values({
+            code: orderCode(),
+            customerName: input.customerName.trim(),
+            phone,
+            address: quotedDelivery.address,
+            paymentMethod: input.paymentMethod,
+            subtotal,
+            deliveryFee,
+            commissionFee,
+            total,
+          }).$returningId();
+          await tx.insert(orderItems).values(
+            canonicalItems.map((item) => ({ orderId: inserted.id, ...item })),
+          );
+          const [order] = await tx.select().from(orders).where(eq(orders.id, inserted.id));
+          return order;
+        });
       }),
     byPhone: publicQuery.input(z.object({ phone: z.string().min(9) })).query(async ({ input }) => {
       const db = getDb();
@@ -455,7 +529,8 @@ export const appRouter = createRouter({
         email: z.string().optional(),
         idType: z.string(),
         idNumber: z.string().min(3),
-        idPhotoName: z.string(),
+        // Retained for backward compatibility; the public form no longer pretends to upload a document.
+        idPhotoName: z.string().optional(),
         district: z.string(),
         landmark: z.string(),
         tin: z.string().optional(),
@@ -471,6 +546,7 @@ export const appRouter = createRouter({
         }
         const [row] = await db.insert(sellers).values({
           ...input,
+          idPhotoName: input.idPhotoName ?? null,
           status: "pending",
           commissionTermsAccepted: true,
           sellerContractAccepted: true,

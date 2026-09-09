@@ -1,8 +1,11 @@
-import { createContext, useContext, useState, ReactNode } from 'react'
+import { createContext, useContext, useState } from 'react'
+import type { ReactNode } from 'react'
+
+export type CartItemType = 'product' | 'listing' | 'menu_item'
 
 export type CartItem = {
-  itemType: string
-  itemId: string | number
+  itemType: CartItemType
+  itemId: number
   name: string
   price: number
   qty: number
@@ -14,17 +17,18 @@ export type CartItem = {
 type CartContextType = {
   items: CartItem[]
   add: (item: Omit<CartItem, 'qty'> & { qty?: number }) => void
-  setQty: (itemType: string, itemId: string | number, qty: number) => void
-  remove: (itemType: string, itemId: string | number) => void
+  setQty: (itemType: CartItemType, itemId: number, qty: number) => void
+  remove: (itemType: CartItemType, itemId: number) => void
   clear: () => void
   subtotal: number
   count: number
 }
 
 const CartContext = createContext<CartContextType | null>(null)
-const STORAGE_KEY = 'ugsouq_cart'
+// v2 drops legacy carts whose seller-listing IDs could collide with curated product IDs.
+const STORAGE_KEY = 'ugsouq_cart_v2'
 
-const sameKey = (a: { itemType: string; itemId: string | number }, b: { itemType: string; itemId: string | number }) =>
+const sameKey = (a: { itemType: CartItemType; itemId: number }, b: { itemType: CartItemType; itemId: number }) =>
   a.itemType === b.itemType && String(a.itemId) === String(b.itemId)
 
 const safeQty = (q: any) => {
@@ -35,10 +39,15 @@ const safeQty = (q: any) => {
 const sanitize = (raw: any[]): CartItem[] => {
   if (!Array.isArray(raw)) return []
   return raw
-    .filter((i) => i && i.itemType != null && i.itemId != null)
+    .filter((i) =>
+      i &&
+      ['product', 'listing', 'menu_item'].includes(String(i.itemType)) &&
+      Number.isInteger(Number(i.itemId)) &&
+      Number(i.itemId) > 0,
+    )
     .map((i) => ({
-      itemType: String(i.itemType),
-      itemId: i.itemId,
+      itemType: String(i.itemType) as CartItemType,
+      itemId: Number(i.itemId),
       name: typeof i.name === 'string' ? i.name : 'Item',
       price: Number.isFinite(Number(i.price)) ? Number(i.price) : 0,
       qty: safeQty(i.qty),

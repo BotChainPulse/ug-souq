@@ -1,4 +1,3 @@
-import { Link } from 'react-router'
 import { Wallet, Smartphone, ShieldCheck, Banknote, MessageCircle, CircleCheckBig } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -22,8 +21,8 @@ export default function Pay() {
 
       <section className="mx-auto max-w-4xl px-4 py-12 grid sm:grid-cols-3 gap-4">
         {[
-          { icon: Smartphone, t: 'MTN MoMo', d: 'Approve the prompt on your phone and your order is confirmed instantly.', c: '#ffcc00' },
-          { icon: Smartphone, t: 'Airtel Money', d: 'Same simple flow for Airtel customers — pay in seconds with your PIN.', c: '#e11d48' },
+          { icon: Smartphone, t: 'MTN MoMo', d: 'Place your order, follow the payment instructions, then submit the transaction reference for confirmation.', c: '#ffcc00' },
+          { icon: Smartphone, t: 'Airtel Money', d: 'Place your order and submit the Airtel Money transaction reference for confirmation.', c: '#e11d48' },
           { icon: Banknote, t: 'Cash on delivery', d: 'Prefer cash? Pay the rider when your item arrives and you have checked it.', c: '#16a34a' },
         ].map(({ icon: Icon, t, d, c }) => (
           <div key={t} className="bg-white rounded-2xl border border-neutral-200 p-6">
@@ -39,8 +38,8 @@ export default function Pay() {
           <h2 className="font-extrabold flex items-center gap-2"><ShieldCheck size={18} style={{ color: ORANGE }} /> Buyer protection on every payment</h2>
           <ul className="mt-4 space-y-2.5 text-sm text-neutral-600">
             {[
-              'Item not as described? Full refund — no arguments.',
-              'Your money is only released to the seller after delivery is confirmed.',
+              'Eligible problems are handled under the published returns and refunds policy.',
+              'Payment references are reviewed before an order is marked paid.',
               'Every order gets a tracking code you can check any time.',
               'Verified sellers are ID-checked and location-confirmed.',
             ].map((t) => (
