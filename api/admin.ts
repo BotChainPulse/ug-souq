@@ -734,13 +734,24 @@ export const adminRouter = createRouter({
       const [before] = await db.select().from(sellerAdBookings).where(eq(sellerAdBookings.id, input.id));
       if (!before) throw new TRPCError({ code: "NOT_FOUND", message: "Seller ad booking not found" });
       if (input.status === "active") {
+        if (before.requestedStartDate) {
+          const today = new Date().toISOString().slice(0, 10);
+          if (before.requestedStartDate > today) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: `This campaign is scheduled for ${before.requestedStartDate}.` });
+          }
+        }
         const [approvedListing] = await db
           .select({ id: listings.id })
           .from(listings)
-          .where(and(eq(listings.sellerId, before.sellerId), eq(listings.status, "approved")))
+          .where(and(
+            ...(before.listingId ? [eq(listings.id, before.listingId)] : []),
+            eq(listings.sellerId, before.sellerId),
+            eq(listings.status, "approved"),
+            gte(listings.stock, 1),
+          ))
           .limit(1);
         if (!approvedListing) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Approve at least one seller listing before activating this campaign." });
+          throw new TRPCError({ code: "BAD_REQUEST", message: "The selected advertised product must still be approved and in stock before activation." });
         }
       }
       await db.update(sellerAdBookings).set({ status: input.status }).where(eq(sellerAdBookings.id, input.id));

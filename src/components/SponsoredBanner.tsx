@@ -10,6 +10,9 @@ type SponsoredAd = {
   planType: 'weekly' | 'monthly'
   image: string
   headline: string
+  message: string | null
+  targetPath: string
+  ctaLabel: string
 }
 
 export default function SponsoredBanner() {
@@ -40,9 +43,9 @@ export default function SponsoredBanner() {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-emerald-700"><Megaphone size={12} /> Sponsored</div>
           <p className="truncate text-sm font-extrabold text-neutral-900">{ad.headline}</p>
-          <p className="truncate text-xs text-neutral-500">Promoted by {ad.sellerName}</p>
+          <p className="truncate text-xs text-neutral-500">{ad.message || `Promoted by ${ad.sellerName}`}</p>
         </div>
-        <Link to={`/seller/${ad.sellerId}`} className="shrink-0 rounded-xl bg-emerald-700 px-3 py-2 text-xs font-extrabold text-white">Shop now</Link>
+        <Link to={ad.targetPath} className="shrink-0 rounded-xl bg-emerald-700 px-3 py-2 text-xs font-extrabold text-white">{ad.ctaLabel}</Link>
         <button onClick={() => setClosed(true)} aria-label="Close sponsored banner" className="shrink-0 rounded-full p-1 text-neutral-400 hover:bg-neutral-100"><X size={15} /></button>
       </div>
       {ads.length > 1 && <div className="mt-1 flex justify-center gap-1">{ads.map((item, i) => <span key={item.id} className={`h-1 rounded-full ${i === index % ads.length ? 'w-5 bg-emerald-700' : 'w-2 bg-neutral-300'}`} />)}</div>}

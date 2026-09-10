@@ -12,6 +12,9 @@ type SponsoredAd = {
   planType: 'weekly' | 'monthly'
   image: string
   headline: string
+  message: string | null
+  targetPath: string
+  ctaLabel: string
 }
 
 export default function Promotions() {
@@ -51,8 +54,9 @@ export default function Promotions() {
                 <div className="p-4">
                   <div className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-wider text-emerald-700"><Megaphone size={12} /> Sponsored · {ad.planType}</div>
                   <h2 className="mt-2 text-lg font-extrabold">{ad.headline}</h2>
+                  {ad.message && <p className="mt-1 text-sm text-neutral-600">{ad.message}</p>}
                   <p className="mt-1 flex items-center gap-1.5 text-sm text-neutral-600">{ad.sellerVerified && <BadgeCheck size={15} className="text-sky-600" />} {ad.sellerName}</p>
-                  <Link to={`/seller/${ad.sellerId}`} className="mt-4 inline-flex rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-extrabold text-white">Visit seller shop</Link>
+                  <Link to={ad.targetPath} className="mt-4 inline-flex rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-extrabold text-white">{ad.ctaLabel}</Link>
                 </div>
               </article>
             ))}

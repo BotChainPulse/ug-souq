@@ -75,7 +75,17 @@ export default function AdminAdsSafe() {
                     </div>
                     <div className="text-right"><p className="text-xs font-bold uppercase text-slate-500">{ad.planType} plan</p><p className="text-xl font-black">UGX {Number(ad.amount ?? 0).toLocaleString()}</p></div>
                   </div>
-                  {ad.notes && <p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">{ad.notes}</p>}
+                  <div className="mt-3 rounded-xl bg-slate-50 p-3">
+                    <p className="font-extrabold text-slate-900">{ad.headline || 'Legacy seller advert'}</p>
+                    {ad.message && <p className="mt-1 text-sm text-slate-600">{ad.message}</p>}
+                    <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-bold text-slate-500">
+                      {ad.listingId && <span>Product #{ad.listingId}</span>}
+                      {ad.objective && <span>Goal: {String(ad.objective).replaceAll('_', ' ')}</span>}
+                      {ad.cta && <span>CTA: {String(ad.cta).replaceAll('_', ' ')}</span>}
+                      {ad.requestedStartDate && <span>Requested start: {ad.requestedStartDate}</span>}
+                    </div>
+                  </div>
+                  {ad.notes && <p className="mt-2 rounded-xl border border-slate-200 p-3 text-sm text-slate-600"><b>Seller instructions:</b> {ad.notes}</p>}
                   <p className="mt-3 text-xs text-slate-400">Booked {ad.createdAt ? new Date(ad.createdAt).toLocaleString() : ''}</p>
 
                   <div className="mt-4 flex flex-wrap gap-2">

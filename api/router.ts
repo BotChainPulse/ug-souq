@@ -647,8 +647,14 @@ export const appRouter = createRouter({
     bookAd: publicQuery
       .input(z.object({
         phone: z.string().min(9),
+        listingId: z.number().int().positive(),
         planType: z.enum(["weekly", "monthly"]),
-        notes: z.string().optional(),
+        headline: z.string().trim().min(5).max(90),
+        message: z.string().trim().min(10).max(180),
+        objective: z.enum(["product_sales", "product_views", "shop_visits"]),
+        cta: z.enum(["shop_now", "view_product", "visit_shop"]),
+        requestedStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        notes: z.string().trim().max(255).optional(),
       }))
       .mutation(async ({ input }) => {
         const db = getDb();
@@ -664,8 +670,12 @@ export const appRouter = createRouter({
         if (seller.status !== "approved") throw new TRPCError({ code: "BAD_REQUEST", message: "Your shop must be approved before booking an advert." });
 
         const sellerListings = await db.select().from(listings).where(eq(listings.sellerId, seller.id));
-        if (!sellerListings.some((listing) => listing.status === "approved")) {
+        const selectedListing = sellerListings.find((listing) => listing.id === input.listingId && listing.status === "approved");
+        if (!selectedListing) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "You need at least one approved product listing before booking an advert." });
+        }
+        if (selectedListing.stock < 1) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Choose an approved product that is currently in stock." });
         }
 
         const existingBookings = await db.select().from(sellerAdBookings).where(eq(sellerAdBookings.sellerId, seller.id));
@@ -677,12 +687,18 @@ export const appRouter = createRouter({
         const amount = input.planType === "weekly" ? 25000 : 50000;
         const [row] = await db.insert(sellerAdBookings).values({
           sellerId: seller.id,
+          listingId: selectedListing.id,
           planType: input.planType,
           amount,
+          headline: input.headline,
+          message: input.message,
+          objective: input.objective,
+          cta: input.cta,
+          requestedStartDate: input.requestedStartDate ?? null,
           status: "booked",
-          notes: input.notes ?? "Seller ad plan booking",
+          notes: input.notes ?? null,
         }).$returningId();
-        return { id: row.id, reference: `AD-${row.id}`, amount, shopName: seller.shopName, planType: input.planType };
+        return { id: row.id, reference: `AD-${row.id}`, amount, shopName: seller.shopName, productName: selectedListing.name, headline: input.headline, planType: input.planType };
       }),
   }),
 
