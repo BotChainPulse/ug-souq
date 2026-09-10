@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Store, Package, ShoppingCart, Users, CreditCard,
   Truck, RotateCcw, Megaphone, Link2, Settings, FileText, LogOut,
   Search, CheckCircle, AlertTriangle, Check, X, DollarSign,
-  TrendingUp, TrendingDown, Save, RefreshCw, Mail, MessageCircle
+  TrendingUp, TrendingDown, Save, RefreshCw, Mail, MessageCircle, Eye, ShieldCheck, Lock
 } from 'lucide-react'
 
 const STATUS_LABEL: Record<string, string> = {
@@ -106,6 +106,9 @@ function Sellers({ adminKey }: { adminKey: string }) {
   const setSellerPlan = trpc.admin.setSellerPlan.useMutation({ onSuccess: () => refetch() })
   const [approvalChecks, setApprovalChecks] = useState<Record<number, { identityReviewed: boolean; locationReviewed: boolean; payoutReviewed: boolean }>>({})
   const [actionError, setActionError] = useState<{ sellerId: number; message: string } | null>(null)
+  const [identityPreview, setIdentityPreview] = useState<any>(null)
+  const viewSellerIdentity = trpc.admin.viewSellerIdentity.useMutation({ onSuccess: (record) => setIdentityPreview(record) })
+  const reviewSellerIdentity = trpc.admin.reviewSellerIdentity.useMutation({ onSuccess: () => { setIdentityPreview(null); refetch() } })
   const list = (data as any[]) ?? []
   if (isLoading) return <Loading />
   if (error) return <QueryError title="Failed to load sellers" error={error.message} onRetry={() => refetch()} />
@@ -133,8 +136,9 @@ function Sellers({ adminKey }: { adminKey: string }) {
           const sid = Number(s?.id ?? 0)
           const status = String(s?.status ?? "pending")
           const checks = approvalChecks[sid] ?? { identityReviewed: false, locationReviewed: false, payoutReviewed: false }
+          const protectedIdentityApproved = s?.identity?.status === 'approved'
           const applicationComplete = Boolean(
-            s?.idType && s?.idNumber && s?.district && s?.landmark && s?.payoutMethod && s?.payoutNumber &&
+            s?.idType && protectedIdentityApproved && s?.district && s?.landmark && s?.payoutMethod && s?.payoutNumber &&
             s?.sellerContractAccepted && s?.commissionTermsAccepted
           )
           const reviewComplete = checks.identityReviewed && checks.locationReviewed && checks.payoutReviewed
@@ -150,6 +154,42 @@ function Sellers({ adminKey }: { adminKey: string }) {
                 {status === "approved" && !applicationComplete && <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium flex items-center gap-1"><AlertTriangle size={12} /> Approval review incomplete</span>}
               </div>
               <p className="text-sm text-neutral-600">{s?.ownerName ?? "-"} · {s?.phone ?? "-"} · {s?.district ?? "-"}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                <span className={`rounded-full px-2 py-1 font-semibold ${s?.identity?.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : s?.identity?.status === 'rejected' ? 'bg-red-100 text-red-700' : s?.identity?.status === 'deleted' ? 'bg-neutral-100 text-neutral-600' : 'bg-amber-100 text-amber-700'}`}>
+                  Identity: {s?.identity?.status ?? 'not submitted'}{s?.identity?.idNumberLast4 ? ` · ending ${s.identity.idNumberLast4}` : ''}
+                </span>
+                {s?.identity && (
+                  <button onClick={() => viewSellerIdentity.mutate({ key: adminKey, sellerId: sid })} disabled={viewSellerIdentity.isPending}
+                    className="inline-flex items-center gap-1 rounded-lg border border-neutral-300 bg-white px-2 py-1 font-semibold disabled:opacity-50"><Eye size={12} /> Protected review</button>
+                )}
+              </div>
+              {identityPreview?.sellerId === sid && (
+                <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-4 text-xs text-sky-950">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-extrabold flex items-center gap-1"><Lock size={13} /> Restricted identity evidence</p>
+                    <button onClick={() => setIdentityPreview(null)} className="font-bold underline">Close</button>
+                  </div>
+                  <p className="mt-2">Type: {String(identityPreview.documentType).replaceAll('_', ' ')} · Number: {identityPreview.idNumber ?? `deleted (ending ${identityPreview.idNumberLast4})`}</p>
+                  <p className="mt-1">Purpose: {identityPreview.purpose}</p>
+                  <p className="mt-1">Consent: {identityPreview.consentVersion} · {new Date(identityPreview.consentedAt).toLocaleString()}</p>
+                  {identityPreview.documentData ? (
+                    <img src={identityPreview.documentData} alt="Restricted seller identity evidence" className="mt-3 max-h-80 max-w-full rounded-lg border border-sky-200 object-contain" />
+                  ) : <p className="mt-3 rounded-lg bg-white p-3 font-semibold">The raw document has been deleted under the retention policy.</p>}
+                  {identityPreview.reviewNotes && <p className="mt-2"><b>Review notes:</b> {identityPreview.reviewNotes}</p>}
+                  {identityPreview.status === 'pending' && identityPreview.documentData && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button onClick={() => {
+                        const notes = window.prompt('Record what you checked (required). Do not copy the full ID number into notes.')
+                        if (notes?.trim() && notes.trim().length >= 5) reviewSellerIdentity.mutate({ key: adminKey, sellerId: sid, decision: 'approved', notes: notes.trim() })
+                      }} disabled={reviewSellerIdentity.isPending} className="rounded-lg bg-emerald-600 px-3 py-2 font-bold text-white disabled:opacity-50"><ShieldCheck size={13} className="mr-1 inline" />Accept identity</button>
+                      <button onClick={() => {
+                        const notes = window.prompt('State the reason for rejection (required). Do not copy the full ID number into notes.')
+                        if (notes?.trim() && notes.trim().length >= 5) reviewSellerIdentity.mutate({ key: adminKey, sellerId: sid, decision: 'rejected', notes: notes.trim() })
+                      }} disabled={reviewSellerIdentity.isPending} className="rounded-lg bg-red-600 px-3 py-2 font-bold text-white disabled:opacity-50">Reject identity</button>
+                    </div>
+                  )}
+                </div>
+              )}
               <p className="text-xs text-neutral-400 mt-1">{s?.totalListings ?? 0} listings · {s?.totalOrders ?? 0} orders · Joined {s?.createdAt ? new Date(s.createdAt).toLocaleDateString() : "-"}</p>
               <div className="mt-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-700">
                 <b>{s?.plan?.tier === 'pro' ? 'Seller Pro' : 'Free seller'}</b> · {s?.plan?.listingsUsed ?? 0}/{s?.plan?.listingLimit ?? 5} listing slots · {Math.round(Number(s?.plan?.commissionRate ?? 0.07) * 100)}% commission
@@ -158,7 +198,7 @@ function Sellers({ adminKey }: { adminKey: string }) {
               <details className="mt-3 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-700">
                 <summary className="cursor-pointer font-semibold">Application review</summary>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  <p><b>Identity:</b> {s?.idType || "Missing"} · {maskSensitive(s?.idNumber)}</p>
+                  <p><b>Identity:</b> {s?.idType || "Missing"} · {protectedIdentityApproved ? `accepted · ending ${s?.identity?.idNumberLast4}` : 'protected review required'}</p>
                   <p><b>Location:</b> {[s?.district, s?.landmark].filter(Boolean).join(" · ") || "Missing"}</p>
                   <p><b>Payout:</b> {s?.payoutMethod || "Missing"} · {maskSensitive(s?.payoutNumber)}</p>
                   <p><b>Seller agreement:</b> {s?.sellerContractAccepted ? "Accepted by seller" : "Missing"}</p>
@@ -166,7 +206,7 @@ function Sellers({ adminKey }: { adminKey: string }) {
                 </div>
                 {(status === "pending" || (status === "approved" && !s?.verified)) && (
                   <div className="mt-3 space-y-2 border-t border-neutral-100 pt-3">
-                    <label className="flex items-center gap-2"><input type="checkbox" checked={checks.identityReviewed} disabled={!s?.idType || !s?.idNumber} onChange={(e) => updateCheck("identityReviewed", e.target.checked)} /> Identity details reviewed</label>
+                    <label className="flex items-center gap-2"><input type="checkbox" checked={checks.identityReviewed} disabled={!s?.idType || !protectedIdentityApproved} onChange={(e) => updateCheck("identityReviewed", e.target.checked)} /> Protected identity decision reviewed</label>
                     <label className="flex items-center gap-2"><input type="checkbox" checked={checks.locationReviewed} disabled={!s?.district || !s?.landmark} onChange={(e) => updateCheck("locationReviewed", e.target.checked)} /> Business location reviewed</label>
                     {status === "pending" && <label className="flex items-center gap-2"><input type="checkbox" checked={checks.payoutReviewed} disabled={!s?.payoutMethod || !s?.payoutNumber} onChange={(e) => updateCheck("payoutReviewed", e.target.checked)} /> Payout details reviewed</label>}
                     {status === "pending" && !applicationComplete && <p className="font-semibold text-amber-700">Approval is locked until the seller completes every required application field and agreement.</p>}
@@ -190,6 +230,7 @@ function Sellers({ adminKey }: { adminKey: string }) {
                     className="text-sm px-3 py-1.5 bg-red-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-1"><X size={14} /> Reject</button>
                 </div>
               )}
+              {status === 'pending' && s?.identity?.status !== 'approved' && !s?.identityCheckedAt && <p className="mt-2 text-xs font-semibold text-amber-700">Accept the protected identity record before approving this shop.</p>}
               {status === "approved" && (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {s?.plan?.tier !== 'pro' ? (
@@ -292,11 +333,18 @@ function Listings({ adminKey }: { adminKey: string }) {
                 {l?.sellerVerified && <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium flex items-center gap-1"><CheckCircle size={12} /> Verified Seller</span>}
               </div>
               <p className="text-sm text-neutral-600">UGX {Number(l?.price ?? 0).toLocaleString()} · by {l?.sellerName ?? "-"}</p>
+              {l?.isBranded && (
+                <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
+                  <p><b>Branded item:</b> {l?.brandName || 'Brand not supplied'}</p>
+                  <p className="mt-1"><b>Seller evidence:</b> {l?.authenticityEvidence || 'No authenticity evidence supplied'}</p>
+                  <p className="mt-1 text-amber-700">Approval records that evidence was reviewed; it does not guarantee authenticity.</p>
+                </div>
+              )}
               {status === "pending" && (
                 <div className="mt-3 flex gap-2">
-                  <button onClick={() => { if (!lid) return; if (window.confirm(`Approve "${l?.name}"?`)) setListingStatus.mutate({ key: adminKey, id: lid, status: "approved" }) }} disabled={setListingStatus.isLoading}
+                  <button onClick={() => { if (!lid) return; if (window.confirm(`Approve "${l?.name}"?`)) setListingStatus.mutate({ key: adminKey, id: lid, status: "approved" }) }} disabled={setListingStatus.isPending}
                     className="text-sm px-3 py-1.5 bg-emerald-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-1"><Check size={14} /> Approve</button>
-                  <button onClick={() => { if (!lid) return; if (window.confirm(`Reject "${l?.name}"?`)) setListingStatus.mutate({ key: adminKey, id: lid, status: "rejected" }) }} disabled={setListingStatus.isLoading}
+                  <button onClick={() => { if (!lid) return; if (window.confirm(`Reject "${l?.name}"?`)) setListingStatus.mutate({ key: adminKey, id: lid, status: "rejected" }) }} disabled={setListingStatus.isPending}
                     className="text-sm px-3 py-1.5 bg-red-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-1"><X size={14} /> Reject</button>
                 </div>
               )}
@@ -383,6 +431,18 @@ function Orders({ adminKey }: { adminKey: string }) {
                 <span>Commission<br/><b>UGX {Number(o?.commissionFee ?? 0).toLocaleString()}</b></span>
                 <span>Payment<br/><b>{String(o?.paymentMethod ?? '-').replaceAll('_', ' ')}</b></span>
               </div>
+              {(o?.payments ?? []).length > 0 && (
+                <div className="mt-3 rounded-lg border border-sky-200 bg-sky-50 p-3 text-xs text-sky-950">
+                  <p className="font-bold">Pesapal reconciliation</p>
+                  {(o.payments ?? []).map((payment: any) => (
+                    <div key={payment.id} className="mt-2 border-t border-sky-100 pt-2 first:border-0 first:pt-0">
+                      <p><b>{payment.status}</b> · {payment.currency} {Number(payment.amount).toLocaleString()} · {payment.paymentMethod || 'method pending'}</p>
+                      <p className="break-all text-sky-800">Merchant: {payment.merchantReference}{payment.confirmationCode ? ` · Confirmation: ${payment.confirmationCode}` : ''}</p>
+                      {payment.paymentAccountMasked && <p>Account: {payment.paymentAccountMasked}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="mt-3 flex flex-wrap gap-2">
                   <select value={status} onChange={(event) => setStatus.mutate({ key: adminKey, id: oid, status: event.target.value as typeof ORDER_STATUSES[number] })} disabled={setStatus.isPending} className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm">
                     {ORDER_STATUSES.map((value) => <option key={value} value={value}>{STATUS_LABEL[value]}</option>)}
@@ -780,7 +840,10 @@ function AdminSettings({ adminKey }: { adminKey: string }) {
 export default function Admin() {
   const navigate = useNavigate()
   const [tab, setTab] = useState("overview")
-  const [adminKey, setAdminKey] = useState(() => localStorage.getItem("ug_admin_key") || "")
+  const [adminKey, setAdminKey] = useState(() => {
+    localStorage.removeItem("ug_admin_key")
+    return sessionStorage.getItem("ug_admin_key") || ""
+  })
   const [keyInput, setKeyInput] = useState("")
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -790,12 +853,13 @@ export default function Admin() {
 
   const login = () => {
     if (keyInput.trim()) {
-      localStorage.setItem("ug_admin_key", keyInput.trim())
+      sessionStorage.setItem("ug_admin_key", keyInput.trim())
       setAdminKey(keyInput.trim())
     }
   }
 
   const logout = () => {
+    sessionStorage.removeItem("ug_admin_key")
     localStorage.removeItem("ug_admin_key")
     setAdminKey("")
     setKeyInput("")

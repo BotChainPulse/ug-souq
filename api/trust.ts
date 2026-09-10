@@ -5,7 +5,7 @@ import { createRouter, publicQuery } from "./middleware";
 import { getDb } from "./queries/connection";
 import {
   escrowTransactions, souqHubs, communityAgents, groupOrders, groupOrderParticipants,
-  trustScores, orders, orderItems, sellers, products
+  trustScores, orders, orderItems, sellers, products, sellerIdentityDocuments
 } from "../db/schema";
 
 const normPhone = (p: string) => p.replace(/[\s-]+/g, "").trim();
@@ -87,8 +87,8 @@ export const trustRouter = createRouter({
     }),
 
     bySeller: publicQuery.input(z.object({ sellerId: z.number() })).query(async ({ input }) => {
-      const db = getDb();
-      return db.select().from(escrowTransactions).where(eq(escrowTransactions.sellerId, input.sellerId)).orderBy(desc(escrowTransactions.createdAt));
+      // Buyer contact and dispute records are not part of the public seller profile.
+      throw new TRPCError({ code: "FORBIDDEN", message: "Seller escrow records are available only through the authenticated administration workflow." });
     }),
   }),
 
@@ -177,7 +177,16 @@ export const trustRouter = createRouter({
         const [product] = await db.select().from(products).where(eq(products.id, g.productId));
         const [hub] = g.deliveryHubId ? await db.select().from(souqHubs).where(eq(souqHubs.id, g.deliveryHubId)) : [null];
         const participants = await db.select().from(groupOrderParticipants).where(eq(groupOrderParticipants.groupOrderId, g.id));
-        return { ...g, agent, product, deliveryHub: hub, participants };
+        return {
+          ...g,
+          agent: agent ? {
+            id: agent.id, name: agent.name, town: agent.town, district: agent.district,
+            organization: agent.organization, verifiedAt: agent.verifiedAt,
+          } : null,
+          product,
+          deliveryHub: hub,
+          participantCount: participants.length,
+        };
       }));
     }),
     create: publicQuery
@@ -251,6 +260,13 @@ export const trustRouter = createRouter({
         if (awardingBadge && (!input.checks?.idVerified || !input.checks?.locationVerified)) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Identity and location checks are required before awarding a trust badge." });
         }
+        if (awardingBadge) {
+          const [identity] = await db.select().from(sellerIdentityDocuments).where(eq(sellerIdentityDocuments.sellerId, input.sellerId)).limit(1);
+          const [seller] = await db.select().from(sellers).where(eq(sellers.id, input.sellerId)).limit(1);
+          if (identity?.status !== "approved" && !seller?.identityCheckedAt) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Accept the protected identity review before awarding a trust badge." });
+          }
+        }
         await db.update(sellers).set({
           status: "approved",
           verified: awardingBadge,
@@ -300,17 +316,7 @@ export const trustRouter = createRouter({
   }),
 
   sellerFinance: publicQuery.input(z.object({ sellerId: z.number() })).query(async ({ input }) => {
-    const db = getDb();
-    const escrowRecords = await db.select().from(escrowTransactions).where(eq(escrowTransactions.sellerId, input.sellerId));
-    const heldFunds = escrowRecords.filter(e => e.status === "held" || e.status === "disputed").reduce((sum, e) => sum + e.amount, 0);
-    const availableFunds = escrowRecords.filter(e => e.status === "released").reduce((sum, e) => sum + e.amount - e.platformFee, 0);
-    const totalFees = escrowRecords.filter(e => e.status === "released").reduce((sum, e) => sum + e.platformFee, 0);
-    return {
-      heldFunds, availableFunds, totalFees,
-      pendingOrders: escrowRecords.filter(e => e.status === "held").length,
-      disputedOrders: escrowRecords.filter(e => e.status === "disputed").length,
-      totalTransactions: escrowRecords.length,
-    };
+    throw new TRPCError({ code: "FORBIDDEN", message: "Seller finance records are available only through the authenticated administration workflow." });
   }),
 
   adminEscrow: createRouter({

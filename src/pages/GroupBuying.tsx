@@ -52,7 +52,7 @@ export default function GroupBuying() {
                   <Progress value={progress} className="h-2" />
                 </div>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <span className="flex items-center gap-1"><Users className="h-3 w-3" />{g.participants?.length || 0} members</span>
+                  <span className="flex items-center gap-1"><Users className="h-3 w-3" />{g.participantCount || 0} members</span>
                   <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{new Date(g.deadline).toLocaleDateString("en-UG")}</span>
                 </div>
                 <Button className="w-full" onClick={() => { setSelected(g); setQty(1); setJoinOpen(true); }}>

@@ -1,4 +1,29 @@
-# React + TypeScript + Vite
+# UG Souq
+
+Ugandan multi-seller marketplace. The Vite storefront and administrator interface share one Node/Hono API and MySQL data model while remaining separate interfaces.
+
+## Production variables
+
+Keep all secrets in Railway Variables; never commit them or expose them through Vite client variables.
+
+- `DATABASE_URL` — MySQL connection string.
+- `ADMIN_KEY` — administrator access secret.
+- `APP_URL` — canonical public HTTPS origin, for example `https://www.ugsouq.com`.
+- `SELLER_DOCUMENT_ENCRYPTION_KEY` — base64-encoded 32-byte key dedicated to seller identity encryption. Generate once with `openssl rand -base64 32`; rotating it requires a controlled data migration.
+- `PESAPAL_ENV` — `sandbox` until live merchant approval, then `live`.
+- `PESAPAL_CONSUMER_KEY` and `PESAPAL_CONSUMER_SECRET` — server-only Pesapal API 3.0 merchant credentials.
+- `PESAPAL_IPN_ID` — identifier returned after registering `https://www.ugsouq.com/api/pesapal/ipn` as a Pesapal IPN URL.
+
+Seller identity uploads deliberately fail closed if the dedicated encryption key is absent. Pesapal remains hidden from checkout until every Pesapal variable is configured. A callback or IPN never marks an order paid by itself: the server calls Pesapal's transaction-status endpoint and matches provider reference, exact amount, and currency.
+
+## Verification
+
+```bash
+npm test
+npm run build
+```
+
+## Starter framework notes
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

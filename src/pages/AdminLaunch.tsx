@@ -56,7 +56,10 @@ function customerMessage(order: any) {
 
 export default function AdminLaunch() {
   const navigate = useNavigate()
-  const [adminKey, setAdminKey] = useState(() => localStorage.getItem('ug_admin_key') || '')
+  const [adminKey, setAdminKey] = useState(() => {
+    localStorage.removeItem('ug_admin_key')
+    return sessionStorage.getItem('ug_admin_key') || ''
+  })
   const [keyInput, setKeyInput] = useState('')
   const [loginError, setLoginError] = useState('')
   const [search, setSearch] = useState('')
@@ -66,7 +69,7 @@ export default function AdminLaunch() {
   const login = trpc.admin.login.useMutation({
     onSuccess: () => {
       const key = keyInput.trim()
-      localStorage.setItem('ug_admin_key', key)
+      sessionStorage.setItem('ug_admin_key', key)
       setAdminKey(key)
       setLoginError('')
     },
@@ -99,6 +102,7 @@ export default function AdminLaunch() {
   const assignDeliveryPartner = trpc.admin.assignDeliveryPartner.useMutation({ onSuccess: refresh })
 
   const logout = () => {
+    sessionStorage.removeItem('ug_admin_key')
     localStorage.removeItem('ug_admin_key')
     setAdminKey('')
     setKeyInput('')

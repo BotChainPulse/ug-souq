@@ -4,8 +4,8 @@ import { trpc } from '@/providers/trpc'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { useCart, fmt } from '../lib/cart'
-import { ORANGE } from '../lib/site'
-import { BadgeCheck, Star, Store, Phone, ShoppingCart, Check, ArrowLeft } from 'lucide-react'
+import { ORANGE, WHATSAPP_INTL } from '../lib/site'
+import { BadgeCheck, Star, Store, MessageCircle, ShoppingCart, Check, ArrowLeft } from 'lucide-react'
 
 export default function SellerPage() {
   const { id = '' } = useParams()
@@ -14,11 +14,8 @@ export default function SellerPage() {
   const { add } = useCart()
   const [added, setAdded] = useState(null)
 
-  const onAdd = (p) => {
-    // The live order schema intentionally accepts only product/menu_item.
-    // Seller listings are marketplace products at checkout, so keep them on the
-    // existing product path instead of introducing a new DB enum at runtime.
-    add({ itemType: 'product', itemId: p.id, name: p.name, price: p.price })
+  const onAdd = (p: any) => {
+    add({ itemType: p.kind === 'listing' ? 'listing' : 'product', itemId: p.id, name: p.name, price: p.price, image: p.image, sellerId: p.sellerId, sellerName: p.sellerName })
     setAdded(p.id)
     setTimeout(() => setAdded(null), 1400)
   }
@@ -80,8 +77,8 @@ export default function SellerPage() {
                 {seller.verified && <span className="text-sky-700">· Verified seller</span>}
               </p>
             </div>
-            <a href={'tel:' + seller.phone} className="text-xs font-bold px-3.5 py-2 rounded-full border-2 shrink-0 inline-flex items-center gap-1.5" style={{ borderColor: ORANGE, color: ORANGE }}>
-              <Phone size={14} /> Call
+            <a href={`https://wa.me/${WHATSAPP_INTL}?text=${encodeURIComponent(`I need help with ${seller.shopName} on UG Souq.`)}`} target="_blank" rel="noreferrer" className="text-xs font-bold px-3.5 py-2 rounded-full border-2 shrink-0 inline-flex items-center gap-1.5" style={{ borderColor: ORANGE, color: ORANGE }}>
+              <MessageCircle size={14} /> Contact UGSouq
             </a>
           </div>
         </div>

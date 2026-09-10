@@ -6,6 +6,7 @@ import { appRouter } from "./router";
 import { createContext } from "./context";
 import { env } from "./lib/env";
 import { isValidFlutterwaveWebhook, verifyPlusPayment } from "./plus";
+import { verifyPesapalPayment } from "./pesapal";
 
 async function ensureStartupSchema() {
   const { getDb } = await import("./queries/connection");
@@ -48,6 +49,51 @@ async function ensureStartupSchema() {
   await addColumn(`ALTER TABLE seller_ad_bookings ADD COLUMN objective ENUM('product_sales','product_views','shop_visits') NULL`);
   await addColumn(`ALTER TABLE seller_ad_bookings ADD COLUMN cta ENUM('shop_now','view_product','visit_shop') NULL`);
   await addColumn(`ALTER TABLE seller_ad_bookings ADD COLUMN requested_start_date VARCHAR(10) NULL`);
+  await addColumn(`ALTER TABLE listings ADD COLUMN is_branded BOOLEAN NOT NULL DEFAULT FALSE`);
+  await addColumn(`ALTER TABLE listings ADD COLUMN brand_name VARCHAR(128) NULL`);
+  await addColumn(`ALTER TABLE listings ADD COLUMN authenticity_evidence TEXT NULL`);
+
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS seller_identity_documents (
+      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      seller_id BIGINT UNSIGNED NOT NULL UNIQUE,
+      document_type ENUM('national_id','passport','driving_permit') NOT NULL,
+      id_number_ciphertext TEXT NULL,
+      id_number_iv VARCHAR(32) NULL,
+      id_number_tag VARCHAR(32) NULL,
+      id_number_fingerprint VARCHAR(64) NOT NULL UNIQUE,
+      id_number_last4 VARCHAR(4) NOT NULL,
+      document_ciphertext MEDIUMTEXT NULL,
+      document_iv VARCHAR(32) NULL,
+      document_tag VARCHAR(32) NULL,
+      mime_type VARCHAR(64) NULL,
+      original_name VARCHAR(255) NULL,
+      status ENUM('pending','approved','rejected','deleted') NOT NULL DEFAULT 'pending',
+      purpose VARCHAR(255) NOT NULL DEFAULT 'Seller identity verification and marketplace fraud prevention',
+      consent_version VARCHAR(32) NOT NULL,
+      consented_at TIMESTAMP NOT NULL,
+      reviewed_at TIMESTAMP NULL,
+      reviewed_by VARCHAR(64) NULL,
+      review_notes TEXT NULL,
+      retention_until TIMESTAMP NULL,
+      deleted_at TIMESTAMP NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_identity_status (status),
+      INDEX idx_identity_retention (retention_until)
+    )
+  `);
+
+  // Delete document images after the review retention window while retaining
+  // only the non-reversible fingerprint, last four characters and audit result.
+  await client.query(`
+    UPDATE seller_identity_documents
+    SET document_ciphertext = NULL, document_iv = NULL, document_tag = NULL,
+        id_number_ciphertext = NULL, id_number_iv = NULL, id_number_tag = NULL,
+        status = 'deleted', deleted_at = CURRENT_TIMESTAMP
+    WHERE retention_until IS NOT NULL AND retention_until <= CURRENT_TIMESTAMP
+      AND document_ciphertext IS NOT NULL
+  `);
 
   await client.query(`
     CREATE TABLE IF NOT EXISTS seller_subscriptions (
@@ -107,6 +153,26 @@ async function ensureStartupSchema() {
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       verified_at TIMESTAMP NULL,
       INDEX idx_plus_payments_customer (customer_id)
+    )
+  `);
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS payment_transactions (
+      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      order_id BIGINT UNSIGNED NOT NULL,
+      provider ENUM('pesapal') NOT NULL DEFAULT 'pesapal',
+      merchant_reference VARCHAR(50) NOT NULL UNIQUE,
+      tracking_id VARCHAR(64) NULL UNIQUE,
+      amount INT NOT NULL,
+      currency VARCHAR(8) NOT NULL DEFAULT 'UGX',
+      status ENUM('pending','completed','failed','reversed','invalid') NOT NULL DEFAULT 'pending',
+      payment_method VARCHAR(64) NULL,
+      payment_account_masked VARCHAR(128) NULL,
+      confirmation_code VARCHAR(128) NULL,
+      provider_response JSON NULL,
+      verified_at TIMESTAMP NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_payment_order (order_id), INDEX idx_payment_status (status)
     )
   `);
   await client.query(`
@@ -287,6 +353,38 @@ app.post("/api/plus/webhook", async (c) => {
     return c.json({ received: false }, 400);
   }
 });
+
+// Pesapal callbacks and IPNs contain references, not a trusted payment result.
+// Every notification is verified server-to-server before an order is marked paid.
+app.get("/api/pesapal/callback", async (c) => {
+  const trackingId = c.req.query("OrderTrackingId") ?? "";
+  const merchantReference = c.req.query("OrderMerchantReference") ?? "";
+  const base = (process.env.APP_URL ?? "").replace(/\/$/, "");
+  try {
+    const result = await verifyPesapalPayment(trackingId, merchantReference);
+    const path = result.orderCode ? `/order/${encodeURIComponent(result.orderCode)}` : "/orders";
+    return c.redirect(`${base}${path}?payment=${result.ok ? "successful" : result.status}`);
+  } catch (error) {
+    console.error("[PESAPAL] callback verification failed", error);
+    return c.redirect(`${base}/orders?payment=failed`);
+  }
+});
+
+const handlePesapalIpn = async (c: any) => {
+  const payload = c.req.method === "POST" ? await c.req.json().catch(() => ({})) : {};
+  const trackingId = c.req.query("OrderTrackingId") ?? payload?.OrderTrackingId ?? "";
+  const merchantReference = c.req.query("OrderMerchantReference") ?? payload?.OrderMerchantReference ?? "";
+  const notificationType = c.req.query("OrderNotificationType") ?? payload?.OrderNotificationType ?? "IPNCHANGE";
+  try {
+    await verifyPesapalPayment(trackingId, merchantReference);
+    return c.json({ orderNotificationType: notificationType, orderTrackingId: trackingId, orderMerchantReference: merchantReference, status: 200 });
+  } catch (error) {
+    console.error("[PESAPAL] IPN verification failed", error);
+    return c.json({ orderNotificationType: notificationType, orderTrackingId: trackingId, orderMerchantReference: merchantReference, status: 500 }, 500);
+  }
+};
+app.get("/api/pesapal/ipn", handlePesapalIpn);
+app.post("/api/pesapal/ipn", handlePesapalIpn);
 // DukaBooks sync: read-only accounts summary, protected by the admin key.
 // GET /api/accounts/summary?key=ADMIN_KEY
 app.get("/api/accounts/summary", async (c) => {

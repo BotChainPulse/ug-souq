@@ -8,10 +8,11 @@ import {
   sellers, orders, orderItems, affiliates, products, listings,
   sellerAdBookings, deliveryPartners, adminAuditLogs, payouts,
   platformSettings, sellerContracts, notifications, returns, customers, marketingSubscribers,
-  sellerSubscriptions, sellerPlanPayments
+  sellerSubscriptions, sellerPlanPayments, sellerIdentityDocuments, paymentTransactions
 } from "../db/schema";
 import { FREE_LISTING_LIMIT, PRO_COMMISSION_RATE, PRO_LISTING_LIMIT, PRO_MONTHLY_FEE, sellerPlan } from "./sellerPolicy";
 import { sellerApprovalMissingFields } from "./sellerApproval";
+import { decryptIdentity, reviewedDocumentRetentionDate } from "./identity";
 
 const ADMIN_KEY = process.env.ADMIN_KEY;
 
@@ -72,11 +73,11 @@ async function getFlutterwaveToken(): Promise<string | null> {
 const FLW_WEBHOOK_SECRET = process.env.FLW_WEBHOOK_SECRET;
 
 function verifyWebhookSignature(body: string, signature: string): boolean {
-  if (!FLW_WEBHOOK_SECRET) return true; // Skip verification if not configured
+  if (!FLW_WEBHOOK_SECRET || !signature) return false;
   const expected = createHmac("sha256", FLW_WEBHOOK_SECRET).update(body).digest("hex");
-  const expectedBuffer = Buffer.from(expected);
-  const signatureBuffer = Buffer.from(signature);
-  return expectedBuffer.length === signatureBuffer.length && timingSafeEqual(expectedBuffer, signatureBuffer);
+  const expectedBytes = Buffer.from(expected);
+  const signatureBytes = Buffer.from(signature);
+  return expectedBytes.length === signatureBytes.length && timingSafeEqual(expectedBytes, signatureBytes);
 }
 
 async function flwFetch(path: string, options: RequestInit = {}): Promise<Response> {
@@ -267,6 +268,19 @@ export const adminRouter = createRouter({
     const contractRows = await db.select().from(sellerContracts);
     const subscriptionRows = await db.select().from(sellerSubscriptions);
     const listingRows = await db.select().from(listings);
+    const identityRows = await db.select({
+      sellerId: sellerIdentityDocuments.sellerId,
+      documentType: sellerIdentityDocuments.documentType,
+      idNumberLast4: sellerIdentityDocuments.idNumberLast4,
+      status: sellerIdentityDocuments.status,
+      consentVersion: sellerIdentityDocuments.consentVersion,
+      consentedAt: sellerIdentityDocuments.consentedAt,
+      reviewedAt: sellerIdentityDocuments.reviewedAt,
+      reviewNotes: sellerIdentityDocuments.reviewNotes,
+      retentionUntil: sellerIdentityDocuments.retentionUntil,
+      deletedAt: sellerIdentityDocuments.deletedAt,
+      hasDocument: sql<boolean>`${sellerIdentityDocuments.documentCiphertext} IS NOT NULL`,
+    }).from(sellerIdentityDocuments);
     const contractMap = new Map<number, typeof contractRows>();
     for (const c of contractRows) {
       const list = contractMap.get(Number(c.sellerId)) ?? [];
@@ -275,11 +289,16 @@ export const adminRouter = createRouter({
     }
 
     const subscriptionMap = new Map(subscriptionRows.map((subscription) => [Number(subscription.sellerId), subscription]));
+    const identityMap = new Map(identityRows.map((identity) => [Number(identity.sellerId), identity]));
     return filtered.map((s) => {
       const plan = sellerPlan(subscriptionMap.get(Number(s.id)));
       const listingsUsed = listingRows.filter((listing) => Number(listing.sellerId) === Number(s.id) && !["rejected", "terminated"].includes(listing.status)).length;
       return {
         ...s,
+        // Never return legacy raw identity fields in a general dashboard list.
+        idNumber: undefined,
+        idPhotoName: undefined,
+        identity: identityMap.get(Number(s.id)) ?? null,
         contracts: contractMap.get(Number(s.id)) ?? [],
         plan: { ...plan, listingsUsed, freeLimit: FREE_LISTING_LIMIT, proLimit: PRO_LISTING_LIMIT, proMonthlyFee: PRO_MONTHLY_FEE },
       };
@@ -302,10 +321,13 @@ export const adminRouter = createRouter({
       const db = getDb();
       const [before] = await db.select().from(sellers).where(eq(sellers.id, input.id));
       if (!before) throw new TRPCError({ code: "NOT_FOUND", message: "Seller not found." });
-
       const requiresApprovalReview = input.status === "approved" && ["pending", "rejected"].includes(before.status);
       if (requiresApprovalReview) {
-        const missing = sellerApprovalMissingFields(before);
+        const [identity] = await db.select().from(sellerIdentityDocuments).where(eq(sellerIdentityDocuments.sellerId, input.id)).limit(1);
+        if (identity?.status !== "approved") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Review and accept the seller's protected identity record before approving the shop." });
+        }
+        const missing = sellerApprovalMissingFields({ ...before, idNumber: identity.idNumberLast4 });
         if (missing.length) {
           throw new TRPCError({ code: "BAD_REQUEST", message: `Seller application is incomplete: ${missing.join(", ")}.` });
         }
@@ -319,7 +341,7 @@ export const adminRouter = createRouter({
         status: input.status,
         // Approval permits a shop to operate. Verification is a separate, evidenced decision.
         verified: input.status === "approved" ? Boolean(before?.verified) : false,
-        ...(reviewedAt ? { identityCheckedAt: reviewedAt, locationCheckedAt: reviewedAt } : {}),
+        ...(reviewedAt ? { identityCheckedAt: before.identityCheckedAt ?? reviewedAt, locationCheckedAt: reviewedAt } : {}),
         ...(input.status === "approved" ? {} : { verifiedAt: null, verifiedBy: null }),
       }).where(eq(sellers.id, input.id));
       const [after] = await db.select().from(sellers).where(eq(sellers.id, input.id));
@@ -352,6 +374,12 @@ export const adminRouter = createRouter({
       if (input.verified && before.status !== "approved") {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Approve the shop before awarding verification." });
       }
+      if (input.verified) {
+        const [identity] = await db.select().from(sellerIdentityDocuments).where(eq(sellerIdentityDocuments.sellerId, input.id)).limit(1);
+        if (identity?.status !== "approved" && !before.identityCheckedAt) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "An accepted identity review is required before awarding the blue tick." });
+        }
+      }
       if (input.verified && (!input.identityChecked || !input.locationChecked)) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Identity and location checks are both required." });
       }
@@ -371,6 +399,57 @@ export const adminRouter = createRouter({
         entityType: "seller", entityId: input.id, beforeState: before, afterState: after,
       });
       return { ok: true };
+    }),
+
+  viewSellerIdentity: publicQuery
+    .input(z.object({ key: z.string(), sellerId: z.number() }))
+    .mutation(async ({ input }) => {
+      requireAdmin(input.key);
+      const db = getDb();
+      const [record] = await db.select().from(sellerIdentityDocuments).where(eq(sellerIdentityDocuments.sellerId, input.sellerId)).limit(1);
+      if (!record) throw new TRPCError({ code: "NOT_FOUND", message: "No protected identity record was submitted." });
+      await writeAudit({ key: input.key, action: "seller.identity.viewed", entityType: "seller", entityId: input.sellerId, meta: { documentId: record.id } });
+      const idNumber = record.idNumberCiphertext && record.idNumberIv && record.idNumberTag
+        ? decryptIdentity({ ciphertext: record.idNumberCiphertext, iv: record.idNumberIv, tag: record.idNumberTag })
+        : null;
+      const documentData = record.documentCiphertext && record.documentIv && record.documentTag
+        ? decryptIdentity({ ciphertext: record.documentCiphertext, iv: record.documentIv, tag: record.documentTag })
+        : null;
+      return {
+        sellerId: record.sellerId, documentType: record.documentType, idNumber,
+        idNumberLast4: record.idNumberLast4, documentData, mimeType: record.mimeType,
+        originalName: record.originalName, status: record.status, purpose: record.purpose,
+        consentVersion: record.consentVersion, consentedAt: record.consentedAt,
+        reviewedAt: record.reviewedAt, reviewNotes: record.reviewNotes,
+        retentionUntil: record.retentionUntil, deletedAt: record.deletedAt,
+      };
+    }),
+
+  reviewSellerIdentity: publicQuery
+    .input(z.object({
+      key: z.string(), sellerId: z.number(), decision: z.enum(["approved", "rejected"]),
+      notes: z.string().trim().min(5).max(1000),
+    }))
+    .mutation(async ({ input }) => {
+      requireAdmin(input.key);
+      const db = getDb();
+      const [before] = await db.select().from(sellerIdentityDocuments).where(eq(sellerIdentityDocuments.sellerId, input.sellerId)).limit(1);
+      if (!before) throw new TRPCError({ code: "NOT_FOUND", message: "No protected identity record was submitted." });
+      if (!before.documentCiphertext) throw new TRPCError({ code: "BAD_REQUEST", message: "The retained document is no longer available for review." });
+      const now = new Date();
+      await db.transaction(async (tx) => {
+        await tx.update(sellerIdentityDocuments).set({
+          status: input.decision, reviewedAt: now, reviewedBy: "admin-review",
+          reviewNotes: input.notes, retentionUntil: reviewedDocumentRetentionDate(now),
+        }).where(eq(sellerIdentityDocuments.id, before.id));
+        await tx.update(sellers).set({
+          identityCheckedAt: input.decision === "approved" ? now : null,
+          ...(input.decision === "rejected" ? { verified: false, verifiedAt: null, verifiedBy: null } : {}),
+        }).where(eq(sellers.id, input.sellerId));
+      });
+      const [after] = await db.select().from(sellerIdentityDocuments).where(eq(sellerIdentityDocuments.id, before.id));
+      await writeAudit({ key: input.key, action: `seller.identity.${input.decision}`, entityType: "seller", entityId: input.sellerId, beforeState: { status: before.status }, afterState: { status: after.status, retentionUntil: after.retentionUntil }, meta: { notes: input.notes } });
+      return { ok: true, retentionUntil: after.retentionUntil };
     }),
 
   setSellerPlan: publicQuery
@@ -449,6 +528,15 @@ export const adminRouter = createRouter({
     const withItems = await Promise.all(
       filtered.map(async (o) => {
         const items = await db.select().from(orderItems).where(eq(orderItems.orderId, o.id));
+        const payments = await db.select({
+          id: paymentTransactions.id, provider: paymentTransactions.provider,
+          merchantReference: paymentTransactions.merchantReference, trackingId: paymentTransactions.trackingId,
+          amount: paymentTransactions.amount, currency: paymentTransactions.currency,
+          status: paymentTransactions.status, paymentMethod: paymentTransactions.paymentMethod,
+          paymentAccountMasked: paymentTransactions.paymentAccountMasked,
+          confirmationCode: paymentTransactions.confirmationCode,
+          verifiedAt: paymentTransactions.verifiedAt, createdAt: paymentTransactions.createdAt,
+        }).from(paymentTransactions).where(eq(paymentTransactions.orderId, o.id)).orderBy(desc(paymentTransactions.createdAt));
         return {
           ...o,
           customerName: (o as any).customerName ?? 'Unknown',
@@ -463,6 +551,7 @@ export const adminRouter = createRouter({
             const commissionFee = recordedFee > 0 ? recordedFee : Math.round(gross * Number(o.commissionFee ?? 0) / Math.max(1, Number(o.subtotal ?? 0)));
             return { ...item, commissionFee, sellerNet: Number(item.sellerNet ?? 0) || gross - commissionFee };
           }),
+          payments,
         };
       }),
     );
@@ -673,7 +762,7 @@ export const adminRouter = createRouter({
   // ============================================
   // LISTINGS (with search)
   // ============================================
-  listings: publicQuery.input(z.object({ key: z.string(), search: z.string().optional(), status: z.enum(["pending", "approved", "rejected"]).optional() })).query(async ({ input }) => {
+  listings: publicQuery.input(z.object({ key: z.string(), search: z.string().optional(), status: z.enum(["pending", "approved", "rejected", "suspended", "terminated"]).optional() })).query(async ({ input }) => {
     requireAdmin(input.key);
     const db = getDb();
     const rows = await db
@@ -697,6 +786,10 @@ export const adminRouter = createRouter({
       requireAdmin(input.key);
       const db = getDb();
       const [before] = await db.select().from(listings).where(eq(listings.id, input.id));
+      if (!before) throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found." });
+      if (input.status === "approved" && before.isBranded && (!before.brandName || !before.authenticityEvidence)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Branded goods cannot be approved without recorded authenticity evidence." });
+      }
       await db.update(listings).set({ status: input.status }).where(eq(listings.id, input.id));
       const [after] = await db.select().from(listings).where(eq(listings.id, input.id));
       await writeAudit({ key: input.key, action: "listing.status.changed", entityType: "listing", entityId: input.id, beforeState: before, afterState: after });

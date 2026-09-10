@@ -56,10 +56,10 @@ export default function Privacy() {
         <div className="mt-10 space-y-6">
           <Section icon={Database} title="Information we collect">
             <p><b>Buyers:</b> name, phone number, delivery location or address, account preferences, order history, items purchased, amounts, payment method, payment status and transaction reference.</p>
-            <p><b>Sellers and delivery partners:</b> shop or business details, owner name, contact details, district or location, identity-document type and number, TIN where applicable, payout method and payout number, contracts, listings and performance records.</p>
+            <p><b>Sellers and delivery partners:</b> shop or business details, owner name, contact details, district or location, identity evidence, TIN where applicable, payout method and payout number, contracts, listings and performance records.</p>
             <p><b>Marketing subscribers:</b> name, email address or phone number, selected communication channels, consent source and date, and unsubscribe status.</p>
             <p><b>Technical and security information:</b> our hosting provider may process IP address, browser or device information, request logs and error information needed to deliver and protect the service.</p>
-            <p><b>Uploads:</b> product and advertising images submitted by sellers. The current public seller-registration form does not upload identity-document photographs.</p>
+            <p><b>Uploads:</b> product and advertising images submitted by sellers. A seller identity-document image is collected only through the protected verification form, with an explicit purpose notice and consent. It is never published in the storefront.</p>
           </Section>
 
           <Section icon={FileText} title="Why we use this information">
@@ -71,23 +71,24 @@ export default function Privacy() {
 
           <Section icon={Users} title="Who receives information">
             <p>Order details are provided only as necessary to the relevant seller, restaurant, delivery partner and support personnel.</p>
-            <p>Payment information and transaction details may be processed by Flutterwave and the selected mobile-money or card provider. UG Souq does not ask for or store a mobile-money PIN or full card credentials.</p>
-            <p>Railway provides application and database hosting. Brevo and Africa&apos;s Talking may process contact details only if those services are enabled for consented email, SMS or WhatsApp communications.</p>
+            <p>When enabled, Pesapal and the selected mobile-money or card provider process the minimum billing and transaction details needed to complete and verify a payment. UG Souq does not ask for or store a mobile-money PIN or full card credentials.</p>
+            <p>Infrastructure, database and communication providers process information only where enabled and necessary to operate UG Souq. Their access must be limited by contract, technical controls and UG Souq&apos;s documented instructions.</p>
             <p>We may disclose information when required by Ugandan law, a valid court order or a competent public authority. We do not sell personal data.</p>
           </Section>
 
           <Section icon={Globe2} title="Storage and transfers outside Uganda">
             <p>Some technology providers may process or store information outside Uganda. Before enabling a provider, UG Souq must document its processing locations, contractual protections and security safeguards, and use consent or another lawful transfer basis where required.</p>
+            <p>Our privacy-by-design standard also follows internationally recognised principles of lawfulness and transparency, purpose limitation, data minimisation, accuracy, storage limitation, security and accountability. Where UG Souq intentionally offers services to people protected by another jurisdiction, that jurisdiction&apos;s applicable requirements must be assessed before launch.</p>
           </Section>
 
           <Section icon={Lock} title="Security">
             <p>UG Souq uses HTTPS for information sent between a device and the service, restricts database and administrative access, and keeps payment-provider credentials outside the public application code.</p>
-            <p>Government identification numbers and financial details are treated as restricted information and must never be displayed publicly. No internet service can guarantee absolute security.</p>
-            <p>Never send UG Souq your mobile-money PIN, card PIN, password or complete identity-document photograph through ordinary chat.</p>
+            <p>Seller identity numbers and document images are encrypted separately from the public seller profile. Opening an identity record requires administrator authorisation and creates an audit entry. General dashboard lists show only verification status and the final four characters.</p>
+            <p>Never send UG Souq your mobile-money PIN, card PIN, password or identity-document photograph through ordinary chat.</p>
           </Section>
 
           <Section icon={Eye} title="Retention and your rights">
-            <p>Account and profile information is retained while the account is active and then deleted or anonymised when it is no longer required. Marketing contact details are used until consent is withdrawn; a minimal suppression record may be retained so that an unsubscribe request continues to be honoured.</p>
+            <p>Account and profile information is retained while the account is active and then deleted or anonymised when it is no longer required. A seller&apos;s encrypted identity image and full identity number are scheduled for deletion 30 days after the verification decision. A non-reversible fingerprint, the final four characters, consent record, decision and audit history may be retained to prevent duplicate or fraudulent registrations and demonstrate accountability.</p>
             <p>Order, payout, fraud-prevention and payment records may be retained after account deletion where necessary for tax, accounting, disputes, refunds, security or other legal obligations. Information that is no longer needed must be securely deleted or anonymised.</p>
             <p>You may request access to your personal data, correction of inaccurate information, restriction or objection to certain processing, withdrawal of marketing consent, or deletion where the law permits. Requests are handled within the applicable legal period after identity verification.</p>
           </Section>
@@ -128,7 +129,7 @@ export default function Privacy() {
         </div>
 
         <p className="mt-6 text-xs text-neutral-400">
-          Effective: 3 September 2026 · UG Souq, Kampala, Uganda
+          Updated: 10 September 2026 · UG Souq, Kampala, Uganda
         </p>
       </main>
       <Footer />

@@ -35,6 +35,23 @@ const TABLES = [
     \`warranty_months\` int NOT NULL DEFAULT 0, \`flash_sale\` boolean NOT NULL DEFAULT false,
     \`created_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
+  `CREATE TABLE IF NOT EXISTS seller_identity_documents (
+    \`id\` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    \`seller_id\` bigint unsigned NOT NULL UNIQUE,
+    \`document_type\` enum('national_id','passport','driving_permit') NOT NULL,
+    \`id_number_ciphertext\` text, \`id_number_iv\` varchar(32), \`id_number_tag\` varchar(32),
+    \`id_number_fingerprint\` varchar(64) NOT NULL UNIQUE, \`id_number_last4\` varchar(4) NOT NULL,
+    \`document_ciphertext\` mediumtext, \`document_iv\` varchar(32), \`document_tag\` varchar(32),
+    \`mime_type\` varchar(64), \`original_name\` varchar(255),
+    \`status\` enum('pending','approved','rejected','deleted') NOT NULL DEFAULT 'pending',
+    \`purpose\` varchar(255) NOT NULL DEFAULT 'Seller identity verification and marketplace fraud prevention',
+    \`consent_version\` varchar(32) NOT NULL, \`consented_at\` timestamp NOT NULL,
+    \`reviewed_at\` timestamp NULL, \`reviewed_by\` varchar(64), \`review_notes\` text,
+    \`retention_until\` timestamp NULL, \`deleted_at\` timestamp NULL,
+    \`created_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX \`idx_identity_status\` (\`status\`), INDEX \`idx_identity_retention\` (\`retention_until\`)
+  )`,
   `CREATE TABLE IF NOT EXISTS listings (
     \`id\` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
     \`seller_id\` bigint unsigned NOT NULL, \`name\` varchar(255) NOT NULL, \`category\` varchar(64) NOT NULL,
@@ -42,6 +59,7 @@ const TABLES = [
     \`condition\` enum('new','refurbished','used') NOT NULL DEFAULT 'new',
     \`warranty_months\` int NOT NULL DEFAULT 0, \`image_note\` varchar(255) NOT NULL,
     \`image_data\` mediumtext,
+    \`is_branded\` boolean NOT NULL DEFAULT false, \`brand_name\` varchar(128), \`authenticity_evidence\` text,
     \`status\` enum('pending','approved','rejected','suspended','terminated') NOT NULL DEFAULT 'pending',
     \`created_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
@@ -137,6 +155,18 @@ const TABLES = [
     \`status\` enum('pending','successful','failed','cancelled') NOT NULL DEFAULT 'pending',
     \`provider_response\` json NULL, \`created_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     \`verified_at\` timestamp NULL, INDEX \`idx_plus_payments_customer\` (\`customer_id\`)
+  )`,
+  `CREATE TABLE IF NOT EXISTS payment_transactions (
+    \`id\` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    \`order_id\` bigint unsigned NOT NULL, \`provider\` enum('pesapal') NOT NULL DEFAULT 'pesapal',
+    \`merchant_reference\` varchar(50) NOT NULL UNIQUE, \`tracking_id\` varchar(64) UNIQUE,
+    \`amount\` int NOT NULL, \`currency\` varchar(8) NOT NULL DEFAULT 'UGX',
+    \`status\` enum('pending','completed','failed','reversed','invalid') NOT NULL DEFAULT 'pending',
+    \`payment_method\` varchar(64), \`payment_account_masked\` varchar(128), \`confirmation_code\` varchar(128),
+    \`provider_response\` json, \`verified_at\` timestamp NULL,
+    \`created_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX \`idx_payment_order\` (\`order_id\`), INDEX \`idx_payment_status\` (\`status\`)
   )`,
   `CREATE TABLE IF NOT EXISTS affiliates (
     \`id\` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,

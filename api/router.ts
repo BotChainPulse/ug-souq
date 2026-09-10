@@ -4,7 +4,7 @@ import { eq, desc, asc, like, or, and, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { createRouter, publicQuery } from "./middleware";
 import { getDb } from "./queries/connection";
-import { sellers, products, restaurants, menuItems, orders, orderItems, affiliates, listings, customers, deliveryPartners, sellerAdBookings, notifications, plusMemberships, plusPayments, marketingSubscribers, sellerSubscriptions } from "../db/schema";
+import { sellers, sellerIdentityDocuments, products, restaurants, menuItems, orders, orderItems, affiliates, listings, customers, deliveryPartners, sellerAdBookings, notifications, plusMemberships, plusPayments, marketingSubscribers, sellerSubscriptions } from "../db/schema";
 import { createPlusCheckout, plusPlan } from "./plus";
 import { adminRouter } from "./admin";
 import { trustRouter } from "./trust";
@@ -13,6 +13,8 @@ import { migrateRouter } from "./migrate";
 import { syncDemoGroceries } from "./demoGroceries";
 import { getServerDeliveryQuote, validateRequestedItems } from "./orderValidation";
 import { commissionForLine, PRO_MONTHLY_FEE, sellerPlan } from "./sellerPolicy";
+import { encryptIdentity, identityFingerprint, IDENTITY_CONSENT_VERSION, identityStorageReady, parseIdentityDocumentDataUrl } from "./identity";
+import { createPesapalPayment, pesapalConfigured } from "./pesapal";
 
 function orderCode() {
   // Unambiguous alphabet: no O/0, I/1, L — buyers type these codes by hand
@@ -190,7 +192,6 @@ export const appRouter = createRouter({
           sellerName: seller.shopName,
           sellerVerified: seller.verified,
           sellerRating: seller.rating / 10,
-          sellerPhone: seller.phone,
           sellerDistrict: seller.district,
           discount: listing.oldPrice ? Math.round((1 - listing.price / listing.oldPrice) * 100) : 0,
         };
@@ -207,7 +208,6 @@ export const appRouter = createRouter({
         sellerName: row.seller.shopName,
         sellerVerified: row.seller.verified,
         sellerRating: row.seller.rating / 10,
-        sellerPhone: row.seller.phone,
         sellerDistrict: row.seller.district,
         discount: row.product.oldPrice ? Math.round((1 - row.product.price / row.product.oldPrice) * 100) : 0,
       };
@@ -227,7 +227,6 @@ export const appRouter = createRouter({
         sellerName: seller.shopName,
         sellerVerified: seller.verified,
         sellerRating: seller.rating / 10,
-        sellerPhone: seller.phone,
         discount: product.oldPrice ? Math.round((1 - product.price / product.oldPrice) * 100) : 0,
       }));
       const lrows = await db
@@ -255,7 +254,6 @@ export const appRouter = createRouter({
           sellerName: seller.shopName,
           sellerVerified: seller.verified,
           sellerRating: seller.rating / 10,
-          sellerPhone: seller.phone,
           discount: listing.oldPrice ? Math.round((1 - listing.price / listing.oldPrice) * 100) : 0,
         }));
       return {
@@ -264,7 +262,6 @@ export const appRouter = createRouter({
           shopName: seller.shopName,
           verified: seller.verified,
           rating: seller.rating / 10,
-          phone: seller.phone,
           district: seller.district,
         },
         products: [...items, ...litems].sort((a, b) => Number(b.sellerVerified) - Number(a.sellerVerified)),
@@ -290,7 +287,6 @@ export const appRouter = createRouter({
             sellerName: seller.shopName,
             sellerVerified: seller.verified,
             sellerRating: seller.rating / 10,
-            sellerPhone: seller.phone,
             discount: product.oldPrice ? Math.round((1 - product.price / product.oldPrice) * 100) : 0,
           }))
           .filter((p) => (cat ? p.category.toLowerCase() === cat : true))
@@ -321,7 +317,6 @@ export const appRouter = createRouter({
             sellerName: seller.shopName,
             sellerVerified: seller.verified,
             sellerRating: seller.rating / 10,
-            sellerPhone: seller.phone,
             discount: listing.oldPrice ? Math.round((1 - listing.price / listing.oldPrice) * 100) : 0,
           }))
           .filter((p) => (cat ? p.category.toLowerCase() === cat : true))
@@ -370,6 +365,7 @@ export const appRouter = createRouter({
   }),
 
   orders: createRouter({
+    paymentOptions: publicQuery.query(() => ({ pesapal: pesapalConfigured(), environment: process.env.PESAPAL_ENV === "live" ? "live" as const : "sandbox" as const })),
     create: publicQuery
       .input(z.object({
         customerName: z.string().min(2),
@@ -528,6 +524,14 @@ export const appRouter = createRouter({
         await db.update(orders).set({ paymentStatus: "pending_confirmation", paymentRef: input.ref.trim() }).where(eq(orders.id, order.id));
         return { ok: true, already: false };
       }),
+    startPesapalPayment: publicQuery
+      .input(z.object({ code: z.string().min(4).max(16), phone: z.string().min(9).max(32) }))
+      .mutation(async ({ input }) => {
+        const db = getDb();
+        const [order] = await db.select().from(orders).where(eq(orders.code, input.code.trim().toUpperCase())).limit(1);
+        if (!order || normPhone(order.phone) !== normPhone(input.phone)) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found for that code and phone number." });
+        return createPesapalPayment(order);
+      }),
     track: publicQuery.input(z.object({ code: z.string(), phone: z.string() })).query(async ({ input }) => {
       const db = getDb();
       const [order] = await db.select().from(orders).where(eq(orders.code, input.code.trim().toUpperCase()));
@@ -538,6 +542,7 @@ export const appRouter = createRouter({
   }),
 
   sellers: createRouter({
+    verificationReadiness: publicQuery.query(() => ({ secureIdentityUpload: identityStorageReady() })),
     register: publicQuery
       .input(z.object({
         shopName: z.string().min(2),
@@ -546,8 +551,9 @@ export const appRouter = createRouter({
         email: z.string().optional(),
         idType: z.string(),
         idNumber: z.string().min(3),
-        // Retained for backward compatibility; the public form no longer pretends to upload a document.
-        idPhotoName: z.string().optional(),
+        idDocumentName: z.string().trim().min(1).max(255),
+        idDocumentData: z.string().min(1_000).max(1_500_000),
+        identityConsentAccepted: z.literal(true),
         district: z.string(),
         landmark: z.string(),
         tin: z.string().optional(),
@@ -561,15 +567,42 @@ export const appRouter = createRouter({
         if (!input.commissionTermsAccepted || !input.sellerContractAccepted) {
           throw new Error("You must accept seller contract and commission terms.");
         }
-        const [row] = await db.insert(sellers).values({
-          ...input,
-          idPhotoName: input.idPhotoName ?? null,
-          status: "pending",
-          commissionTermsAccepted: true,
-          sellerContractAccepted: true,
-          commissionTermsAcceptedAt: new Date(),
-          sellerContractAcceptedAt: new Date(),
-        }).$returningId();
+        const phone = normPhone(input.phone);
+        const [duplicatePhone] = await db.select({ id: sellers.id }).from(sellers).where(eq(sellers.phone, phone)).limit(1);
+        if (duplicatePhone) throw new TRPCError({ code: "CONFLICT", message: "A seller account already exists for this phone number." });
+        const idNumber = input.idNumber.trim().toUpperCase();
+        const fingerprint = identityFingerprint(idNumber);
+        const [duplicateIdentity] = await db.select({ id: sellerIdentityDocuments.id }).from(sellerIdentityDocuments).where(eq(sellerIdentityDocuments.idNumberFingerprint, fingerprint)).limit(1);
+        if (duplicateIdentity) throw new TRPCError({ code: "CONFLICT", message: "This identity is already linked to a seller account. Contact privacy support if this is unexpected." });
+        const idNumberEncrypted = encryptIdentity(idNumber);
+        const document = parseIdentityDocumentDataUrl(input.idDocumentData);
+        const documentEncrypted = encryptIdentity(document.normalizedDataUrl);
+        const documentType = input.idType === "Passport" ? "passport" as const : input.idType === "Driving permit" ? "driving_permit" as const : "national_id" as const;
+        const now = new Date();
+        const row = await db.transaction(async (tx) => {
+          const [created] = await tx.insert(sellers).values({
+            shopName: input.shopName, ownerName: input.ownerName, phone,
+            email: input.email || null, idType: input.idType, idNumber: null, idPhotoName: null,
+            district: input.district, landmark: input.landmark, tin: input.tin || null,
+            payoutMethod: input.payoutMethod, payoutNumber: normPhone(input.payoutNumber),
+            status: "pending", commissionTermsAccepted: true, sellerContractAccepted: true,
+            commissionTermsAcceptedAt: now, sellerContractAcceptedAt: now,
+          }).$returningId();
+          await tx.insert(sellerIdentityDocuments).values({
+            sellerId: created.id, documentType,
+            idNumberCiphertext: idNumberEncrypted.ciphertext, idNumberIv: idNumberEncrypted.iv, idNumberTag: idNumberEncrypted.tag,
+            idNumberFingerprint: fingerprint, idNumberLast4: idNumber.slice(-4),
+            documentCiphertext: documentEncrypted.ciphertext, documentIv: documentEncrypted.iv, documentTag: documentEncrypted.tag,
+            mimeType: document.mimeType, originalName: input.idDocumentName.replace(/[^a-zA-Z0-9._ -]/g, "_").slice(0, 255),
+            consentVersion: IDENTITY_CONSENT_VERSION, consentedAt: now, status: "pending",
+          });
+          return created;
+        });
+        await db.insert(notifications).values({
+          type: "seller_registered", title: "Seller identity review required",
+          message: `${input.shopName} submitted a protected identity record for administrator review.`,
+          entityType: "seller", entityId: String(row.id),
+        });
         return { id: row.id };
       }),
     lookup: publicQuery.input(z.object({ phone: z.string().min(9) })).query(async ({ input }) => {
@@ -602,6 +635,9 @@ export const appRouter = createRouter({
         stock: z.number().min(1).max(10000),
         condition: z.enum(["new", "refurbished", "used"]),
         warrantyMonths: z.number().min(0).max(60),
+        isBranded: z.boolean().default(false),
+        brandName: z.string().trim().max(128).optional(),
+        authenticityEvidence: z.string().trim().max(1000).optional(),
         imageNote: z.string().optional(),
         imageData: z.string().min(100, "A real photo of the item is required").max(2_000_000, "Photo is too large to save"),
       }))
@@ -610,6 +646,9 @@ export const appRouter = createRouter({
         const [seller] = await db.select().from(sellers).where(eq(sellers.phone, input.phone.trim()));
         if (!seller) throw new Error("No shop registered with this phone number. Register your shop first.");
         if (seller.status !== "approved") throw new Error("Your shop must be approved before you can list items.");
+        if (input.isBranded && (!input.brandName || !input.authenticityEvidence || input.authenticityEvidence.length < 10)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Branded goods require a brand name and supplier, invoice, serial-number or authorization evidence." });
+        }
         const [subscription] = await db.select().from(sellerSubscriptions).where(eq(sellerSubscriptions.sellerId, seller.id));
         const plan = sellerPlan(subscription);
         const sellerListings = await db.select().from(listings).where(eq(listings.sellerId, seller.id));
@@ -633,6 +672,9 @@ export const appRouter = createRouter({
           warrantyMonths: input.condition === "new" ? 0 : input.warrantyMonths,
           imageNote: input.imageNote ?? "Photo uploaded by seller",
           imageData: input.imageData,
+          isBranded: input.isBranded,
+          brandName: input.isBranded ? input.brandName : null,
+          authenticityEvidence: input.isBranded ? input.authenticityEvidence : null,
           status: "pending",
         }).$returningId();
         await db.insert(notifications).values({

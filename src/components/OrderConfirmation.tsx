@@ -15,6 +15,8 @@ export default function OrderConfirmation({ placed }: Props) {
   const [copied, setCopied] = useState(false)
   const [copiedNum, setCopiedNum] = useState(false)
   const submitPayment = trpc.orders.submitPayment.useMutation()
+  const { data: paymentOptions } = trpc.orders.paymentOptions.useQuery()
+  const startPesapal = trpc.orders.startPesapalPayment.useMutation()
 
   const isCash = placed.payment === 'cash'
   const m = placed.payment === 'mtn_momo' ? MOMO_MERCHANT : AIRTEL_MERCHANT
@@ -37,6 +39,11 @@ export default function OrderConfirmation({ placed }: Props) {
       await submitPayment.mutateAsync({ code: placed.code, phone: placed.phone, ref: payRef.trim() })
       setPaySent(true)
     } catch { /* shown inline */ }
+  }
+
+  const payWithPesapal = async () => {
+    const session = await startPesapal.mutateAsync({ code: placed.code, phone: placed.phone })
+    window.location.assign(session.redirectUrl)
   }
 
   const steps = [
@@ -84,7 +91,20 @@ export default function OrderConfirmation({ placed }: Props) {
       {/* Payment section */}
       {!isCash && (
         <div className="bg-white rounded-3xl border border-neutral-200 shadow-sm p-6 sm:p-7">
-          {paySent ? (
+          {paymentOptions?.pesapal && !paySent && (
+            <div>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl grid place-items-center bg-emerald-50"><Phone size={20} className="text-emerald-700" /></div>
+                <div><h2 className="font-extrabold text-base">Secure payment with Pesapal</h2><p className="text-xs text-neutral-500">Choose an available mobile-money or card option on Pesapal. UG Souq never sees your PIN or complete card details.</p></div>
+              </div>
+              {paymentOptions.environment === 'sandbox' && <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-800">Test mode—do not send real money.</p>}
+              <button onClick={payWithPesapal} disabled={startPesapal.isPending} className="mt-4 w-full rounded-full py-3.5 text-sm font-bold text-white disabled:opacity-50" style={{ background: ORANGE }}>
+                {startPesapal.isPending ? 'Opening secure payment…' : `Pay ${fmt(placed.total)} securely`}
+              </button>
+              {startPesapal.isError && <p className="mt-2 text-center text-sm text-red-600">{startPesapal.error.message}</p>}
+            </div>
+          )}
+          {!paymentOptions?.pesapal && (paySent ? (
             <div className="text-center py-4">
               <div className="mx-auto w-14 h-14 rounded-full bg-green-50 grid place-items-center">
                 <CircleCheckBig size={30} className="text-green-600" />
@@ -145,7 +165,7 @@ export default function OrderConfirmation({ placed }: Props) {
                 <MessageCircle size={13} /> Prefer cash? Tell us on WhatsApp and we'll switch the order.
               </p>
             </>
-          )}
+          ))}
         </div>
       )}
     </div>

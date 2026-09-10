@@ -6,10 +6,10 @@ import Footer from '../components/Footer'
 import { useCart, fmt } from '../lib/cart'
 import { DELIVERY_ZONES, RETURN_POLICY, PICKUP_STATIONS } from '../lib/delivery'
 import { categoryName } from '../lib/categories'
-import { ORANGE } from '../lib/site'
+import { ORANGE, WHATSAPP_INTL } from '../lib/site'
 import {
   BadgeCheck, ShoppingCart, Check, Star, Package, Truck, RotateCcw,
-  Phone, Store, ChevronRight, MapPin, Zap,
+  Flag, Store, ChevronRight, MapPin, Zap,
 } from 'lucide-react'
 
 export default function ProductDetailPage() {
@@ -129,12 +129,13 @@ export default function ProductDetailPage() {
                     {added ? <><Check size={18} /> Added to cart</> : <><ShoppingCart size={18} /> Add to Cart</>}
                   </button>
                   <a
-                    href={`tel:${p.sellerPhone}`}
+                    href={`https://wa.me/${WHATSAPP_INTL}?text=${encodeURIComponent(`I want to report or ask about ${p.name} (${window.location.href})`)}`}
+                    target="_blank" rel="noreferrer"
                     className="w-14 flex items-center justify-center rounded-xl border-2 font-bold"
                     style={{ borderColor: ORANGE, color: ORANGE }}
-                    title={`Call ${p.sellerName}`}
+                    title="Report or ask UGSouq about this item"
                   >
-                    <Phone size={20} />
+                    <Flag size={20} />
                   </a>
                 </div>
 
@@ -198,8 +199,8 @@ export default function ProductDetailPage() {
                         {p.sellerVerified ? ' · Verified seller' : ''}
                       </p>
                     </div>
-                    <a href={`tel:${p.sellerPhone}`} className="text-xs font-bold px-3.5 py-2 rounded-full border-2 shrink-0" style={{ borderColor: ORANGE, color: ORANGE }}>
-                      Call
+                    <a href={`https://wa.me/${WHATSAPP_INTL}?text=${encodeURIComponent(`Please help me verify ${p.name} sold by ${p.sellerName}.`)}`} target="_blank" rel="noreferrer" className="text-xs font-bold px-3.5 py-2 rounded-full border-2 shrink-0" style={{ borderColor: ORANGE, color: ORANGE }}>
+                      Report item
                     </a>
                   </div>
                 </div>

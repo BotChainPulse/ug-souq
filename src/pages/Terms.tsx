@@ -16,7 +16,7 @@ export default function Terms() {
       <Header />
       <main className="mx-auto max-w-3xl px-4 py-10">
         <h1 className="text-2xl font-extrabold">Terms &amp; Conditions</h1>
-        <p className="mt-1 text-sm text-neutral-500">Last updated: August 2026 · Governed by the laws of Uganda</p>
+        <p className="mt-1 text-sm text-neutral-500">Last updated: 10 September 2026 · Governed by the laws of Uganda</p>
 
         <Section title="1. Who we are">
           <p>UG Souq ("UG Souq", "we", "us") is an online marketplace operated from Kampala, Uganda. We connect buyers with independent sellers and restaurants. By using UG Souq you agree to these Terms. If you do not agree, please do not use the platform.</p>
@@ -46,7 +46,8 @@ export default function Terms() {
         <Section title="7. Sellers and verification">
           <p>Sellers must provide a valid National ID or passport, a verifiable business location, and (where applicable) a TIN. Verified sellers display a blue badge. Verification confirms identity and location checks were completed — it is not a guarantee of product quality, but unverified sellers are ranked lower and may be restricted.</p>
           <p>The Free seller plan includes up to five active or pending listing slots and a 7% marketplace commission on each seller item subtotal. Seller Pro is UGX 30,000 per 30 days, includes up to 50 listing slots, and reduces that commission to 5%. Delivery fees are excluded from seller commission. Paid advertising and verification are separate from Seller Pro.</p>
-          <p>Sellers are responsible for the accuracy of their listings, lawful ownership of goods, and honouring warranties they advertise. Sellers who repeatedly cancel orders, sell counterfeit goods, or abuse buyers are suspended or removed.</p>
+          <p>Sellers are responsible for the accuracy of their listings, lawful ownership of goods, and honouring warranties they advertise. Branded goods require supplier, invoice, serial-number or authorization evidence before publication. UG Souq may request further evidence, conduct test purchases, suspend a listing while investigating, cooperate with rights holders or competent authorities, and permanently remove sellers responsible for confirmed counterfeits.</p>
+          <p>A blue badge means the seller&apos;s identity and stated business location passed UG Souq&apos;s review. It does not mean every product has been authenticated or guaranteed by UG Souq. Buyers can report a suspicious item through the product page without receiving the seller&apos;s private registration phone number.</p>
         </Section>
 
         <Section title="8. Prohibited items and conduct">

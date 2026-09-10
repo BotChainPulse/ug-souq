@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 import {
   Store, TrendingUp, Truck, ShieldCheck, BadgeCheck, MapPin, FileText,
-  Check, ChevronLeft, ChevronRight, MessageCircle, CircleCheckBig, Info, Wallet,
+  Check, ChevronLeft, ChevronRight, MessageCircle, CircleCheckBig, Info, Wallet, Camera, Lock,
 } from 'lucide-react'
 import { ORANGE, WA_LINK } from '../lib/site'
 import { trpc } from '@/providers/trpc'
@@ -12,23 +12,72 @@ const steps = ['Shop details', 'Verification', 'Payout', 'Review & submit']
 
 const districts = ['Kampala', 'Wakiso', 'Mukono', 'Jinja', 'Mbale', 'Gulu', 'Lira', 'Mbarara', 'Masaka', 'Entebbe', 'Arua', 'Fort Portal', 'Other']
 
+function identityPhotoToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+    const url = URL.createObjectURL(file)
+    image.onload = () => {
+      const max = 1400
+      const scale = Math.min(1, max / Math.max(image.width, image.height))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(image.width * scale)
+      canvas.height = Math.round(image.height * scale)
+      const context = canvas.getContext('2d')
+      if (!context) return reject(new Error('Image processing is unavailable.'))
+      context.drawImage(image, 0, 0, canvas.width, canvas.height)
+      URL.revokeObjectURL(url)
+      let quality = 0.84
+      let data = canvas.toDataURL('image/jpeg', quality)
+      while (data.length > 950_000 && quality > 0.35) {
+        quality -= 0.08
+        data = canvas.toDataURL('image/jpeg', quality)
+      }
+      if (data.length > 1_350_000) return reject(new Error('The identity image is too large. Take a clearer, closer photo.'))
+      resolve(data)
+    }
+    image.onerror = () => { URL.revokeObjectURL(url); reject(new Error('That image could not be read.')) }
+    image.src = url
+  })
+}
+
 export default function Sell() {
   const [step, setStep] = useState(0)
   const [form, setForm] = useState({
     shop: '', name: '', phone: '', email: '',
     idType: 'National ID', idNumber: '', district: '', landmark: '', tin: '',
     payout: 'MTN MoMo', payoutNumber: '',
+    identityConsentAccepted: false,
     commissionTermsAccepted: false,
     sellerContractAccepted: false,
   })
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }))
   const register = trpc.sellers.register.useMutation()
+  const { data: verificationReadiness } = trpc.sellers.verificationReadiness.useQuery()
   const [submitted, setSubmitted] = useState(false)
+  const [identityDocument, setIdentityDocument] = useState<{ name: string; data: string } | null>(null)
+  const [identityBusy, setIdentityBusy] = useState(false)
+  const [identityError, setIdentityError] = useState('')
+
+  const selectIdentityDocument = async (file?: File) => {
+    if (!file) return
+    setIdentityBusy(true)
+    setIdentityError('')
+    try {
+      setIdentityDocument({ name: file.name, data: await identityPhotoToDataUrl(file) })
+    } catch (error) {
+      setIdentityDocument(null)
+      setIdentityError(error instanceof Error ? error.message : 'The identity image could not be prepared.')
+    } finally {
+      setIdentityBusy(false)
+    }
+  }
 
   const submit = async () => {
     await register.mutateAsync({
       shopName: form.shop, ownerName: form.name, phone: form.phone,
       email: form.email || undefined, idType: form.idType, idNumber: form.idNumber,
+      idDocumentName: identityDocument!.name, idDocumentData: identityDocument!.data,
+      identityConsentAccepted: true,
       district: form.district, landmark: form.landmark,
       tin: form.tin || undefined, payoutMethod: form.payout, payoutNumber: form.payoutNumber,
       commissionTermsAccepted: form.commissionTermsAccepted,
@@ -39,7 +88,7 @@ export default function Sell() {
 
   const stepValid = [
     form.shop && form.name && form.phone,
-    form.idNumber && form.district && form.landmark,
+    form.idNumber && identityDocument && form.identityConsentAccepted && form.district && form.landmark,
     form.payoutNumber && form.commissionTermsAccepted,
     form.sellerContractAccepted,
   ][step]
@@ -143,6 +192,12 @@ export default function Sell() {
 
       {/* Registration wizard */}
       <section className="mx-auto max-w-3xl px-4 mt-10 mb-16">
+        {verificationReadiness && !verificationReadiness.secureIdentityUpload && (
+          <div className="mb-4 rounded-2xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-950">
+            <p className="font-extrabold flex items-center gap-2"><Lock size={17} /> Seller registration is temporarily paused</p>
+            <p className="mt-1">The dedicated identity-encryption key has not yet been activated. No identity document can be submitted until protected storage is ready.</p>
+          </div>
+        )}
         <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden">
           {/* Stepper */}
           <div className="flex border-b border-neutral-200">
@@ -181,7 +236,7 @@ export default function Sell() {
             {step === 1 && (
               <div className="space-y-4">
                 <h2 className="font-extrabold text-xl flex items-center gap-2"><BadgeCheck size={20} className="text-sky-600" /> Verification</h2>
-                <p className="text-sm text-neutral-600 bg-sky-50 border border-sky-100 rounded-xl p-3 flex gap-2"><Info size={16} className="shrink-0 text-sky-600 mt-0.5" /> These details begin the verification review. A blue badge is awarded only after an administrator confirms identity and business location.</p>
+                <p className="text-sm text-neutral-600 bg-sky-50 border border-sky-100 rounded-xl p-3 flex gap-2"><Info size={16} className="shrink-0 text-sky-600 mt-0.5" /> Identity approval is required before your shop can publish listings. The blue badge is a separate decision after an administrator also confirms business location.</p>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <Label>ID type *</Label>
@@ -193,7 +248,21 @@ export default function Sell() {
                   </div>
                   <Field label="ID number *" value={form.idNumber} onChange={(v) => set('idNumber', v)} placeholder="e.g. CMXXXXXXXXXX" />
                 </div>
-                <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">UG Souq does not collect identity-document photographs in this form. If additional evidence is required, support will arrange a secure verification method. Never send a mobile-money PIN or password.</p>
+                <div className="rounded-2xl border border-neutral-200 p-4">
+                  <Label>Identity document image *</Label>
+                  <p className="mb-3 text-xs text-neutral-500">Take a clear photograph showing all four corners. JPG, PNG or WebP only. The encrypted image is automatically scheduled for deletion 30 days after review.</p>
+                  <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-neutral-300 bg-white px-4 text-sm font-bold hover:bg-neutral-50">
+                    <Camera size={17} /> {identityBusy ? 'Preparing securely…' : identityDocument ? 'Replace document' : 'Choose or take photo'}
+                    <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden" onChange={(event) => selectIdentityDocument(event.target.files?.[0])} />
+                  </label>
+                  {identityDocument && <p className="mt-2 text-xs font-semibold text-emerald-700">Ready: {identityDocument.name}</p>}
+                  {identityError && <p className="mt-2 text-xs font-semibold text-red-700">{identityError}</p>}
+                </div>
+                <label className="flex items-start gap-2.5 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs text-sky-950">
+                  <input type="checkbox" checked={form.identityConsentAccepted} onChange={(event) => setForm((current) => ({ ...current, identityConsentAccepted: event.target.checked }))} className="mt-0.5 accent-sky-600" />
+                  <span><b>I consent to identity verification.</b> UG Souq may use this document only to verify my seller identity and prevent marketplace fraud. It is encrypted, restricted to authorised reviewers, access is logged, and the image is scheduled for deletion 30 days after review. I can request access or correction through Privacy Support.</span>
+                </label>
+                <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 flex gap-2"><Lock size={15} className="mt-0.5 shrink-0" /> Never send a mobile-money PIN, password or identity document through ordinary chat or WhatsApp. Use only this protected form.</p>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <Label>Business district *</Label>
@@ -239,7 +308,7 @@ export default function Sell() {
                 <div className="text-sm divide-y divide-neutral-100 border border-neutral-200 rounded-2xl overflow-hidden">
                   {[
                     ['Shop', form.shop], ['Owner', form.name], ['Phone', form.phone],
-                    ['ID', `${form.idType} · ${form.idNumber}`],
+                    ['ID', `${form.idType} · ending ${form.idNumber.slice(-4)}`],
                     ['Location', `${form.landmark ? form.landmark + ', ' : ''}${form.district}`],
                     ['TIN', form.tin || '—'], ['Payout', `${form.payout} · ${form.payoutNumber}`],
                   ].map(([k, v]) => (
@@ -269,7 +338,7 @@ export default function Sell() {
                     Continue <ChevronRight size={16} />
                   </button>
                 ) : (
-                  <button disabled={register.isPending} onClick={submit} className="flex items-center gap-1.5 text-sm font-bold text-white px-6 py-2.5 rounded-full disabled:opacity-40" style={{ background: ORANGE }}>
+                  <button disabled={register.isPending || !verificationReadiness?.secureIdentityUpload} onClick={submit} className="flex items-center gap-1.5 text-sm font-bold text-white px-6 py-2.5 rounded-full disabled:opacity-40" style={{ background: ORANGE }}>
                     {register.isPending ? 'Submitting…' : 'Submit for verification'} <BadgeCheck size={16} />
                   </button>
                 )}

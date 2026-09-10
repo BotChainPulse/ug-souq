@@ -42,6 +42,36 @@ export const sellers = mysqlTable("sellers", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Identity evidence is deliberately separated from the seller profile. The
+// ciphertext can only be opened server-side with SELLER_DOCUMENT_ENCRYPTION_KEY;
+// storefront and ordinary seller queries never select from this table.
+export const sellerIdentityDocuments = mysqlTable("seller_identity_documents", {
+  id: serial("id").primaryKey(),
+  sellerId: bigint("seller_id", { mode: "number", unsigned: true }).notNull().unique(),
+  documentType: mysqlEnum("document_type", ["national_id", "passport", "driving_permit"]).notNull(),
+  idNumberCiphertext: text("id_number_ciphertext"),
+  idNumberIv: varchar("id_number_iv", { length: 32 }),
+  idNumberTag: varchar("id_number_tag", { length: 32 }),
+  idNumberFingerprint: varchar("id_number_fingerprint", { length: 64 }).notNull().unique(),
+  idNumberLast4: varchar("id_number_last4", { length: 4 }).notNull(),
+  documentCiphertext: mediumtext("document_ciphertext"),
+  documentIv: varchar("document_iv", { length: 32 }),
+  documentTag: varchar("document_tag", { length: 32 }),
+  mimeType: varchar("mime_type", { length: 64 }),
+  originalName: varchar("original_name", { length: 255 }),
+  status: mysqlEnum("status", ["pending", "approved", "rejected", "deleted"]).notNull().default("pending"),
+  purpose: varchar("purpose", { length: 255 }).notNull().default("Seller identity verification and marketplace fraud prevention"),
+  consentVersion: varchar("consent_version", { length: 32 }).notNull(),
+  consentedAt: timestamp("consented_at").notNull(),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewedBy: varchar("reviewed_by", { length: 64 }),
+  reviewNotes: text("review_notes"),
+  retentionUntil: timestamp("retention_until"),
+  deletedAt: timestamp("deleted_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+});
+
 export const products = mysqlTable("products", {
   id: serial("id").primaryKey(),
   sellerId: bigint("seller_id", { mode: "number", unsigned: true }).notNull(),
@@ -70,6 +100,9 @@ export const listings = mysqlTable("listings", {
   warrantyMonths: int("warranty_months").notNull().default(0),
   imageNote: varchar("image_note", { length: 255 }).notNull(),
   imageData: mediumtext("image_data"),
+  isBranded: boolean("is_branded").notNull().default(false),
+  brandName: varchar("brand_name", { length: 128 }),
+  authenticityEvidence: text("authenticity_evidence"),
   status: mysqlEnum("status", ["pending", "approved", "rejected", "suspended", "terminated"]).notNull().default("pending"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -190,6 +223,24 @@ export const plusPayments = mysqlTable("plus_payments", {
   providerResponse: json("provider_response"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   verifiedAt: timestamp("verified_at"),
+});
+
+export const paymentTransactions = mysqlTable("payment_transactions", {
+  id: serial("id").primaryKey(),
+  orderId: bigint("order_id", { mode: "number", unsigned: true }).notNull(),
+  provider: mysqlEnum("provider", ["pesapal"]).notNull().default("pesapal"),
+  merchantReference: varchar("merchant_reference", { length: 50 }).notNull().unique(),
+  trackingId: varchar("tracking_id", { length: 64 }).unique(),
+  amount: int("amount").notNull(),
+  currency: varchar("currency", { length: 8 }).notNull().default("UGX"),
+  status: mysqlEnum("status", ["pending", "completed", "failed", "reversed", "invalid"]).notNull().default("pending"),
+  paymentMethod: varchar("payment_method", { length: 64 }),
+  paymentAccountMasked: varchar("payment_account_masked", { length: 128 }),
+  confirmationCode: varchar("confirmation_code", { length: 128 }),
+  providerResponse: json("provider_response"),
+  verifiedAt: timestamp("verified_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
 });
 
 export const affiliates = mysqlTable("affiliates", {

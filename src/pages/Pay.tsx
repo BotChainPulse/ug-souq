@@ -14,15 +14,15 @@ export default function Pay() {
           </span>
           <h1 className="mt-5 text-3xl md:text-4xl font-extrabold tracking-tight">UG Souq Pay</h1>
           <p className="mt-3 text-neutral-600 max-w-xl mx-auto">
-            Pay your way — MTN MoMo, Airtel Money, or cash on delivery. No card needed, no hidden fees.
+            Pay through secure hosted checkout when Pesapal is enabled, or use cash on delivery where eligible. UG Souq never asks for your PIN.
           </p>
         </div>
       </section>
 
       <section className="mx-auto max-w-4xl px-4 py-12 grid sm:grid-cols-3 gap-4">
         {[
-          { icon: Smartphone, t: 'MTN MoMo', d: 'Place your order, follow the payment instructions, then submit the transaction reference for confirmation.', c: '#ffcc00' },
-          { icon: Smartphone, t: 'Airtel Money', d: 'Place your order and submit the Airtel Money transaction reference for confirmation.', c: '#e11d48' },
+          { icon: Smartphone, t: 'MTN MoMo', d: 'Choose MTN through Pesapal hosted checkout when available. Payment status is verified server-to-server.', c: '#ffcc00' },
+          { icon: Smartphone, t: 'Airtel Money', d: 'Choose Airtel through Pesapal hosted checkout when available. Never share your mobile-money PIN.', c: '#e11d48' },
           { icon: Banknote, t: 'Cash on delivery', d: 'Prefer cash? Pay the rider when your item arrives and you have checked it.', c: '#16a34a' },
         ].map(({ icon: Icon, t, d, c }) => (
           <div key={t} className="bg-white rounded-2xl border border-neutral-200 p-6">
@@ -39,7 +39,7 @@ export default function Pay() {
           <ul className="mt-4 space-y-2.5 text-sm text-neutral-600">
             {[
               'Eligible problems are handled under the published returns and refunds policy.',
-              'Payment references are reviewed before an order is marked paid.',
+              'Pesapal callbacks and notifications are verified server-to-server before an order is marked paid.',
               'Every order gets a tracking code you can check any time.',
               'Verified sellers are ID-checked and location-confirmed.',
             ].map((t) => (

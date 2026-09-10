@@ -79,6 +79,7 @@ export default function SellerListings() {
   const [form, setForm] = useState({
     name: '', category: 'phones', price: '', oldPrice: '', stock: '1',
     condition: 'new' as 'new' | 'refurbished' | 'used', warrantyMonths: '6', imageNote: '',
+    isBranded: false, brandName: '', authenticityEvidence: '',
   })
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }))
   const [justAdded, setJustAdded] = useState(false)
@@ -98,6 +99,7 @@ export default function SellerListings() {
     Number(form.price) >= 100 &&
     Number(form.stock) >= 1 &&
     photo !== null && !photoBusy &&
+    (!form.isBranded || (form.brandName.trim().length >= 2 && form.authenticityEvidence.trim().length >= 10)) &&
     (form.condition === 'new' || Number(form.warrantyMonths) >= 1)
 
   const submit = async () => {
@@ -110,10 +112,13 @@ export default function SellerListings() {
       stock: Number(form.stock),
       condition: form.condition,
       warrantyMonths: form.condition === 'new' ? 0 : Number(form.warrantyMonths),
+      isBranded: form.isBranded,
+      brandName: form.isBranded ? form.brandName.trim() : undefined,
+      authenticityEvidence: form.isBranded ? form.authenticityEvidence.trim() : undefined,
       imageNote: form.imageNote.trim() || undefined,
-      imageData: photo ?? undefined,
+      imageData: photo!,
     })
-    setForm({ name: '', category: 'phones', price: '', oldPrice: '', stock: '1', condition: 'new', warrantyMonths: '6', imageNote: '' })
+    setForm({ name: '', category: 'phones', price: '', oldPrice: '', stock: '1', condition: 'new', warrantyMonths: '6', imageNote: '', isBranded: false, brandName: '', authenticityEvidence: '' })
     setPhoto(null)
     setJustAdded(true)
   }
@@ -311,6 +316,26 @@ export default function SellerListings() {
                   </p>
                 </div>
               )}
+
+              <div className="rounded-2xl border border-neutral-200 p-4">
+                <label className="flex items-start gap-3 text-sm font-semibold">
+                  <input type="checkbox" checked={form.isBranded} onChange={(event) => setForm((current) => ({ ...current, isBranded: event.target.checked }))} className="mt-1 accent-orange-600" />
+                  <span>This is a branded product <span className="block text-xs font-normal text-neutral-500">Examples: Samsung, Nike, Apple, Tecno or another protected brand.</span></span>
+                </label>
+                {form.isBranded && (
+                  <div className="mt-4 space-y-3 border-t border-neutral-100 pt-4">
+                    <div>
+                      <label className="text-xs font-bold uppercase tracking-wide text-neutral-600">Brand name *</label>
+                      <input value={form.brandName} onChange={(event) => set('brandName', event.target.value)} placeholder="e.g. Samsung" className="mt-1 h-11 w-full rounded-xl border border-neutral-300 px-4 text-sm outline-none focus:border-orange-500" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold uppercase tracking-wide text-neutral-600">Authenticity evidence *</label>
+                      <textarea value={form.authenticityEvidence} onChange={(event) => set('authenticityEvidence', event.target.value)} maxLength={1000} rows={3} placeholder="State your supplier, invoice/reference, serial or IMEI availability, or brand authorization. Do not enter payment PINs." className="mt-1 w-full rounded-xl border border-neutral-300 px-4 py-3 text-sm outline-none focus:border-orange-500" />
+                      <p className="mt-1 text-xs text-neutral-500">An administrator checks this before publishing. False evidence can lead to suspension or termination.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <div>
                 <label className="text-xs font-bold text-neutral-600 uppercase tracking-wide">Item photo — required *</label>
