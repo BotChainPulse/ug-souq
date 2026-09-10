@@ -42,6 +42,12 @@ async function ensureStartupSchema() {
   await addColumn(`ALTER TABLE order_items ADD COLUMN commission_rate DECIMAL(5,4) NOT NULL DEFAULT 0.0000`);
   await addColumn(`ALTER TABLE order_items ADD COLUMN commission_fee INT NOT NULL DEFAULT 0`);
   await addColumn(`ALTER TABLE order_items ADD COLUMN seller_net INT NOT NULL DEFAULT 0`);
+  await addColumn(`ALTER TABLE seller_ad_bookings ADD COLUMN listing_id BIGINT UNSIGNED NULL`);
+  await addColumn(`ALTER TABLE seller_ad_bookings ADD COLUMN headline VARCHAR(120) NULL`);
+  await addColumn(`ALTER TABLE seller_ad_bookings ADD COLUMN message VARCHAR(255) NULL`);
+  await addColumn(`ALTER TABLE seller_ad_bookings ADD COLUMN objective ENUM('product_sales','product_views','shop_visits') NULL`);
+  await addColumn(`ALTER TABLE seller_ad_bookings ADD COLUMN cta ENUM('shop_now','view_product','visit_shop') NULL`);
+  await addColumn(`ALTER TABLE seller_ad_bookings ADD COLUMN requested_start_date VARCHAR(10) NULL`);
 
   await client.query(`
     CREATE TABLE IF NOT EXISTS seller_subscriptions (
@@ -138,7 +144,7 @@ app.use("/api/trpc/*", async (c) => {
 });
 
 // Public sponsored seller campaigns. Only admin-activated bookings are exposed.
-// The creative is taken from the seller's latest approved listing so no unreviewed image can become an ad.
+// The creative is taken from the seller's selected approved listing so no unreviewed image can become an ad.
 // Campaign duration is measured from the audit entry that changed the booking to "active":
 // weekly = 7 days, monthly = 30 days. Expired campaigns are completed lazily when this feed is read.
 app.get("/api/ads/active", async (c) => {
@@ -194,12 +200,34 @@ app.get("/api/ads/active", async (c) => {
       return null;
     }
 
-    const [listing] = await db
-      .select()
-      .from(listings)
-      .where(and(eq(listings.sellerId, seller.id), eq(listings.status, "approved")))
-      .orderBy(desc(listings.createdAt))
-      .limit(1);
+    const [listing] = booking.listingId
+      ? await db
+          .select()
+          .from(listings)
+          .where(and(
+            eq(listings.id, booking.listingId),
+            eq(listings.sellerId, seller.id),
+            eq(listings.status, "approved"),
+          ))
+          .limit(1)
+      : await db
+          .select()
+          .from(listings)
+          .where(and(eq(listings.sellerId, seller.id), eq(listings.status, "approved")))
+          .orderBy(desc(listings.createdAt))
+          .limit(1);
+
+    // Never silently replace a seller's chosen product with another listing.
+    if (!listing || listing.stock < 1) return null;
+
+    const ctaLabel = booking.cta === "visit_shop"
+      ? "Visit shop"
+      : booking.cta === "view_product"
+        ? "View product"
+        : "Shop now";
+    const targetPath = booking.cta === "visit_shop"
+      ? `/seller/${seller.id}`
+      : `/product/listing-${listing.id}`;
 
     return {
       id: booking.id,
@@ -209,13 +237,18 @@ app.get("/api/ads/active", async (c) => {
       planType: booking.planType,
       startsAt,
       expiresAt,
-      listingId: listing?.id ?? null,
-      headline: listing?.name ?? `Shop ${seller.shopName} on UG Souq`,
-      image: listing?.imageData ?? "/images/product-default.png",
-      price: listing?.price ?? null,
-      oldPrice: listing?.oldPrice ?? null,
-      stock: listing?.stock ?? null,
-      targetPath: listing ? `/product/listing-${listing.id}` : `/seller/${seller.id}`,
+      listingId: listing.id,
+      headline: booking.headline || listing.name,
+      message: booking.message || null,
+      objective: booking.objective || "product_sales",
+      cta: booking.cta || "shop_now",
+      ctaLabel,
+      requestedStartDate: booking.requestedStartDate,
+      image: listing.imageData ?? "/images/product-default.png",
+      price: listing.price,
+      oldPrice: listing.oldPrice,
+      stock: listing.stock,
+      targetPath,
     };
   }));
 

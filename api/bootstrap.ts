@@ -157,8 +157,14 @@ const TABLES = [
   `CREATE TABLE IF NOT EXISTS seller_ad_bookings (
     \`id\` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
     \`seller_id\` bigint unsigned NOT NULL,
+    \`listing_id\` bigint unsigned NULL,
     \`plan_type\` enum('weekly','monthly') NOT NULL,
     \`amount\` int NOT NULL,
+    \`headline\` varchar(120) NULL,
+    \`message\` varchar(255) NULL,
+    \`objective\` enum('product_sales','product_views','shop_visits') NULL,
+    \`cta\` enum('shop_now','view_product','visit_shop') NULL,
+    \`requested_start_date\` varchar(10) NULL,
     \`status\` enum('booked','paid','active','completed','cancelled') NOT NULL DEFAULT 'booked',
     \`notes\` varchar(255) NULL,
     \`created_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -192,6 +198,12 @@ const ALTERS = [
   "ALTER TABLE order_items ADD COLUMN \`commission_rate\` decimal(5,4) NOT NULL DEFAULT 0.0000",
   "ALTER TABLE order_items ADD COLUMN \`commission_fee\` int NOT NULL DEFAULT 0",
   "ALTER TABLE order_items ADD COLUMN \`seller_net\` int NOT NULL DEFAULT 0",
+  "ALTER TABLE seller_ad_bookings ADD COLUMN \`listing_id\` bigint unsigned NULL",
+  "ALTER TABLE seller_ad_bookings ADD COLUMN \`headline\` varchar(120) NULL",
+  "ALTER TABLE seller_ad_bookings ADD COLUMN \`message\` varchar(255) NULL",
+  "ALTER TABLE seller_ad_bookings ADD COLUMN \`objective\` enum('product_sales','product_views','shop_visits') NULL",
+  "ALTER TABLE seller_ad_bookings ADD COLUMN \`cta\` enum('shop_now','view_product','visit_shop') NULL",
+  "ALTER TABLE seller_ad_bookings ADD COLUMN \`requested_start_date\` varchar(10) NULL",
   "UPDATE orders SET commission_fee = ROUND(subtotal * 0.07) WHERE commission_fee = 0 AND subtotal > 0",
 ];
 

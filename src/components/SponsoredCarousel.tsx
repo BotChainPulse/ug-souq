@@ -11,11 +11,13 @@ type SponsoredAd = {
   planType: 'weekly' | 'monthly'
   listingId: number | null
   headline: string
+  message: string | null
   image: string
   price: number | null
   oldPrice: number | null
   stock: number | null
   targetPath: string
+  ctaLabel: string
 }
 
 const ROTATION_MS = 5000
@@ -69,9 +71,10 @@ export default function SponsoredCarousel() {
           <div className="flex min-w-0 flex-col justify-center p-4 pr-1 sm:p-8 sm:pr-4">
             <div className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.15em] text-emerald-700 sm:text-xs"><Megaphone size={13} /> Sponsored deal</div>
             <h2 className="mt-2 line-clamp-2 text-lg font-black leading-tight text-neutral-950 sm:text-3xl">{ad.headline}</h2>
+            {ad.message && <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-neutral-600 sm:text-sm">{ad.message}</p>}
             <p className="mt-1 flex items-center gap-1 truncate text-xs font-semibold text-neutral-600 sm:text-sm">{ad.sellerVerified && <BadgeCheck size={14} className="shrink-0 text-sky-600" />} {ad.sellerName}</p>
             {ad.price !== null && <div className="mt-2 flex flex-wrap items-baseline gap-2"><span className="text-base font-black text-emerald-800 sm:text-2xl">{fmt(ad.price)}</span>{ad.oldPrice && <span className="text-[10px] text-neutral-400 line-through sm:text-xs">{fmt(ad.oldPrice)}</span>}</div>}
-            <Link to={ad.targetPath} className="mt-3 inline-flex min-h-10 w-fit items-center rounded-xl bg-emerald-700 px-4 text-xs font-extrabold text-white sm:min-h-11 sm:text-sm">Shop this item</Link>
+            <Link to={ad.targetPath} className="mt-3 inline-flex min-h-10 w-fit items-center rounded-xl bg-emerald-700 px-4 text-xs font-extrabold text-white sm:min-h-11 sm:text-sm">{ad.ctaLabel}</Link>
           </div>
           <Link to={ad.targetPath} className="relative min-w-0 bg-white/70">
             <img key={ad.id} src={ad.image || '/images/product-default.png'} alt={ad.headline} className="h-full max-h-64 w-full object-contain p-2 sm:p-4" />
