@@ -147,6 +147,7 @@ function Sellers({ adminKey }: { adminKey: string }) {
                 <span className="font-bold text-sm">{s?.shopName ?? "Unknown"}</span>
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${SELLER_STATUS_COLORS[status] || SELLER_STATUS_COLORS.pending}`}>{status}</span>
                 {s?.verified && <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium flex items-center gap-1"><CheckCircle size={12} /> Verified</span>}
+                {status === "approved" && !applicationComplete && <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium flex items-center gap-1"><AlertTriangle size={12} /> Approval review incomplete</span>}
               </div>
               <p className="text-sm text-neutral-600">{s?.ownerName ?? "-"} · {s?.phone ?? "-"} · {s?.district ?? "-"}</p>
               <p className="text-xs text-neutral-400 mt-1">{s?.totalListings ?? 0} listings · {s?.totalOrders ?? 0} orders · Joined {s?.createdAt ? new Date(s.createdAt).toLocaleDateString() : "-"}</p>
@@ -215,11 +216,11 @@ function Sellers({ adminKey }: { adminKey: string }) {
                   )}
                   {!s?.verified ? (
                     <button onClick={() => {
-                      if (!sid || !checks.identityReviewed || !checks.locationReviewed) return
+                      if (!sid || !applicationComplete || !checks.identityReviewed || !checks.locationReviewed) return
                       if (window.confirm(`Award the blue tick to ${s?.shopName}? Confirm only after checking the owner's identity details and business location.`)) {
                         setSellerVerification.mutate({ key: adminKey, id: sid, verified: true, identityChecked: true, locationChecked: true })
                       }
-                    }} disabled={setSellerVerification.isPending || !checks.identityReviewed || !checks.locationReviewed}
+                    }} disabled={setSellerVerification.isPending || !applicationComplete || !checks.identityReviewed || !checks.locationReviewed}
                       className="text-sm px-3 py-1.5 bg-sky-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-1"><CheckCircle size={14} /> Award blue tick</button>
                   ) : (
                     <button onClick={() => {
