@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, desc, and, like, gte, lte, sql } from "drizzle-orm";
-import { createHash, createHmac } from "crypto";
+import { eq, desc, and, gte, sql } from "drizzle-orm";
+import { createHash, createHmac, timingSafeEqual } from "crypto";
 import { createRouter, publicQuery } from "./middleware";
 import { getDb } from "./queries/connection";
 import {
@@ -11,6 +11,7 @@ import {
   sellerSubscriptions, sellerPlanPayments
 } from "../db/schema";
 import { FREE_LISTING_LIMIT, PRO_COMMISSION_RATE, PRO_LISTING_LIMIT, PRO_MONTHLY_FEE, sellerPlan } from "./sellerPolicy";
+import { sellerApprovalMissingFields } from "./sellerApproval";
 
 const ADMIN_KEY = process.env.ADMIN_KEY;
 
@@ -72,8 +73,10 @@ const FLW_WEBHOOK_SECRET = process.env.FLW_WEBHOOK_SECRET;
 
 function verifyWebhookSignature(body: string, signature: string): boolean {
   if (!FLW_WEBHOOK_SECRET) return true; // Skip verification if not configured
-  const expected = crypto.createHmac("sha256", FLW_WEBHOOK_SECRET).update(body).digest("hex");
-  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+  const expected = createHmac("sha256", FLW_WEBHOOK_SECRET).update(body).digest("hex");
+  const expectedBuffer = Buffer.from(expected);
+  const signatureBuffer = Buffer.from(signature);
+  return expectedBuffer.length === signatureBuffer.length && timingSafeEqual(expectedBuffer, signatureBuffer);
 }
 
 async function flwFetch(path: string, options: RequestInit = {}): Promise<Response> {
@@ -284,19 +287,51 @@ export const adminRouter = createRouter({
   }),
 
   setSellerStatus: publicQuery
-    .input(z.object({ key: z.string(), id: z.number(), status: z.enum(["pending", "approved", "rejected", "suspended", "terminated"]) }))
+    .input(z.object({
+      key: z.string(),
+      id: z.number(),
+      status: z.enum(["pending", "approved", "rejected", "suspended", "terminated"]),
+      approvalChecklist: z.object({
+        identityReviewed: z.literal(true),
+        locationReviewed: z.literal(true),
+        payoutReviewed: z.literal(true),
+      }).optional(),
+    }))
     .mutation(async ({ input }) => {
       requireAdmin(input.key);
       const db = getDb();
       const [before] = await db.select().from(sellers).where(eq(sellers.id, input.id));
+      if (!before) throw new TRPCError({ code: "NOT_FOUND", message: "Seller not found." });
+
+      const requiresApprovalReview = input.status === "approved" && ["pending", "rejected"].includes(before.status);
+      if (requiresApprovalReview) {
+        const missing = sellerApprovalMissingFields(before);
+        if (missing.length) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: `Seller application is incomplete: ${missing.join(", ")}.` });
+        }
+        if (!input.approvalChecklist) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Complete the identity, location, and payout review checklist before approval." });
+        }
+      }
+
+      const reviewedAt = requiresApprovalReview ? new Date() : undefined;
       await db.update(sellers).set({
         status: input.status,
         // Approval permits a shop to operate. Verification is a separate, evidenced decision.
         verified: input.status === "approved" ? Boolean(before?.verified) : false,
+        ...(reviewedAt ? { identityCheckedAt: reviewedAt, locationCheckedAt: reviewedAt } : {}),
         ...(input.status === "approved" ? {} : { verifiedAt: null, verifiedBy: null }),
       }).where(eq(sellers.id, input.id));
       const [after] = await db.select().from(sellers).where(eq(sellers.id, input.id));
-      await writeAudit({ key: input.key, action: "seller.status.changed", entityType: "seller", entityId: input.id, beforeState: before, afterState: after });
+      await writeAudit({
+        key: input.key,
+        action: "seller.status.changed",
+        entityType: "seller",
+        entityId: input.id,
+        beforeState: before,
+        afterState: after,
+        meta: requiresApprovalReview ? { approvalChecklist: input.approvalChecklist } : undefined,
+      });
       if (input.status === "approved") {
         await createNotification({ type: "seller_registered", title: "Seller Approved", message: `${after.shopName} has been approved.`, entityType: "seller", entityId: String(input.id) });
       }
@@ -390,36 +425,6 @@ export const adminRouter = createRouter({
     const db = getDb();
     return db.select().from(sellerContracts).where(eq(sellerContracts.sellerId, input.sellerId));
   }),
-
-  acceptSellerContract: publicQuery
-    .input(z.object({ key: z.string(), sellerId: z.number(), contractType: z.enum(["seller_agreement", "commission_terms", "delivery_terms"]) }))
-    .mutation(async ({ input }) => {
-      requireAdmin(input.key);
-      const db = getDb();
-      const hash = createHash("sha256").update(input.key).digest("hex");
-
-      await db.insert(sellerContracts).values({
-        sellerId: input.sellerId,
-        contractType: input.contractType,
-        accepted: true,
-        acceptedAt: new Date(),
-        acceptedBy: "admin",
-        adminKeyHash: hash.slice(0, 64),
-      }).onDuplicateKeyUpdate({
-        set: { accepted: true, acceptedAt: new Date(), acceptedBy: "admin", adminKeyHash: hash.slice(0, 64) },
-      });
-
-      // Also update the legacy flags on sellers table
-      if (input.contractType === "commission_terms") {
-        await db.update(sellers).set({ commissionTermsAccepted: true, commissionTermsAcceptedAt: new Date() }).where(eq(sellers.id, input.sellerId));
-      }
-      if (input.contractType === "seller_agreement") {
-        await db.update(sellers).set({ sellerContractAccepted: true, sellerContractAcceptedAt: new Date() }).where(eq(sellers.id, input.sellerId));
-      }
-
-      await writeAudit({ key: input.key, action: "seller.contract.accepted_by_admin", entityType: "seller", entityId: input.sellerId, meta: { contractType: input.contractType } });
-      return { ok: true };
-    }),
 
   // ============================================
   // ORDERS (with search)

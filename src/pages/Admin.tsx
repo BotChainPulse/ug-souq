@@ -33,6 +33,12 @@ const SELLER_STATUS_COLORS: Record<string, string> = {
 
 const ORDER_STATUSES = ["placed","confirmed","pending_delivery","on_the_way","delivered","cancelled"] as const
 
+const maskSensitive = (value: string | null | undefined) => {
+  const clean = String(value ?? "").trim()
+  if (!clean) return "Missing"
+  return clean.length <= 4 ? "••••" : `••••${clean.slice(-4)}`
+}
+
 function StatusBadge({ status }: { status: string }) {
   return <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[status] || STATUS_COLORS.placed}`}>{STATUS_LABEL[status] || status}</span>
 }
@@ -98,6 +104,8 @@ function Sellers({ adminKey }: { adminKey: string }) {
   const setSellerStatus = trpc.admin.setSellerStatus.useMutation({ onSuccess: () => refetch() })
   const setSellerVerification = trpc.admin.setSellerVerification.useMutation({ onSuccess: () => refetch() })
   const setSellerPlan = trpc.admin.setSellerPlan.useMutation({ onSuccess: () => refetch() })
+  const [approvalChecks, setApprovalChecks] = useState<Record<number, { identityReviewed: boolean; locationReviewed: boolean; payoutReviewed: boolean }>>({})
+  const [actionError, setActionError] = useState<{ sellerId: number; message: string } | null>(null)
   const list = (data as any[]) ?? []
   if (isLoading) return <Loading />
   if (error) return <QueryError title="Failed to load sellers" error={error.message} onRetry={() => refetch()} />
@@ -124,6 +132,15 @@ function Sellers({ adminKey }: { adminKey: string }) {
         {list.map((s: any) => {
           const sid = Number(s?.id ?? 0)
           const status = String(s?.status ?? "pending")
+          const checks = approvalChecks[sid] ?? { identityReviewed: false, locationReviewed: false, payoutReviewed: false }
+          const applicationComplete = Boolean(
+            s?.idType && s?.idNumber && s?.district && s?.landmark && s?.payoutMethod && s?.payoutNumber &&
+            s?.sellerContractAccepted && s?.commissionTermsAccepted
+          )
+          const reviewComplete = checks.identityReviewed && checks.locationReviewed && checks.payoutReviewed
+          const updateCheck = (key: keyof typeof checks, checked: boolean) => {
+            setApprovalChecks((current) => ({ ...current, [sid]: { ...checks, [key]: checked } }))
+          }
           return (
             <div key={sid || Math.random()} className="bg-white rounded-xl border border-neutral-200 p-4">
               <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -137,11 +154,38 @@ function Sellers({ adminKey }: { adminKey: string }) {
                 <b>{s?.plan?.tier === 'pro' ? 'Seller Pro' : 'Free seller'}</b> · {s?.plan?.listingsUsed ?? 0}/{s?.plan?.listingLimit ?? 5} listing slots · {Math.round(Number(s?.plan?.commissionRate ?? 0.07) * 100)}% commission
                 {s?.plan?.expiresAt && <span> · expires {new Date(s.plan.expiresAt).toLocaleDateString()}</span>}
               </div>
+              <details className="mt-3 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-700">
+                <summary className="cursor-pointer font-semibold">Application review</summary>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <p><b>Identity:</b> {s?.idType || "Missing"} · {maskSensitive(s?.idNumber)}</p>
+                  <p><b>Location:</b> {[s?.district, s?.landmark].filter(Boolean).join(" · ") || "Missing"}</p>
+                  <p><b>Payout:</b> {s?.payoutMethod || "Missing"} · {maskSensitive(s?.payoutNumber)}</p>
+                  <p><b>Seller agreement:</b> {s?.sellerContractAccepted ? "Accepted by seller" : "Missing"}</p>
+                  <p><b>Commission terms:</b> {s?.commissionTermsAccepted ? "Accepted by seller" : "Missing"}</p>
+                </div>
+                {(status === "pending" || (status === "approved" && !s?.verified)) && (
+                  <div className="mt-3 space-y-2 border-t border-neutral-100 pt-3">
+                    <label className="flex items-center gap-2"><input type="checkbox" checked={checks.identityReviewed} disabled={!s?.idType || !s?.idNumber} onChange={(e) => updateCheck("identityReviewed", e.target.checked)} /> Identity details reviewed</label>
+                    <label className="flex items-center gap-2"><input type="checkbox" checked={checks.locationReviewed} disabled={!s?.district || !s?.landmark} onChange={(e) => updateCheck("locationReviewed", e.target.checked)} /> Business location reviewed</label>
+                    {status === "pending" && <label className="flex items-center gap-2"><input type="checkbox" checked={checks.payoutReviewed} disabled={!s?.payoutMethod || !s?.payoutNumber} onChange={(e) => updateCheck("payoutReviewed", e.target.checked)} /> Payout details reviewed</label>}
+                    {status === "pending" && !applicationComplete && <p className="font-semibold text-amber-700">Approval is locked until the seller completes every required application field and agreement.</p>}
+                  </div>
+                )}
+              </details>
               {status === "pending" && (
                 <div className="mt-3 flex gap-2">
-                  <button onClick={() => { if (!sid) return; if (window.confirm(`Approve ${s?.shopName}?`)) setSellerStatus.mutate({ key: adminKey, id: sid, status: "approved" }) }} disabled={setSellerStatus.isLoading}
+                  <button onClick={() => {
+                    if (!sid || !applicationComplete || !reviewComplete) return
+                    setActionError(null)
+                    if (window.confirm(`Approve ${s?.shopName}? The seller agreements and review checklist will be recorded in the audit log.`)) {
+                      setSellerStatus.mutate(
+                        { key: adminKey, id: sid, status: "approved", approvalChecklist: { identityReviewed: true, locationReviewed: true, payoutReviewed: true } },
+                        { onError: (mutationError) => setActionError({ sellerId: sid, message: mutationError.message }) }
+                      )
+                    }
+                  }} disabled={setSellerStatus.isPending || !applicationComplete || !reviewComplete}
                     className="text-sm px-3 py-1.5 bg-emerald-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-1"><Check size={14} /> Approve</button>
-                  <button onClick={() => { if (!sid) return; if (window.confirm(`Reject ${s?.shopName}?`)) setSellerStatus.mutate({ key: adminKey, id: sid, status: "rejected" }) }} disabled={setSellerStatus.isLoading}
+                  <button onClick={() => { if (!sid) return; if (window.confirm(`Reject ${s?.shopName}?`)) setSellerStatus.mutate({ key: adminKey, id: sid, status: "rejected" }) }} disabled={setSellerStatus.isPending}
                     className="text-sm px-3 py-1.5 bg-red-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-1"><X size={14} /> Reject</button>
                 </div>
               )}
@@ -171,11 +215,11 @@ function Sellers({ adminKey }: { adminKey: string }) {
                   )}
                   {!s?.verified ? (
                     <button onClick={() => {
-                      if (!sid) return
+                      if (!sid || !checks.identityReviewed || !checks.locationReviewed) return
                       if (window.confirm(`Award the blue tick to ${s?.shopName}? Confirm only after checking the owner's identity details and business location.`)) {
                         setSellerVerification.mutate({ key: adminKey, id: sid, verified: true, identityChecked: true, locationChecked: true })
                       }
-                    }} disabled={setSellerVerification.isPending}
+                    }} disabled={setSellerVerification.isPending || !checks.identityReviewed || !checks.locationReviewed}
                       className="text-sm px-3 py-1.5 bg-sky-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-1"><CheckCircle size={14} /> Award blue tick</button>
                   ) : (
                     <button onClick={() => {
@@ -186,18 +230,19 @@ function Sellers({ adminKey }: { adminKey: string }) {
                     }} disabled={setSellerVerification.isPending}
                       className="text-sm px-3 py-1.5 bg-slate-600 text-white rounded-lg disabled:opacity-50">Revoke blue tick</button>
                   )}
-                  <button onClick={() => { if (!sid) return; if (window.confirm(`Suspend ${s?.shopName}? They won't be able to list new items.`)) setSellerStatus.mutate({ key: adminKey, id: sid, status: "suspended" }) }} disabled={setSellerStatus.isLoading}
+                  <button onClick={() => { if (!sid) return; if (window.confirm(`Suspend ${s?.shopName}? They won't be able to list new items.`)) setSellerStatus.mutate({ key: adminKey, id: sid, status: "suspended" }) }} disabled={setSellerStatus.isPending}
                     className="text-sm px-3 py-1.5 bg-amber-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-1"><AlertTriangle size={14} /> Suspend</button>
-                  <button onClick={() => { if (!sid) return; if (window.confirm(`TERMINATE ${s?.shopName}? This is permanent!`)) setSellerStatus.mutate({ key: adminKey, id: sid, status: "terminated" }) }} disabled={setSellerStatus.isLoading}
+                  <button onClick={() => { if (!sid) return; if (window.confirm(`TERMINATE ${s?.shopName}? This is permanent!`)) setSellerStatus.mutate({ key: adminKey, id: sid, status: "terminated" }) }} disabled={setSellerStatus.isPending}
                     className="text-sm px-3 py-1.5 bg-red-700 text-white rounded-lg disabled:opacity-50 flex items-center gap-1"><X size={14} /> Terminate</button>
                 </div>
               )}
               {(status === "suspended" || status === "terminated") && (
                 <div className="mt-3 flex gap-2">
-                  <button onClick={() => { if (!sid) return; if (window.confirm(`Reinstate ${s?.shopName}?`)) setSellerStatus.mutate({ key: adminKey, id: sid, status: "approved" }) }} disabled={setSellerStatus.isLoading}
+                  <button onClick={() => { if (!sid) return; if (window.confirm(`Reinstate ${s?.shopName}?`)) setSellerStatus.mutate({ key: adminKey, id: sid, status: "approved" }) }} disabled={setSellerStatus.isPending}
                     className="text-sm px-3 py-1.5 bg-emerald-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-1"><Check size={14} /> Reinstate</button>
                 </div>
               )}
+              {actionError?.sellerId === sid && <p role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{actionError.message}</p>}
             </div>
           )
         })}
@@ -831,10 +876,10 @@ export default function Admin() {
                 <QueryError title="Failed to load stats" error={statsError.message} onRetry={() => refetchStats()} />
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <Card title="Total Orders" value={String((stats as any)?.totalOrders ?? 0)} icon={ShoppingCart} />
+                  <Card title="Total Orders" value={String((stats as any)?.orderCount ?? 0)} icon={ShoppingCart} />
                   <Card title="Revenue" value={`UGX ${((stats as any)?.revenue ?? 0).toLocaleString()}`} icon={CreditCard} color="green" />
-                  <Card title="Sellers" value={String((stats as any)?.totalSellers ?? 0)} icon={Store} color="blue" />
-                  <Card title="Products" value={String((stats as any)?.totalProducts ?? 0)} icon={Package} color="purple" />
+                  <Card title="Sellers" value={String((stats as any)?.sellerCount ?? 0)} icon={Store} color="blue" />
+                  <Card title="Products" value={String((stats as any)?.productCount ?? 0)} icon={Package} color="purple" />
                 </div>
               )}
               <div className="bg-white rounded-xl border border-neutral-200 p-4">

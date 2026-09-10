@@ -180,10 +180,10 @@ export default function AdminDashboard() {
           {hasError && <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"><AlertTriangle size={17} />Some live admin data could not be loaded. Check the admin key or backend connection.</div>}
 
           <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-            <Metric label="Total Orders" value={String(stats?.totalOrders ?? orders.length)} icon={ShoppingBag} note={`${paidOrders} paid in loaded orders`} />
+            <Metric label="Total Orders" value={String(stats?.orderCount ?? orders.length)} icon={ShoppingBag} note={`${paidOrders} paid in loaded orders`} />
             <Metric label="Revenue" value={`UGX ${Number(stats?.revenue ?? 0).toLocaleString()}`} icon={CircleDollarSign} note="Marketplace revenue" />
-            <Metric label="Sellers" value={String(stats?.totalSellers ?? sellers.length)} icon={Store} note={`${approvedSellers} approved`} />
-            <Metric label="Products" value={String(stats?.totalProducts ?? 0)} icon={PackageCheck} note="Marketplace catalog" />
+            <Metric label="Sellers" value={String(stats?.sellerCount ?? sellers.length)} icon={Store} note={`${approvedSellers} approved`} />
+            <Metric label="Products" value={String(stats?.productCount ?? 0)} icon={PackageCheck} note="Marketplace catalog" />
             <Metric label="Active Delivery" value={String(activeDeliveries)} icon={Truck} note="Preparing or on the way" />
             <Metric label="Paid Orders" value={String(paidOrders)} icon={CreditCard} note="Loaded payment results" />
             <Metric label="Pending Payouts" value={String(payouts.length)} icon={WalletCards} note="Seller settlements" />
