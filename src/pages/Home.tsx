@@ -125,7 +125,7 @@ export default function HomePage() {
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4">
             {products?.map((p) => (
               <article key={p.id} className="group overflow-hidden rounded-xl border border-neutral-200 bg-white transition hover:shadow-md">
-                <div className="relative bg-neutral-50"><Link to={`/product/${p.slug}`}><img src={p.image} alt={p.name} className="aspect-square w-full object-contain" loading="lazy" /></Link>
+                <div className="relative bg-neutral-50"><Link to={`/product/${p.slug}`}><img src={p.image} alt={p.name} className="aspect-square w-full bg-neutral-50 object-contain p-2" loading="lazy" /></Link>
                   {p.discount > 0 && <span className="absolute left-2 top-2 rounded-md bg-emerald-700 px-1.5 py-1 text-[10px] font-extrabold text-white">−{p.discount}%</span>}
                   <button onClick={(e) => { e.preventDefault(); toggleWish(p.id) }} className="absolute right-2 top-2 rounded-full bg-white p-1.5 shadow" aria-label={isWished(p.id) ? `Remove ${p.name} from wishlist` : `Add ${p.name} to wishlist`} aria-pressed={isWished(p.id)}><Heart size={15} className={isWished(p.id) ? 'fill-red-500 text-red-500' : 'text-neutral-500'} /></button>
                 </div>
@@ -150,7 +150,7 @@ export default function HomePage() {
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-6">
             {groceryProducts?.map((p) => (
               <article key={p.id} className="group overflow-hidden rounded-xl border border-neutral-200 bg-white transition hover:shadow-md">
-                <div className="relative bg-neutral-50"><Link to={`/product/${p.slug}`}><img src={p.image} alt={p.name} className="aspect-square w-full object-contain" loading="lazy" /></Link>
+                <div className="relative bg-neutral-50"><Link to={`/product/${p.slug}`}><img src={p.image} alt={p.name} className="aspect-square w-full bg-neutral-50 object-contain p-2" loading="lazy" /></Link>
                   {p.discount > 0 && <span className="absolute left-2 top-2 rounded-md bg-emerald-700 px-1.5 py-1 text-[10px] font-extrabold text-white">−{p.discount}%</span>}
                   <button onClick={(e) => { e.preventDefault(); toggleWish(p.id) }} className="absolute right-2 top-2 rounded-full bg-white p-1.5 shadow" aria-label={isWished(p.id) ? `Remove ${p.name} from wishlist` : `Add ${p.name} to wishlist`} aria-pressed={isWished(p.id)}><Heart size={15} className={isWished(p.id) ? 'fill-red-500 text-red-500' : 'text-neutral-500'} /></button>
                   <span className="absolute bottom-2 left-2 rounded-full bg-neutral-950/85 px-2 py-1 text-[9px] font-extrabold uppercase tracking-wide text-white">UG Souq</span>
