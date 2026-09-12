@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
-import { Heart, Store, BadgePercent, Grid3X3, Smartphone, Cpu, Refrigerator, Armchair, Shirt, Sparkles, Tractor, Sun, Wrench, Footprints, GraduationCap, Dumbbell, Baby, Gamepad2, Dog, Apple, Bike, BookOpen, UtensilsCrossed, Timer, Send, Leaf, Recycle, Wallet, Zap, Star, Truck, ShieldCheck, Home as HomeIcon, BadgeCheck, ShoppingCart, Check, UserRound } from 'lucide-react'
+import { Heart, Store, BadgePercent, Grid3X3, UtensilsCrossed, Timer, Send, Leaf, Recycle, Wallet, Zap, Star, Truck, ShieldCheck, Home as HomeIcon, BadgeCheck, ShoppingCart, Check, UserRound } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import MarketingSignup from '../components/MarketingSignup'
@@ -22,12 +22,19 @@ const services = [
   { icon: BadgePercent, label: 'Deals', to: '/catalog?deals=1' },
 ]
 
-const categoryIcons: Record<string, typeof Cpu> = {
-  electronics: Cpu, phones: Smartphone, refurbished: Recycle, appliances: Refrigerator,
-  home: HomeIcon, furniture: Armchair, 'mens-fashion': Shirt, 'womens-fashion': Sparkles,
-  shoes: Footprints, beauty: Heart, agriculture: Tractor, solar: Sun, tools: Wrench,
-  office: GraduationCap, sports: Dumbbell, baby: Baby, toys: Gamepad2, pets: Dog,
-  grocery: Apple, 'boda-auto': Bike, books: BookOpen, other: Grid3X3,
+const categoryImages: Record<string, string> = {
+  phones: '/images/categories/phones.webp',
+  electronics: '/images/categories/electronics.webp',
+  appliances: '/images/categories/appliances.webp',
+  home: '/images/categories/home-kitchen.webp',
+  'womens-fashion': '/images/categories/womens-fashion.webp',
+  'mens-fashion': '/images/categories/mens-fashion.webp',
+  beauty: '/images/categories/beauty.webp',
+  grocery: '/images/categories/grocery.webp',
+  agriculture: '/images/categories/agriculture.webp',
+  solar: '/images/categories/solar.webp',
+  sports: '/images/categories/sports.webp',
+  baby: '/images/categories/baby.webp',
 }
 
 const homeTiles = ['phones', 'electronics', 'appliances', 'home', 'womens-fashion', 'mens-fashion', 'beauty', 'grocery', 'agriculture', 'solar', 'sports', 'baby']
@@ -91,12 +98,21 @@ export default function HomePage() {
       <section className="mx-auto max-w-7xl px-3 pt-5 sm:px-4">
         <div className="mb-3 flex items-center justify-between"><h2 className="text-lg font-extrabold sm:text-2xl">Shop by category</h2><Link to="/catalog" className="text-xs font-bold text-emerald-700">View all →</Link></div>
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-12">
-          {homeTiles.map((slug) => { const Icon = categoryIcons[slug] ?? Grid3X3; return (
-            <Link key={slug} to={`/catalog?category=${slug}`} className="min-w-0 text-center">
-              <span className="mx-auto grid aspect-square w-full max-w-20 place-items-center rounded-2xl bg-white shadow-sm ring-1 ring-neutral-200"><Icon size={23} className="text-emerald-700" /></span>
+          {homeTiles.map((slug) => (
+            <Link key={slug} to={`/catalog?category=${slug}`} className="group min-w-0 text-center">
+              <span className="mx-auto block aspect-square w-full max-w-24 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-neutral-200">
+                <img
+                  src={categoryImages[slug]}
+                  alt=""
+                  className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                  loading="lazy"
+                  width="360"
+                  height="360"
+                />
+              </span>
               <span className="mt-1.5 block min-h-8 line-clamp-2 text-[10px] font-semibold leading-tight sm:text-xs">{categoryName(slug)}</span>
             </Link>
-          )})}
+          ))}
         </div>
       </section>
 
