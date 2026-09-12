@@ -53,6 +53,16 @@ async function ensureStartupSchema() {
   await addColumn(`ALTER TABLE listings ADD COLUMN brand_name VARCHAR(128) NULL`);
   await addColumn(`ALTER TABLE listings ADD COLUMN authenticity_evidence TEXT NULL`);
 
+  // Repair the existing curated refurbished product, which was originally
+  // seeded with the database defaults (`new`, no warranty). The slug targets
+  // only this known catalogue record and keeps the startup repair idempotent.
+  await client.query(`
+    UPDATE products
+    SET \`condition\` = 'refurbished', warranty_months = 6
+    WHERE slug = 'refurb-iphone-11'
+      AND (\`condition\` <> 'refurbished' OR warranty_months <> 6)
+  `);
+
   await client.query(`
     CREATE TABLE IF NOT EXISTS seller_identity_documents (
       id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
