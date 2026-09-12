@@ -58,7 +58,7 @@ export default function WishlistPage() {
           {savedItems.map(({ key, item }) => item ? (
             <article key={key} className="relative flex gap-3 rounded-xl bg-white p-3 pr-11 shadow-sm ring-1 ring-gray-100">
               <Link to={item.kind === 'product' ? `/product/${item.slug}` : `/seller/${item.sellerId}`} className="shrink-0">
-                <img src={item.image || '/images/product-default.png'} alt={item.name} className="h-24 w-24 rounded-lg bg-gray-50 object-contain sm:h-28 sm:w-28" />
+                <img src={item.image || '/images/product-default.png'} alt={item.name} className="h-24 w-24 rounded-lg bg-neutral-50 object-contain p-2 sm:h-28 sm:w-28" />
               </Link>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-semibold text-emerald-700">{item.sellerName}</p>
