@@ -99,14 +99,14 @@ export default function SellerPage() {
                 <div className="block relative bg-white">
                   {p.kind === 'product' ? (
                     <Link to={'/product/' + p.slug}>
-                      <img src={p.image} alt={p.name} className="w-full aspect-[4/3] object-contain bg-white" />
+                      <img src={p.image} alt={p.name} className="aspect-square w-full bg-neutral-50 object-contain p-2" />
                       {p.discount > 0 && (
                         <span className="absolute top-3 left-3 text-[11px] font-bold text-white px-2 py-0.5 rounded-full" style={{ background: ORANGE }}>{'-' + p.discount + '%'}</span>
                       )}
                     </Link>
                   ) : (
                     <>
-                      <img src={p.image} alt={p.name} className="w-full aspect-[4/3] object-contain bg-white" />
+                      <img src={p.image} alt={p.name} className="aspect-square w-full bg-neutral-50 object-contain p-2" />
                       {p.discount > 0 && (
                         <span className="absolute top-3 left-3 text-[11px] font-bold text-white px-2 py-0.5 rounded-full" style={{ background: ORANGE }}>{'-' + p.discount + '%'}</span>
                       )}
