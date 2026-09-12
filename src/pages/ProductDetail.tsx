@@ -75,7 +75,7 @@ export default function ProductDetailPage() {
             <div className="grid md:grid-cols-2 gap-6 lg:gap-10">
               {/* Image */}
               <div className="bg-white rounded-2xl border border-neutral-200 p-4 sm:p-6 relative self-start">
-                <img src={p.image} alt={p.name} className="w-full aspect-square object-contain" />
+                <img src={p.image} alt={p.name} className="aspect-square w-full bg-neutral-50 object-contain p-3 sm:p-5" />
                 {p.discount > 0 && (
                   <span className="absolute top-4 left-4 text-sm font-bold text-white px-2.5 py-1 rounded-full" style={{ background: ORANGE }}>−{p.discount}%</span>
                 )}
@@ -214,7 +214,7 @@ export default function ProductDetailPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                   {alsoViewed.map((r) => (
                     <Link key={r.id} to={`/product/${r.slug}`} className="bg-white rounded-2xl border border-neutral-200 overflow-hidden hover:shadow-md transition-shadow">
-                      <img src={r.image} alt={r.name} className="w-full aspect-square object-cover" loading="lazy" />
+                      <img src={r.image} alt={r.name} className="aspect-square w-full bg-neutral-50 object-contain p-2" loading="lazy" />
                       <div className="p-3">
                         <p className="text-xs font-medium leading-snug line-clamp-2 min-h-[2.4em]">{r.name}</p>
                         <p className="mt-1 text-sm font-extrabold" style={{ color: ORANGE }}>{fmt(r.price)}</p>
