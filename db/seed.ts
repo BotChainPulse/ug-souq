@@ -27,7 +27,7 @@ export async function runSeed() {
     { sellerId: kicks, name: "StrideFlex Running Sneakers, White/Orange (Unisex)", slug: "running-sneakers", category: "sports", price: 120000, oldPrice: 185000, image: "/images/sneakers.jpg", stock: 14, flashSale: true },
     { sellerId: homeease, name: "VitaMix-style 2L Kitchen Blender, Stainless Steel, 500W", slug: "kitchen-blender", category: "home", price: 165000, oldPrice: 240000, image: "/images/blender.jpg", stock: 11, flashSale: true },
     { sellerId: mityana, name: "Fresh Green Matooke Bunch — Direct from Mityana Farms", slug: "green-matooke", category: "agriculture", price: 18000, oldPrice: null, image: "/images/matooke.jpg", stock: 30, flashSale: true },
-    { sellerId: kph, name: "Refurbished iPhone 11, 64GB — Grade A, 6-Month Warranty", slug: "refurb-iphone-11", category: "refurbished", price: 780000, oldPrice: 950000, image: "/images/phone-tecno.jpg", stock: 4, flashSale: false },
+    { sellerId: kph, name: "Refurbished iPhone 11, 64GB — Grade A, 6-Month Warranty", slug: "refurb-iphone-11", category: "refurbished", price: 780000, oldPrice: 950000, image: "/images/phone-tecno.jpg", stock: 4, condition: "refurbished", warrantyMonths: 6, flashSale: false },
   ]);
 
   const restoRows = await db.insert(restaurants).values([
