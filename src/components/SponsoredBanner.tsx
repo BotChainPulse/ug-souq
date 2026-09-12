@@ -39,7 +39,7 @@ export default function SponsoredBanner() {
   return (
     <div className="fixed inset-x-3 bottom-20 z-40 mx-auto max-w-2xl sm:bottom-4">
       <div className="flex items-center gap-3 overflow-hidden rounded-2xl border border-emerald-200 bg-white p-2.5 shadow-2xl">
-        <img src={ad.image || '/images/product-default.png'} alt="" className="h-14 w-14 shrink-0 rounded-xl bg-neutral-50 object-cover" />
+        <img src={ad.image || '/images/product-default.png'} alt="" className="h-14 w-14 shrink-0 rounded-xl bg-neutral-50 object-contain p-1" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-emerald-700"><Megaphone size={12} /> Sponsored</div>
           <p className="truncate text-sm font-extrabold text-neutral-900">{ad.headline}</p>

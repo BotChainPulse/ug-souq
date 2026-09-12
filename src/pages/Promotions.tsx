@@ -50,7 +50,7 @@ export default function Promotions() {
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {ads.map((ad) => (
               <article key={ad.id} className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
-                <img src={ad.image || '/images/product-default.png'} alt={ad.headline} className="aspect-[4/3] w-full bg-neutral-50 object-cover" />
+                <img src={ad.image || '/images/product-default.png'} alt={ad.headline} className="aspect-square w-full bg-neutral-50 object-contain p-2" />
                 <div className="p-4">
                   <div className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-wider text-emerald-700"><Megaphone size={12} /> Sponsored · {ad.planType}</div>
                   <h2 className="mt-2 text-lg font-extrabold">{ad.headline}</h2>

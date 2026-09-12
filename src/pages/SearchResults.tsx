@@ -56,7 +56,7 @@ export default function SearchResults() {
               {pList.map((p) => (
                 <div key={p.id} className={`bg-white rounded-2xl border p-3 flex flex-col ${p.sellerVerified ? 'border-sky-200 ring-1 ring-sky-100' : 'border-neutral-200'}`}>
                   <div className="relative">
-                    <Link to={`/product/${p.slug}`}><img src={p.image} alt={p.name} className="w-full aspect-square object-cover rounded-xl bg-neutral-100" /></Link>
+                    <Link to={`/product/${p.slug}`}><img src={p.image} alt={p.name} className="aspect-square w-full rounded-xl bg-neutral-50 object-contain p-2" /></Link>
                     {p.discount > 0 && (
                       <span className="absolute top-2 left-2 text-[11px] font-bold text-white px-2 py-0.5 rounded-full" style={{ background: ORANGE }}>-{p.discount}%</span>
                     )}

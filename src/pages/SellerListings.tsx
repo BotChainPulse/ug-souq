@@ -9,32 +9,44 @@ import { trpc } from '@/providers/trpc'
 import { CATEGORIES } from '../lib/categories'
 import { Camera, X } from 'lucide-react'
 
-// Compress a phone photo to a small JPEG data URL so it fits in the database
+// Normalize every seller photo to the same square product canvas. The whole
+// item remains visible and the compact WebP stays reliable on mobile uploads.
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image()
     const url = URL.createObjectURL(file)
     img.onload = () => {
-      const max = 800
-      const scale = Math.min(1, max / Math.max(img.width, img.height))
+      const size = 800
+      const padding = 32
+      const scale = Math.min(1, (size - padding * 2) / Math.max(img.width, img.height))
       const w = Math.round(img.width * scale)
       const h = Math.round(img.height * scale)
       const canvas = document.createElement('canvas')
-      canvas.width = w
-      canvas.height = h
+      canvas.width = size
+      canvas.height = size
       const ctx = canvas.getContext('2d')!
-      ctx.drawImage(img, 0, 0, w, h)
+      ctx.fillStyle = '#fafafa'
+      ctx.fillRect(0, 0, size, size)
+      ctx.drawImage(img, Math.round((size - w) / 2), Math.round((size - h) / 2), w, h)
       URL.revokeObjectURL(url)
       // Keep the data URL small enough to save reliably; step down quality if needed.
       let quality = 0.82
-      let data = canvas.toDataURL('image/jpeg', quality)
+      let format = 'image/webp'
+      let data = canvas.toDataURL(format, quality)
+      if (!data.startsWith('data:image/webp')) {
+        format = 'image/jpeg'
+        data = canvas.toDataURL(format, quality)
+      }
       while (data.length > 350_000 && quality > 0.4) {
         quality -= 0.1
-        data = canvas.toDataURL('image/jpeg', quality)
+        data = canvas.toDataURL(format, quality)
       }
       resolve(data)
     }
-    img.onerror = reject
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('The selected image could not be processed'))
+    }
     img.src = url
   })
 }
@@ -341,11 +353,11 @@ export default function SellerListings() {
                 <label className="text-xs font-bold text-neutral-600 uppercase tracking-wide">Item photo — required *</label>
                 <p className="mt-1 text-xs text-neutral-500">
                   Take a photo of the <b>actual item</b> with your phone — new, refurbished and used items all need a real photo.
-                  Good light, whole item visible, no screenshots or internet downloads. Our team checks every photo before your item goes live; fake photos get your shop flagged.
+                  Good light, whole item visible, no screenshots or internet downloads. We automatically fit it into a clean square without cropping. Our team checks every photo before your item goes live; fake photos get your shop flagged.
                 </p>
                 {photo ? (
                   <div className="mt-3 relative w-40">
-                    <img src={photo} alt="Item" className="w-40 h-40 object-cover rounded-xl border border-neutral-200" />
+                    <img src={photo} alt="Item" className="h-40 w-40 rounded-xl border border-neutral-200 bg-neutral-50 object-contain p-2" />
                     <button
                       type="button"
                       onClick={() => setPhoto(null)}
@@ -359,7 +371,7 @@ export default function SellerListings() {
                   <label className="mt-3 flex flex-col items-center justify-center gap-2 w-full sm:w-64 h-36 rounded-xl border-2 border-dashed border-neutral-300 bg-neutral-50 cursor-pointer hover:border-orange-400 hover:bg-orange-50 transition-colors">
                     <Camera size={24} style={{ color: ORANGE }} />
                     <span className="text-sm font-semibold text-neutral-600">{photoBusy ? 'Processing…' : 'Tap to photograph or upload the item'}</span>
-                    <span className="text-[11px] text-neutral-400">JPG or PNG — we compress it automatically</span>
+                    <span className="text-[11px] text-neutral-400">JPG, PNG or WebP — automatically fitted to a square</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -406,7 +418,7 @@ export default function SellerListings() {
                 <div key={l.id} className="py-3 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     {(l as { imageData?: string | null }).imageData ? (
-                      <img src={(l as { imageData?: string | null }).imageData!} alt={l.name} className="w-12 h-12 rounded-lg object-cover border border-neutral-200 shrink-0" />
+                      <img src={(l as { imageData?: string | null }).imageData!} alt={l.name} className="h-12 w-12 shrink-0 rounded-lg border border-neutral-200 bg-neutral-50 object-contain p-1" />
                     ) : (
                       <span className="w-12 h-12 rounded-lg bg-neutral-100 grid place-items-center shrink-0"><Package size={18} className="text-neutral-400" /></span>
                     )}
