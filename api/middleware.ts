@@ -78,6 +78,14 @@ async function createCancellationRequest(order: typeof orders.$inferSelect, reas
   return { id: Number(request.id), created: true };
 }
 
+async function hasOpenCancellationRequest(orderId: number) {
+  const db = getDb();
+  const existing = await db.select().from(returns)
+    .where(eq(returns.orderId, orderId))
+    .orderBy(desc(returns.createdAt));
+  return existing.some((row) => OPEN_CANCELLATION_REQUESTS.has(row.status));
+}
+
 const buyerOrdersRouter = t.router({
   cancellationStatus: t.procedure
     .input(z.object({
@@ -109,6 +117,29 @@ const buyerOrdersRouter = t.router({
         status: open.status,
         requestId: Number(open.id),
       };
+    }),
+
+  cancellationStatuses: t.procedure
+    .input(z.object({
+      phone: z.string().trim().min(9).max(32),
+      codes: z.array(z.string().trim().min(4).max(32)).max(20),
+    }))
+    .query(async ({ input }) => {
+      const db = getDb();
+      const phone = normPhone(input.phone);
+      const result: Record<string, boolean> = {};
+
+      for (const rawCode of [...new Set(input.codes)]) {
+        const code = rawCode.trim().toUpperCase();
+        const [order] = await db.select().from(orders).where(eq(orders.code, code)).limit(1);
+        if (!order || normPhone(order.phone) !== phone || order.status === "cancelled") {
+          result[code] = false;
+          continue;
+        }
+        result[code] = await hasOpenCancellationRequest(Number(order.id));
+      }
+
+      return result;
     }),
 
   cancel: t.procedure
