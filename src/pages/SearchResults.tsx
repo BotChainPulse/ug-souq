@@ -19,7 +19,7 @@ export default function SearchResults() {
   const rList = restaurants.data ?? []
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="ugsouq-page-bg min-h-screen text-neutral-900 dark:text-neutral-100">
       <Header />
       <main className="mx-auto max-w-7xl px-4 py-8">
         <h1 className="text-xl font-extrabold">
@@ -55,8 +55,8 @@ export default function SearchResults() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {pList.map((p) => (
                 <div key={p.id} className={`bg-white rounded-2xl border p-3 flex flex-col ${p.sellerVerified ? 'border-sky-200 ring-1 ring-sky-100' : 'border-neutral-200'}`}>
-                  <div className="relative">
-                    <Link to={`/product/${p.slug}`}><img src={p.image} alt={p.name} className="aspect-square w-full rounded-xl bg-neutral-50 object-contain p-2" /></Link>
+                  <div className="relative overflow-hidden rounded-xl">
+                    <Link to={`/product/${p.slug}`}><img src={p.image} alt={p.name} className="product-image-standard rounded-xl" loading="lazy" /></Link>
                     {p.discount > 0 && (
                       <span className="absolute top-2 left-2 text-[11px] font-bold text-white px-2 py-0.5 rounded-full" style={{ background: ORANGE }}>-{p.discount}%</span>
                     )}
