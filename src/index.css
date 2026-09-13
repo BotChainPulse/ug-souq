@@ -117,6 +117,11 @@
   }
 }
 
+/* Seller trust is a separate signal from seller-name/accent colours. */
+.text-emerald-700 > .lucide-badge-check {
+  color: #0284c7 !important;
+}
+
 /* Several customer-facing pages still use fixed light utility classes.
    These overrides make the saved dark preference affect the full storefront
    while pages are gradually migrated to semantic theme tokens. */
