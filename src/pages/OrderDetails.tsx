@@ -49,6 +49,14 @@ function safeAmount(value: unknown) {
   return fmt(Number.isFinite(amount) ? amount : 0)
 }
 
+function cleanDeliveryAddress(value: unknown) {
+  const text = String(value ?? '').trim()
+  if (!text) return 'Address unavailable'
+  const parts = text.split(/\s+—\s+/).map((part) => part.trim()).filter(Boolean)
+  const cleaned = parts.filter((part, index) => index === 0 || part !== parts[index - 1])
+  return cleaned.join(' — ')
+}
+
 class OrderDetailsBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false }
   static getDerivedStateFromError() { return { failed: true } }
@@ -105,6 +113,9 @@ function OrderDetailsPage() {
   const cancellationPending = cancellationStatusQuery.data?.pending === true
   const cancellationAvailable = order ? ['placed', 'confirmed', 'pending_delivery'].includes(order.status) && !cancellationPending : false
   const cancellationLabel = order?.status === 'placed' ? 'Cancel order' : 'Request cancellation'
+  const payBadge = order && order.status !== 'cancelled'
+    ? paymentLabel({ paymentMethod: order.paymentMethod ?? '', paymentStatus: order.paymentStatus ?? 'unpaid' })
+    : null
 
   const lookUp = () => {
     const normalized = phone.trim()
@@ -161,7 +172,14 @@ function OrderDetailsPage() {
             <section className="rounded-2xl border border-neutral-200 bg-white p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div><p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Order number</p><p className="mt-1 font-mono text-lg font-extrabold tracking-widest" style={{ color: ORANGE }}>{order.code || code}</p><p className="mt-1 text-xs text-neutral-500">{safeOrderDate(order.createdAt)}</p></div>
-                <div className="text-right"><p className="text-xl font-extrabold">{safeAmount(order.total)}</p><span className={`mt-1 inline-block rounded-full px-2 py-1 text-[11px] font-bold ${paymentLabel({ paymentMethod: order.paymentMethod ?? '', paymentStatus: order.paymentStatus ?? 'unpaid' }).cls}`}>{paymentLabel({ paymentMethod: order.paymentMethod ?? '', paymentStatus: order.paymentStatus ?? 'unpaid' }).text}</span></div>
+                <div className="text-right">
+                  <p className="text-xl font-extrabold">{safeAmount(order.total)}</p>
+                  {order.status === 'cancelled' ? (
+                    <span className="mt-1 inline-block rounded-full bg-red-50 px-2 py-1 text-[11px] font-bold text-red-700">Cancelled</span>
+                  ) : payBadge ? (
+                    <span className={`mt-1 inline-block rounded-full px-2 py-1 text-[11px] font-bold ${payBadge.cls}`}>{payBadge.text}</span>
+                  ) : null}
+                </div>
               </div>
               {order.status === 'cancelled' ? <p className="mt-5 flex items-center gap-2 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-700"><XCircle size={18} /> This order was cancelled.</p> : (
                 <div className="mt-6 grid gap-3 sm:grid-cols-5">
@@ -231,8 +249,21 @@ function OrderDetailsPage() {
             </section>
 
             <section className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-neutral-200 bg-white p-5"><h2 className="flex items-center gap-2 font-extrabold"><MapPin size={17} className="text-emerald-700" /> Delivery address</h2><p className="mt-2 text-sm leading-relaxed text-neutral-600">{order.address || 'Address unavailable'}</p></div>
-              <div className="rounded-2xl border border-neutral-200 bg-white p-5"><h2 className="font-extrabold">Payment</h2><p className="mt-2 text-sm text-neutral-600">{paymentMethodLabel(order.paymentMethod ?? '')}</p>{order.paymentRef && <p className="mt-1 break-all text-xs text-neutral-500">Reference: {order.paymentRef}</p>}</div>
+              <div className="rounded-2xl border border-neutral-200 bg-white p-5"><h2 className="flex items-center gap-2 font-extrabold"><MapPin size={17} className="text-emerald-700" /> Delivery address</h2><p className="mt-2 text-sm leading-relaxed text-neutral-600">{cleanDeliveryAddress(order.address)}</p></div>
+              <div className="rounded-2xl border border-neutral-200 bg-white p-5">
+                <h2 className="font-extrabold">Payment</h2>
+                {order.status === 'cancelled' && order.paymentStatus === 'unpaid' ? (
+                  <>
+                    <p className="mt-2 text-sm font-semibold text-red-700">No payment collected</p>
+                    <p className="mt-1 text-xs text-neutral-500">Original method: {paymentMethodLabel(order.paymentMethod ?? '')}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="mt-2 text-sm text-neutral-600">{paymentMethodLabel(order.paymentMethod ?? '')}</p>
+                    {order.paymentRef && <p className="mt-1 break-all text-xs text-neutral-500">Reference: {order.paymentRef}</p>}
+                  </>
+                )}
+              </div>
             </section>
           </div>
         )}
