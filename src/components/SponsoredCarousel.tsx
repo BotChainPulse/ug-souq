@@ -59,7 +59,7 @@ export default function SponsoredCarousel() {
   return (
     <section className="mx-auto max-w-7xl px-3 pt-4 sm:px-4" aria-label="Sponsored seller deals">
       <div
-        className="relative overflow-hidden rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 via-white to-emerald-50 shadow-sm"
+        className="relative overflow-hidden rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 via-white to-emerald-50 shadow-sm dark:border-neutral-700 dark:from-neutral-900 dark:via-neutral-900 dark:to-emerald-950/30"
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
         onFocusCapture={() => setPaused(true)}
@@ -69,16 +69,19 @@ export default function SponsoredCarousel() {
       >
         <div className="grid min-h-44 grid-cols-[1.05fr_0.95fr] sm:min-h-64 sm:grid-cols-2">
           <div className="flex min-w-0 flex-col justify-center p-4 pr-1 sm:p-8 sm:pr-4">
-            <div className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.15em] text-emerald-700 sm:text-xs"><Megaphone size={13} /> Sponsored deal</div>
-            <h2 className="mt-2 line-clamp-2 text-lg font-black leading-tight text-neutral-950 sm:text-3xl">{ad.headline}</h2>
-            {ad.message && <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-neutral-600 sm:text-sm">{ad.message}</p>}
-            <p className="mt-1 flex items-center gap-1 truncate text-xs font-semibold text-neutral-600 sm:text-sm">{ad.sellerVerified && <BadgeCheck size={14} className="shrink-0 text-sky-600" />} {ad.sellerName}</p>
-            {ad.price !== null && <div className="mt-2 flex flex-wrap items-baseline gap-2"><span className="text-base font-black text-emerald-800 sm:text-2xl">{fmt(ad.price)}</span>{ad.oldPrice && <span className="text-[10px] text-neutral-400 line-through sm:text-xs">{fmt(ad.oldPrice)}</span>}</div>}
+            <div className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.15em] text-emerald-700 dark:text-emerald-400 sm:text-xs"><Megaphone size={13} /> Sponsored · paid placement</div>
+            <h2 className="mt-2 line-clamp-2 text-lg font-black leading-tight text-neutral-950 dark:text-neutral-100 sm:text-3xl">{ad.headline}</h2>
+            {ad.message && <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-neutral-600 dark:text-neutral-400 sm:text-sm">{ad.message}</p>}
+            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-xs font-semibold text-neutral-600 dark:text-neutral-300 sm:text-sm">
+              <span className="truncate">{ad.sellerName}</span>
+              {ad.sellerVerified && <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-1.5 py-0.5 text-[10px] font-bold text-sky-700 dark:bg-sky-950/40 dark:text-sky-300"><BadgeCheck size={12} /> Verified seller</span>}
+            </div>
+            {ad.price !== null && <div className="mt-2 flex flex-wrap items-baseline gap-2"><span className="text-base font-black text-emerald-800 dark:text-emerald-300 sm:text-2xl">{fmt(ad.price)}</span>{ad.oldPrice && <span className="text-[10px] text-neutral-400 line-through sm:text-xs">{fmt(ad.oldPrice)}</span>}</div>}
             <Link to={ad.targetPath} className="mt-3 inline-flex min-h-10 w-fit items-center rounded-xl bg-emerald-700 px-4 text-xs font-extrabold text-white sm:min-h-11 sm:text-sm">{ad.ctaLabel}</Link>
           </div>
-          <Link to={ad.targetPath} className="relative min-w-0 bg-white/70">
+          <Link to={ad.targetPath} className="relative min-w-0 bg-white/70 dark:bg-neutral-900/70">
             <img key={ad.id} src={ad.image || '/images/product-default.png'} alt={ad.headline} className="h-full max-h-64 w-full object-contain p-2 sm:p-4" />
-            <span className="absolute right-2 top-2 rounded-full bg-neutral-950/80 px-2 py-1 text-[9px] font-bold uppercase text-white">{ad.planType}</span>
+            <span className="absolute right-2 top-2 rounded-full bg-neutral-950/80 px-2 py-1 text-[9px] font-bold uppercase text-white">Sponsored</span>
           </Link>
         </div>
 
