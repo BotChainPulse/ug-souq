@@ -10,7 +10,36 @@ import { getAccount } from '../lib/account'
 
 const SAVED_PHONE_KEY = 'ugsouq_myphone'
 
-function StatusPill({ status }: { status: string }) {
+function cleanDeliveryAddress(value: unknown) {
+  const text = String(value ?? '').trim()
+  if (!text) return 'Address unavailable'
+  const parts = text.split(/\s+—\s+/).map((part) => part.trim()).filter(Boolean)
+  const isPickup = /^pickup:/i.test(parts[0] ?? '')
+  const unique = new Map<string, string>()
+
+  for (const part of parts) {
+    const base = part.replace(/,\s*door delivery$/i, '').trim()
+    const key = base.toLowerCase()
+    if (!key) continue
+    if (!unique.has(key)) {
+      unique.set(key, isPickup ? base : part)
+    } else if (!isPickup && /,\s*door delivery$/i.test(part)) {
+      unique.set(key, part)
+    }
+  }
+
+  return [...unique.values()].join(' — ')
+}
+
+function StatusPill({ status, cancellationPending = false }: { status: string; cancellationPending?: boolean }) {
+  if (cancellationPending && status !== 'cancelled') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800">
+        <Clock size={12} /> Cancellation pending
+      </span>
+    )
+  }
+
   const map: Record<string, { cls: string; icon: React.ReactNode; label: string }> = {
     placed: { cls: 'bg-amber-50 text-amber-700 border-amber-200', icon: <Clock size={12} />, label: 'Placed' },
     confirmed: { cls: 'bg-sky-50 text-sky-700 border-sky-200', icon: <CircleCheckBig size={12} />, label: 'Confirmed' },
@@ -36,9 +65,16 @@ export default function MyOrders() {
     { phone: searched },
     { enabled: searched.trim().length >= 9, retry: false },
   )
+  const orderCodes = orders.data?.map((order) => order.code) ?? []
+  const cancellationStatuses = trpc.buyerOrders.cancellationStatuses.useQuery(
+    { phone: searched, codes: orderCodes },
+    { enabled: searched.trim().length >= 9 && orderCodes.length > 0, retry: false },
+  )
   const expireStale = trpc.buyerOrders.expireStale.useMutation({
     onSuccess: async (result) => {
-      if (result.cancelled > 0) await orders.refetch()
+      if (result.cancelled > 0) {
+        await Promise.all([orders.refetch(), cancellationStatuses.refetch()])
+      }
     },
   })
 
@@ -102,36 +138,43 @@ export default function MyOrders() {
 
         {orders.data && orders.data.length > 0 && (
           <div className="mt-6 space-y-4">
-            {orders.data.map((o) => (
-              <div key={o.id} className="bg-white rounded-2xl border border-neutral-200 p-5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <span className="font-extrabold tracking-widest" style={{ color: ORANGE }}>{o.code}</span>
-                    <span className="ml-3 text-xs text-neutral-500">
-                      {o.createdAt ? new Date(o.createdAt).toLocaleString('en-UG', { dateStyle: 'medium', timeStyle: 'short' }) : '-'}
-                    </span>
-                  </div>
-                  <StatusPill status={o.status} />
-                </div>
-                <div className="mt-3 divide-y divide-neutral-100 text-sm">
-                  {Array.isArray(o.items) && o.items.map((i) => (
-                    <div key={i.id} className="py-1.5 flex justify-between gap-3">
-                      <span className="text-neutral-700">{i.qty} × {i.name}</span>
-                      <span className="font-semibold whitespace-nowrap">{fmt(i.price * i.qty)}</span>
+            {orders.data.map((o) => {
+              const cancellationPending = cancellationStatuses.data?.[o.code] === true
+              return (
+                <div key={o.id} className="bg-white rounded-2xl border border-neutral-200 p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <span className="font-extrabold tracking-widest" style={{ color: ORANGE }}>{o.code}</span>
+                      <span className="ml-3 text-xs text-neutral-500">
+                        {o.createdAt ? new Date(o.createdAt).toLocaleString('en-UG', { dateStyle: 'medium', timeStyle: 'short' }) : '-'}
+                      </span>
                     </div>
-                  ))}
+                    <StatusPill status={o.status} cancellationPending={cancellationPending} />
+                  </div>
+                  <div className="mt-3 divide-y divide-neutral-100 text-sm">
+                    {Array.isArray(o.items) && o.items.map((i) => (
+                      <div key={i.id} className="py-1.5 flex justify-between gap-3">
+                        <span className="text-neutral-700">{i.qty} × {i.name}</span>
+                        <span className="font-semibold whitespace-nowrap">{fmt(i.price * i.qty)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-2 pt-2 border-t border-neutral-100 flex justify-between text-sm">
+                    <span className="text-neutral-500">Delivery: {fmt(o.deliveryFee)} · {o.paymentMethod === 'mtn_momo' ? 'MTN MoMo' : o.paymentMethod === 'airtel_money' ? 'Airtel Money' : 'Cash on delivery'}</span>
+                    <span className="font-extrabold">{fmt(o.total)}</span>
+                  </div>
+                  <p className="mt-2 text-xs text-neutral-500">Deliver to: {cleanDeliveryAddress(o.address)}</p>
+                  {cancellationPending ? (
+                    <p className="mt-2 text-xs font-semibold text-amber-800">Cancellation request pending review. No further cancellation request is needed.</p>
+                  ) : o.status === 'placed' ? (
+                    <p className="mt-2 text-xs font-semibold text-amber-700">Need to correct a mistake? Open the order to cancel before fulfilment starts.</p>
+                  ) : null}
+                  <Link to={`/orders/${encodeURIComponent(o.code)}`} className="mt-4 flex min-h-11 items-center justify-between border-t border-neutral-100 pt-3 text-sm font-bold text-emerald-700">
+                    View order details <ChevronRight size={18} />
+                  </Link>
                 </div>
-                <div className="mt-2 pt-2 border-t border-neutral-100 flex justify-between text-sm">
-                  <span className="text-neutral-500">Delivery: {fmt(o.deliveryFee)} · {o.paymentMethod === 'mtn_momo' ? 'MTN MoMo' : o.paymentMethod === 'airtel_money' ? 'Airtel Money' : 'Cash on delivery'}</span>
-                  <span className="font-extrabold">{fmt(o.total)}</span>
-                </div>
-                <p className="mt-2 text-xs text-neutral-500">Deliver to: {o.address}</p>
-                {o.status === 'placed' && <p className="mt-2 text-xs font-semibold text-amber-700">Need to correct a mistake? Open the order to cancel before fulfilment starts.</p>}
-                <Link to={`/orders/${encodeURIComponent(o.code)}`} className="mt-4 flex min-h-11 items-center justify-between border-t border-neutral-100 pt-3 text-sm font-bold text-emerald-700">
-                  View order details <ChevronRight size={18} />
-                </Link>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
 
