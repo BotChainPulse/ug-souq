@@ -20,7 +20,6 @@ export default function ProductDetailPage() {
   const [zoneId, setZoneId] = useState('kampala')
   const zone = DELIVERY_ZONES.find((z) => z.id === zoneId) ?? DELIVERY_ZONES[0]
 
-  // Related items from the same category
   const { data: related } = trpc.products.browse.useQuery(
     { category: p?.category },
     { enabled: !!p },
@@ -38,11 +37,10 @@ export default function ProductDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#faf9f7] text-neutral-900 antialiased flex flex-col">
+    <div className="ugsouq-page-bg min-h-screen text-neutral-900 antialiased flex flex-col dark:text-neutral-100">
       <Header />
 
       <main className="flex-1 mx-auto w-full max-w-7xl px-4 py-4 sm:py-6">
-        {/* Breadcrumb */}
         <nav className="flex items-center gap-1 text-xs sm:text-sm text-neutral-500 mb-4 overflow-x-auto whitespace-nowrap">
           <Link to="/" className="hover:text-neutral-800">Home</Link>
           <ChevronRight size={13} />
@@ -73,19 +71,16 @@ export default function ProductDetailPage() {
         ) : (
           <>
             <div className="grid md:grid-cols-2 gap-6 lg:gap-10">
-              {/* Image */}
               <div className="bg-white rounded-2xl border border-neutral-200 p-4 sm:p-6 relative self-start">
-                <img src={p.image} alt={p.name} className="aspect-square w-full bg-neutral-50 object-contain p-3 sm:p-5" />
+                <img src={p.image} alt={p.name} className="product-image-standard rounded-xl" />
                 {p.discount > 0 && (
                   <span className="absolute top-4 left-4 text-sm font-bold text-white px-2.5 py-1 rounded-full" style={{ background: ORANGE }}>−{p.discount}%</span>
                 )}
               </div>
 
-              {/* Info */}
               <div>
                 <h1 className="text-lg sm:text-2xl font-bold leading-snug">{p.name}</h1>
 
-                {/* Seller line */}
                 <div className="mt-2 flex items-center gap-2 text-sm flex-wrap">
                   <span className="text-neutral-500">Sold by</span>
                   {p.sellerVerified ? (
@@ -100,7 +95,6 @@ export default function ProductDetailPage() {
                   </span>
                 </div>
 
-                {/* Price */}
                 <div className="mt-4 flex items-baseline gap-3 flex-wrap">
                   <span className="text-2xl sm:text-3xl font-extrabold" style={{ color: ORANGE }}>{fmt(p.price)}</span>
                   {p.oldPrice && <span className="text-sm text-neutral-400 line-through">{fmt(p.oldPrice)}</span>}
@@ -118,7 +112,6 @@ export default function ProductDetailPage() {
                   </p>
                 )}
 
-                {/* Actions */}
                 <div className="mt-5 flex gap-3">
                   <button
                     onClick={onAdd}
@@ -139,7 +132,6 @@ export default function ProductDetailPage() {
                   </a>
                 </div>
 
-                {/* Delivery & returns — Jumia style */}
                 <div className="mt-6 bg-white rounded-2xl border border-neutral-200 p-4 sm:p-5">
                   <h2 className="font-bold text-sm mb-3">Delivery &amp; Returns</h2>
 
@@ -149,7 +141,7 @@ export default function ProductDetailPage() {
                     <select
                       value={zoneId}
                       onChange={(e) => setZoneId(e.target.value)}
-                      className="w-full appearance-none border border-neutral-300 rounded-xl pl-9 pr-8 py-2.5 text-sm font-medium bg-white focus:outline-none focus:border-orange-400"
+                      className="w-full appearance-none border border-neutral-300 rounded-xl pl-9 pr-8 py-2.5 text-sm font-medium bg-white focus:outline-none focus:border-orange-400 dark:border-neutral-700 dark:bg-neutral-900"
                     >
                       {DELIVERY_ZONES.map((z) => <option key={z.id} value={z.id}>{z.label}</option>)}
                     </select>
@@ -181,7 +173,6 @@ export default function ProductDetailPage() {
                   </div>
                 </div>
 
-                {/* Seller card */}
                 <div className="mt-4 bg-white rounded-2xl border border-neutral-200 p-4 sm:p-5">
                   <h2 className="font-bold text-sm mb-3">Seller Information</h2>
                   <div className="flex items-center gap-3">
@@ -207,14 +198,13 @@ export default function ProductDetailPage() {
               </div>
             </div>
 
-            {/* Customers also viewed */}
             {alsoViewed.length > 0 && (
               <section className="mt-10">
                 <h2 className="font-extrabold text-lg mb-4">Customers also viewed</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                   {alsoViewed.map((r) => (
                     <Link key={r.id} to={`/product/${r.slug}`} className="bg-white rounded-2xl border border-neutral-200 overflow-hidden hover:shadow-md transition-shadow">
-                      <img src={r.image} alt={r.name} className="aspect-square w-full bg-neutral-50 object-contain p-2" loading="lazy" />
+                      <img src={r.image} alt={r.name} className="product-image-standard" loading="lazy" />
                       <div className="p-3">
                         <p className="text-xs font-medium leading-snug line-clamp-2 min-h-[2.4em]">{r.name}</p>
                         <p className="mt-1 text-sm font-extrabold" style={{ color: ORANGE }}>{fmt(r.price)}</p>
@@ -233,4 +223,3 @@ export default function ProductDetailPage() {
     </div>
   )
 }
-
