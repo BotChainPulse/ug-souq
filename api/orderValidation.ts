@@ -47,12 +47,20 @@ export function getServerDeliveryQuote(input: {
     };
   }
 
-  const address = input.address.trim();
+  // Some older cached clients submitted an already-decorated delivery address. Strip any
+  // server-generated suffix before rebuilding the canonical value so the region/method does
+  // not get duplicated on every order submission.
+  const suffix = ` — ${zone.label}, door delivery`;
+  let address = input.address.trim();
+  while (address.endsWith(suffix)) {
+    address = address.slice(0, -suffix.length).trim();
+  }
+
   if (address.length < 5) {
     throw new TRPCError({ code: "BAD_REQUEST", message: "Enter a complete delivery address." });
   }
   return {
     deliveryFee: zone.doorFee,
-    address: `${address} — ${zone.label}, door delivery`,
+    address: `${address}${suffix}`,
   };
 }
