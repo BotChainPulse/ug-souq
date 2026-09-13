@@ -29,7 +29,7 @@ export default function Header() {
 
   return (
     <>
-      <div className="hidden bg-neutral-900 text-white text-xs sm:block">
+      <div className="hidden bg-neutral-900 text-white text-xs sm:block dark:bg-black">
         <div className="mx-auto max-w-7xl px-4 h-8 flex items-center justify-between">
           <span className="flex items-center gap-1.5"><MapPin size={12} /> Delivering across Uganda</span>
           <div className="flex items-center gap-4">
@@ -42,24 +42,24 @@ export default function Header() {
         </div>
       </div>
 
-      <header className="sticky top-0 z-40 border-b border-neutral-200 bg-white/95 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-neutral-200 bg-white/95 text-neutral-900 backdrop-blur transition-colors dark:border-neutral-800 dark:bg-neutral-950/95 dark:text-neutral-100">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-2 px-3 py-2 sm:h-16 sm:flex-nowrap sm:gap-4 sm:px-4 sm:py-0">
           <Link to="/" className="flex shrink-0 items-center gap-2">
             <img src="/logo-mark.png" alt="UG Souq logo" className="h-8 w-8 rounded-lg object-cover bg-white sm:h-9 sm:w-9" />
-            <span className="text-lg font-extrabold tracking-tight sm:text-xl">UG Souq</span>
+            <span className="text-lg font-extrabold tracking-tight text-neutral-950 dark:text-white sm:text-xl">UG Souq</span>
           </Link>
-          <button onClick={() => setCatOpen(true)} className="flex items-center gap-2 rounded-xl border border-neutral-200 p-2.5 text-sm font-medium hover:bg-emerald-50 hover:text-emerald-800">
+          <button onClick={() => setCatOpen(true)} className="flex items-center gap-2 rounded-xl border border-neutral-200 p-2.5 text-sm font-medium transition-colors hover:bg-emerald-50 hover:text-emerald-800 dark:border-neutral-700 dark:hover:bg-emerald-950/50 dark:hover:text-emerald-300">
             <Grid3X3 size={18} /><span className="hidden sm:inline">Categories</span><ChevronDown size={14} className="hidden sm:inline" />
           </button>
           <div className="flex-1" />
-          <Link to="/account" className="rounded-full p-2 hover:bg-emerald-50" aria-label="My account"><UserRound size={22} /></Link>
-          <Link to="/cart" className="relative rounded-full p-2 hover:bg-emerald-50" aria-label="Cart">
+          <Link to="/account" className="rounded-full p-2 transition-colors hover:bg-emerald-50 dark:hover:bg-emerald-950/50" aria-label="My account"><UserRound size={22} /></Link>
+          <Link to="/cart" className="relative rounded-full p-2 transition-colors hover:bg-emerald-50 dark:hover:bg-emerald-950/50" aria-label="Cart">
             <ShoppingCart size={22} />
             {count > 0 && <span className="absolute -right-0.5 -top-0.5 grid h-4.5 min-w-4.5 place-items-center rounded-full px-1 text-[10px] font-bold text-white" style={{ background: ORANGE }}>{count}</span>}
           </Link>
-          <form onSubmit={goSearch} className="order-last flex w-full min-w-0 items-center overflow-hidden rounded-xl border border-neutral-300 bg-white transition-colors focus-within:border-emerald-600 sm:order-none sm:w-auto sm:flex-1">
-            <Search size={17} className="ml-3 text-neutral-400" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm outline-none" placeholder="What are you looking for?" />
+          <form onSubmit={goSearch} className="order-last flex w-full min-w-0 items-center overflow-hidden rounded-xl border border-neutral-300 bg-white transition-colors focus-within:border-emerald-600 dark:border-neutral-700 dark:bg-neutral-900 dark:focus-within:border-emerald-500 sm:order-none sm:w-auto sm:flex-1">
+            <Search size={17} className="ml-3 text-neutral-400 dark:text-neutral-500" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm text-neutral-900 outline-none placeholder:text-neutral-400 dark:text-neutral-100 dark:placeholder:text-neutral-500" placeholder="What are you looking for?" />
             <button type="submit" className="px-4 py-2.5 text-sm font-semibold text-white" style={{ background: ORANGE }}><span className="hidden sm:inline">Search</span><Search size={17} className="sm:hidden" /></button>
           </form>
         </div>
@@ -67,16 +67,16 @@ export default function Header() {
 
       {catOpen && (
         <div className="fixed inset-0 z-50" onClick={() => setCatOpen(false)}>
-          <div className="absolute inset-0 bg-black/40" />
-          <aside className="absolute left-0 top-0 flex h-full w-80 max-w-[85vw] flex-col bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex h-16 items-center justify-between border-b border-neutral-200 px-4">
-              <div className="flex items-center gap-2"><img src="/logo-mark.png" alt="UG Souq logo" className="h-8 w-8 rounded-lg object-cover" /><span className="text-lg font-extrabold">Categories</span></div>
-              <button onClick={() => setCatOpen(false)} className="rounded-full p-2 hover:bg-neutral-100"><X size={20} /></button>
+          <div className="absolute inset-0 bg-black/50" />
+          <aside className="absolute left-0 top-0 flex h-full w-80 max-w-[85vw] flex-col bg-white text-neutral-900 shadow-xl transition-colors dark:bg-neutral-950 dark:text-neutral-100" onClick={(e) => e.stopPropagation()}>
+            <div className="flex h-16 items-center justify-between border-b border-neutral-200 px-4 dark:border-neutral-800">
+              <div className="flex items-center gap-2"><img src="/logo-mark.png" alt="UG Souq logo" className="h-8 w-8 rounded-lg bg-white object-cover" /><span className="text-lg font-extrabold">Categories</span></div>
+              <button onClick={() => setCatOpen(false)} className="rounded-full p-2 transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800"><X size={20} /></button>
             </div>
             <nav className="flex-1 overflow-y-auto py-2">
               {CATEGORIES.map((c) => (
-                <button key={c.name} onClick={() => { setCatOpen(false); navigate(c.to ?? `/search?q=${encodeURIComponent(c.q)}`) }} className="flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-emerald-50">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700"><c.icon size={19} /></span>
+                <button key={c.name} onClick={() => { setCatOpen(false); navigate(c.to ?? `/search?q=${encodeURIComponent(c.q)}`) }} className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-emerald-50 dark:hover:bg-emerald-950/40">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"><c.icon size={19} /></span>
                   <span className="text-sm font-semibold">{c.name}</span>
                 </button>
               ))}
