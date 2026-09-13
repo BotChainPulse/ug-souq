@@ -125,7 +125,9 @@
 }
 
 .dark .bg-gray-50,
-.dark .bg-neutral-50 {
+.dark .bg-neutral-50,
+.dark .bg-\[\#f6f7f6\],
+.dark .bg-\[\#faf9f7\] {
   background-color: #101311 !important;
 }
 
