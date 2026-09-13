@@ -53,8 +53,21 @@ function cleanDeliveryAddress(value: unknown) {
   const text = String(value ?? '').trim()
   if (!text) return 'Address unavailable'
   const parts = text.split(/\s+—\s+/).map((part) => part.trim()).filter(Boolean)
-  const cleaned = parts.filter((part, index) => index === 0 || part !== parts[index - 1])
-  return cleaned.join(' — ')
+  const isPickup = /^pickup:/i.test(parts[0] ?? '')
+  const unique = new Map<string, string>()
+
+  for (const part of parts) {
+    const base = part.replace(/,\s*door delivery$/i, '').trim()
+    const key = base.toLowerCase()
+    if (!key) continue
+    if (!unique.has(key)) {
+      unique.set(key, isPickup ? base : part)
+    } else if (!isPickup && /,\s*door delivery$/i.test(part)) {
+      unique.set(key, part)
+    }
+  }
+
+  return [...unique.values()].join(' — ')
 }
 
 class OrderDetailsBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -176,6 +189,8 @@ function OrderDetailsPage() {
                   <p className="text-xl font-extrabold">{safeAmount(order.total)}</p>
                   {order.status === 'cancelled' ? (
                     <span className="mt-1 inline-block rounded-full bg-red-50 px-2 py-1 text-[11px] font-bold text-red-700">Cancelled</span>
+                  ) : cancellationPending ? (
+                    <span className="mt-1 inline-block rounded-full bg-amber-50 px-2 py-1 text-[11px] font-bold text-amber-800">Cancellation pending</span>
                   ) : payBadge ? (
                     <span className={`mt-1 inline-block rounded-full px-2 py-1 text-[11px] font-bold ${payBadge.cls}`}>{payBadge.text}</span>
                   ) : null}
@@ -260,6 +275,7 @@ function OrderDetailsPage() {
                 ) : (
                   <>
                     <p className="mt-2 text-sm text-neutral-600">{paymentMethodLabel(order.paymentMethod ?? '')}</p>
+                    {payBadge && <p className="mt-1 text-xs font-semibold text-neutral-500">Payment status: {payBadge.text}</p>}
                     {order.paymentRef && <p className="mt-1 break-all text-xs text-neutral-500">Reference: {order.paymentRef}</p>}
                   </>
                 )}
