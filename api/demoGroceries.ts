@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { getDb } from "./queries/connection";
 import { products, sellers } from "../db/schema";
 import { DEMO_GROCERY_SELLER, demoGroceries } from "../db/demoGroceries";
@@ -8,6 +8,14 @@ let activeSync: Promise<{ removedLegacySeller: boolean; demoProducts: number }> 
 export function syncDemoGroceries(db = getDb()) {
   if (activeSync) return activeSync;
   activeSync = (async () => {
+    // A public blue tick must come from the explicit admin verification flow.
+    // Older demo/seed records used verified=true without a verification audit;
+    // clear those legacy flags so paid placement or demo data cannot impersonate trust.
+    await db
+      .update(sellers)
+      .set({ verified: false })
+      .where(and(eq(sellers.verified, true), isNull(sellers.verifiedAt)));
+
     const [legacySeller] = await db.select().from(sellers).where(eq(sellers.shopName, "Kikuubo Suppliers"));
     if (legacySeller) {
       await db.delete(products).where(eq(products.sellerId, legacySeller.id));
@@ -29,7 +37,7 @@ export function syncDemoGroceries(db = getDb()) {
         tin: null,
         payoutMethod: "mtn_momo",
         payoutNumber: "0700000000",
-        verified: true,
+        verified: false,
         rating: 48,
         status: "approved",
       }).$returningId();
