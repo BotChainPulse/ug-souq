@@ -88,17 +88,22 @@ function OrderDetailsPage() {
     { code: code.trim().toUpperCase(), phone: lookupPhone.trim() },
     { enabled: canLoad, retry: false },
   )
+  const cancellationStatusQuery = trpc.buyerOrders.cancellationStatus.useQuery(
+    { code: code.trim().toUpperCase(), phone: lookupPhone.trim() },
+    { enabled: canLoad, retry: false },
+  )
   const cancelOrder = trpc.buyerOrders.cancel.useMutation({
     onSuccess: async (result) => {
       setCancelNotice(result.message)
       setShowCancel(false)
-      await orderQuery.refetch()
+      await Promise.all([orderQuery.refetch(), cancellationStatusQuery.refetch()])
     },
   })
   const order = orderQuery.data
   const items = order && Array.isArray(order.items) ? order.items : []
   const stageIndex = order ? STAGES.findIndex(({ key }) => key === order.status) : -1
-  const cancellationAvailable = order ? ['placed', 'confirmed', 'pending_delivery'].includes(order.status) : false
+  const cancellationPending = cancellationStatusQuery.data?.pending === true
+  const cancellationAvailable = order ? ['placed', 'confirmed', 'pending_delivery'].includes(order.status) && !cancellationPending : false
   const cancellationLabel = order?.status === 'placed' ? 'Cancel order' : 'Request cancellation'
 
   const lookUp = () => {
@@ -164,7 +169,14 @@ function OrderDetailsPage() {
                 </div>
               )}
 
-              {cancelNotice && (
+              {cancellationPending && order.status !== 'cancelled' && (
+                <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
+                  <p>Cancellation request pending review.</p>
+                  <p className="mt-1 text-xs font-normal text-amber-800">You do not need to submit it again. We will stop fulfilment if possible and review any payment before a refund is processed.</p>
+                </div>
+              )}
+
+              {cancelNotice && !cancellationPending && order.status !== 'cancelled' && (
                 <p className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">{cancelNotice}</p>
               )}
 
