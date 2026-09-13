@@ -6,6 +6,11 @@ import './index.css'
 import { TRPCProvider } from "@/providers/trpc"
 import App from './App.tsx'
 
+const savedTheme = window.localStorage.getItem('ugsouq.theme')
+const useDarkTheme = savedTheme === 'dark'
+document.documentElement.classList.toggle('dark', useDarkTheme)
+document.documentElement.style.colorScheme = useDarkTheme ? 'dark' : 'light'
+
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => {})
