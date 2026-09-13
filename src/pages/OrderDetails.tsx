@@ -1,7 +1,7 @@
 import { Component, useState } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
-import { ArrowLeft, CheckCircle2, CircleDashed, MapPin, Package, ReceiptText, Truck, XCircle } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CheckCircle2, CircleDashed, MapPin, Package, ReceiptText, Truck, XCircle } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { trpc } from '@/providers/trpc'
@@ -18,6 +18,15 @@ const STAGES = [
   { key: 'on_the_way', label: 'On the way', icon: Truck },
   { key: 'delivered', label: 'Delivered', icon: CheckCircle2 },
 ] as const
+
+const CANCEL_REASONS = [
+  'Ordered by mistake',
+  'Wrong item or quantity',
+  'Duplicate order',
+  'Wrong delivery address',
+  'Changed my mind',
+  'Other',
+]
 
 function paymentMethodLabel(method: string) {
   if (method === 'mtn_momo') return 'MTN MoMo'
@@ -70,21 +79,39 @@ function OrderDetailsPage() {
   const savedPhone = (localStorage.getItem(SAVED_PHONE_KEY) ?? getAccount()?.phone ?? '').trim()
   const [phone, setPhone] = useState(savedPhone)
   const [lookupPhone, setLookupPhone] = useState(savedPhone)
+  const [showCancel, setShowCancel] = useState(false)
+  const [cancelReason, setCancelReason] = useState(CANCEL_REASONS[0])
+  const [cancelNotice, setCancelNotice] = useState('')
   const hasValidPhone = lookupPhone.trim().length >= 9
   const canLoad = code.trim().length >= 4 && hasValidPhone
   const orderQuery = trpc.orders.track.useQuery(
     { code: code.trim().toUpperCase(), phone: lookupPhone.trim() },
     { enabled: canLoad, retry: false },
   )
+  const cancelOrder = trpc.buyerOrders.cancel.useMutation({
+    onSuccess: async (result) => {
+      setCancelNotice(result.message)
+      setShowCancel(false)
+      await orderQuery.refetch()
+    },
+  })
   const order = orderQuery.data
   const items = order && Array.isArray(order.items) ? order.items : []
   const stageIndex = order ? STAGES.findIndex(({ key }) => key === order.status) : -1
+  const cancellationAvailable = order ? ['placed', 'confirmed', 'pending_delivery'].includes(order.status) : false
+  const cancellationLabel = order?.status === 'placed' ? 'Cancel order' : 'Request cancellation'
 
   const lookUp = () => {
     const normalized = phone.trim()
     if (normalized.length < 9) return
     localStorage.setItem(SAVED_PHONE_KEY, normalized)
     setLookupPhone(normalized)
+  }
+
+  const submitCancellation = () => {
+    if (!order || !lookupPhone.trim()) return
+    setCancelNotice('')
+    cancelOrder.mutate({ code: order.code, phone: lookupPhone.trim(), reason: cancelReason })
   }
 
   return (
@@ -135,6 +162,50 @@ function OrderDetailsPage() {
                 <div className="mt-6 grid gap-3 sm:grid-cols-5">
                   {STAGES.map((stage, index) => { const done = index <= stageIndex; const Icon = done ? stage.icon : CircleDashed; return <div key={stage.key} className={`flex items-center gap-2 text-xs sm:flex-col sm:text-center ${done ? 'font-bold text-neutral-800' : 'text-neutral-400'}`}><Icon size={19} className={done ? 'text-emerald-600' : 'text-neutral-300'} /><span>{stage.label}</span></div> })}
                 </div>
+              )}
+
+              {cancelNotice && (
+                <p className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">{cancelNotice}</p>
+              )}
+
+              {cancellationAvailable && !showCancel && (
+                <div className="mt-5 border-t border-neutral-100 pt-4">
+                  <button onClick={() => { setCancelNotice(''); setShowCancel(true) }} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-red-300 bg-white px-4 text-sm font-bold text-red-700 hover:bg-red-50">
+                    <XCircle size={17} /> {cancellationLabel}
+                  </button>
+                  <p className="mt-2 text-xs text-neutral-500">
+                    {order.status === 'placed'
+                      ? 'Mistake? Cancel before the seller starts fulfilment. Paid or in-progress payments are reviewed before any refund.'
+                      : 'The seller may already be preparing this order, so cancellation needs review.'}
+                  </p>
+                </div>
+              )}
+
+              {cancellationAvailable && showCancel && (
+                <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle size={19} className="mt-0.5 shrink-0 text-red-700" />
+                    <div>
+                      <h2 className="font-extrabold text-red-900">{cancellationLabel}</h2>
+                      <p className="mt-1 text-xs leading-relaxed text-red-800">Tell us why. Unpaid orders that have not entered payment processing can be cancelled immediately. Otherwise we create a cancellation/refund request for review.</p>
+                    </div>
+                  </div>
+                  <label className="mt-4 block text-xs font-bold text-red-900" htmlFor="cancel-reason">Reason</label>
+                  <select id="cancel-reason" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} className="mt-1 h-11 w-full rounded-xl border border-red-200 bg-white px-3 text-sm outline-none focus:border-red-500">
+                    {CANCEL_REASONS.map((reason) => <option key={reason} value={reason}>{reason}</option>)}
+                  </select>
+                  {cancelOrder.error && <p className="mt-2 text-xs font-semibold text-red-700">{cancelOrder.error.message}</p>}
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button onClick={submitCancellation} disabled={cancelOrder.isPending} className="min-h-11 rounded-xl bg-red-700 px-4 text-sm font-bold text-white disabled:opacity-50">
+                      {cancelOrder.isPending ? 'Submitting…' : `Confirm ${order.status === 'placed' ? 'cancellation' : 'request'}`}
+                    </button>
+                    <button onClick={() => setShowCancel(false)} disabled={cancelOrder.isPending} className="min-h-11 rounded-xl border border-neutral-300 bg-white px-4 text-sm font-bold text-neutral-700 disabled:opacity-50">Keep order</button>
+                  </div>
+                </div>
+              )}
+
+              {order.status === 'on_the_way' && (
+                <p className="mt-5 rounded-xl bg-amber-50 p-3 text-xs font-semibold text-amber-800">This order is already on the way. Contact support for urgent delivery changes.</p>
               )}
             </section>
 
