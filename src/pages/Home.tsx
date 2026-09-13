@@ -66,13 +66,13 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f6f7f6] pb-16 text-neutral-900 antialiased sm:pb-0">
+    <div className="ugsouq-page-bg min-h-screen pb-16 text-neutral-900 antialiased dark:text-neutral-100 sm:pb-0">
       <Header />
 
-      <div className="border-b border-neutral-200 bg-white">
+      <div className="border-b border-neutral-200 bg-white dark:border-neutral-800">
         <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-3 py-2.5 [scrollbar-width:none] sm:px-4">
           {services.map(({ icon: Icon, label, tag, to }) => (
-            <Link key={label} to={to} className="flex shrink-0 items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs font-bold transition hover:border-emerald-300 hover:bg-emerald-50 sm:text-sm">
+            <Link key={label} to={to} className="flex shrink-0 items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs font-bold transition hover:border-emerald-300 hover:bg-emerald-50 dark:border-neutral-700 dark:hover:bg-emerald-950/40 sm:text-sm">
               <Icon size={16} style={{ color: ORANGE }} /> {label}
               {tag && <span className="rounded-full bg-emerald-700 px-1.5 py-0.5 text-[9px] text-white">{tag}</span>}
             </Link>
@@ -88,7 +88,7 @@ export default function HomePage() {
             <span className="w-fit rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider">Proudly Ugandan</span>
             <h1 className="mt-2 text-2xl font-extrabold leading-tight sm:text-4xl">Uganda's market,<br />in your pocket.</h1>
             <p className="mt-2 max-w-sm text-xs text-emerald-50 sm:text-sm">Shop trusted sellers, pay your way and get delivery across Uganda.</p>
-            <div className="mt-3 flex gap-2"><Link to="/catalog?deals=1" className="rounded-lg bg-white px-3 py-2 text-xs font-extrabold text-emerald-900">Shop deals</Link><Link to="/plus" className="rounded-lg bg-[#c99700] px-3 py-2 text-xs font-extrabold text-white">UG Souq Plus</Link></div>
+            <div className="mt-3 flex gap-2"><Link to="/catalog?deals=1" className="rounded-lg bg-white px-3 py-2 text-xs font-extrabold text-emerald-900 dark:!bg-emerald-100 dark:!text-emerald-950">Shop deals</Link><Link to="/plus" className="rounded-lg bg-[#c99700] px-3 py-2 text-xs font-extrabold text-white">UG Souq Plus</Link></div>
           </div>
         </div>
       </section>
@@ -100,7 +100,7 @@ export default function HomePage() {
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-12">
           {homeTiles.map((slug) => (
             <Link key={slug} to={`/catalog?category=${slug}`} className="group min-w-0 text-center">
-              <span className="mx-auto block aspect-square w-full max-w-24 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-neutral-200">
+              <span className="mx-auto block aspect-square w-full max-w-24 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-neutral-200 dark:ring-neutral-700">
                 <img
                   src={categoryImages[slug]}
                   alt=""
@@ -110,7 +110,7 @@ export default function HomePage() {
                   height="360"
                 />
               </span>
-              <span className="mt-1.5 block min-h-8 line-clamp-2 text-[10px] font-semibold leading-tight sm:text-xs">{categoryName(slug)}</span>
+              <span className="mt-1.5 block min-h-8 line-clamp-2 text-[10px] font-semibold leading-tight sm:text-xs">{slug === 'agriculture' ? 'Farm Produce' : categoryName(slug)}</span>
             </Link>
           ))}
         </div>
@@ -125,7 +125,7 @@ export default function HomePage() {
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4">
             {products?.map((p) => (
               <article key={p.id} className="group overflow-hidden rounded-xl border border-neutral-200 bg-white transition hover:shadow-md">
-                <div className="relative bg-neutral-50"><Link to={`/product/${p.slug}`}><img src={p.image} alt={p.name} className="aspect-square w-full bg-neutral-50 object-contain p-2" loading="lazy" /></Link>
+                <div className="relative bg-neutral-50"><Link to={`/product/${p.slug}`}><img src={p.image} alt={p.name} className="product-image-standard" loading="lazy" /></Link>
                   {p.discount > 0 && <span className="absolute left-2 top-2 rounded-md bg-emerald-700 px-1.5 py-1 text-[10px] font-extrabold text-white">−{p.discount}%</span>}
                   <button onClick={(e) => { e.preventDefault(); toggleWish(p.id) }} className="absolute right-2 top-2 rounded-full bg-white p-1.5 shadow" aria-label={isWished(p.id) ? `Remove ${p.name} from wishlist` : `Add ${p.name} to wishlist`} aria-pressed={isWished(p.id)}><Heart size={15} className={isWished(p.id) ? 'fill-red-500 text-red-500' : 'text-neutral-500'} /></button>
                 </div>
@@ -150,7 +150,7 @@ export default function HomePage() {
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-6">
             {groceryProducts?.map((p) => (
               <article key={p.id} className="group overflow-hidden rounded-xl border border-neutral-200 bg-white transition hover:shadow-md">
-                <div className="relative bg-neutral-50"><Link to={`/product/${p.slug}`}><img src={p.image} alt={p.name} className="aspect-square w-full bg-neutral-50 object-contain p-2" loading="lazy" /></Link>
+                <div className="relative bg-neutral-50"><Link to={`/product/${p.slug}`}><img src={p.image} alt={p.name} className="product-image-standard" loading="lazy" /></Link>
                   {p.discount > 0 && <span className="absolute left-2 top-2 rounded-md bg-emerald-700 px-1.5 py-1 text-[10px] font-extrabold text-white">−{p.discount}%</span>}
                   <button onClick={(e) => { e.preventDefault(); toggleWish(p.id) }} className="absolute right-2 top-2 rounded-full bg-white p-1.5 shadow" aria-label={isWished(p.id) ? `Remove ${p.name} from wishlist` : `Add ${p.name} to wishlist`} aria-pressed={isWished(p.id)}><Heart size={15} className={isWished(p.id) ? 'fill-red-500 text-red-500' : 'text-neutral-500'} /></button>
                   <span className="absolute bottom-2 left-2 rounded-full bg-neutral-950/85 px-2 py-1 text-[9px] font-extrabold uppercase tracking-wide text-white">UG Souq</span>
@@ -177,11 +177,12 @@ export default function HomePage() {
         { icon: ShieldCheck, t: 'Buyer Protection', d: 'Protection on every eligible order.' },
       ].map(({ icon: Icon, t, d }) => <div key={t} className="flex gap-3 rounded-xl bg-white p-4 ring-1 ring-neutral-200"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-emerald-50"><Icon size={18} className="text-emerald-700" /></span><div><h3 className="text-sm font-bold">{t}</h3><p className="mt-0.5 text-xs text-neutral-600">{d}</p></div></div>)}</div></section>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-neutral-200 bg-white px-2 py-1.5 sm:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-neutral-200 bg-white px-1 py-1.5 dark:border-neutral-800 sm:hidden">
         <Link to="/" className="flex flex-col items-center gap-0.5 text-[10px] font-bold text-emerald-700"><HomeIcon size={21} />Home</Link>
         <Link to="/catalog" className="flex flex-col items-center gap-0.5 text-[10px] font-medium text-neutral-600"><Grid3X3 size={21} />Categories</Link>
-        <Link to="/account" className="flex flex-col items-center gap-0.5 text-[10px] font-medium text-neutral-600"><UserRound size={21} />Account</Link>
         <Link to="/cart" className="flex flex-col items-center gap-0.5 text-[10px] font-medium text-neutral-600"><ShoppingCart size={21} />Cart</Link>
+        <Link to="/wishlist" className="flex flex-col items-center gap-0.5 text-[10px] font-medium text-neutral-600"><Heart size={21} />Wishlist</Link>
+        <Link to="/account" className="flex flex-col items-center gap-0.5 text-[10px] font-medium text-neutral-600"><UserRound size={21} />Account</Link>
       </div>
       <Footer />
     </div>
