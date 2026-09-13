@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { Package, Smartphone, Truck, CircleCheckBig, Clock, XCircle, ShoppingCart, ChevronRight } from 'lucide-react'
 import Header from '../components/Header'
@@ -14,6 +14,7 @@ function StatusPill({ status }: { status: string }) {
   const map: Record<string, { cls: string; icon: React.ReactNode; label: string }> = {
     placed: { cls: 'bg-amber-50 text-amber-700 border-amber-200', icon: <Clock size={12} />, label: 'Placed' },
     confirmed: { cls: 'bg-sky-50 text-sky-700 border-sky-200', icon: <CircleCheckBig size={12} />, label: 'Confirmed' },
+    pending_delivery: { cls: 'bg-violet-50 text-violet-700 border-violet-200', icon: <Package size={12} />, label: 'Preparing' },
     on_the_way: { cls: 'bg-indigo-50 text-indigo-700 border-indigo-200', icon: <Truck size={12} />, label: 'On the way' },
     delivered: { cls: 'bg-green-50 text-green-700 border-green-200', icon: <CircleCheckBig size={12} />, label: 'Delivered' },
     cancelled: { cls: 'bg-red-50 text-red-700 border-red-200', icon: <XCircle size={12} />, label: 'Cancelled' },
@@ -30,15 +31,31 @@ export default function MyOrders() {
   const savedPhone = localStorage.getItem(SAVED_PHONE_KEY) ?? getAccount()?.phone ?? ''
   const [phone, setPhone] = useState(savedPhone)
   const [searched, setSearched] = useState(savedPhone)
+  const [maintainedPhone, setMaintainedPhone] = useState('')
   const orders = trpc.orders.byPhone.useQuery(
     { phone: searched },
     { enabled: searched.trim().length >= 9, retry: false },
   )
+  const expireStale = trpc.buyerOrders.expireStale.useMutation({
+    onSuccess: async (result) => {
+      if (result.cancelled > 0) await orders.refetch()
+    },
+  })
+
+  useEffect(() => {
+    const p = searched.trim()
+    if (p.length < 9 || p === maintainedPhone) return
+    setMaintainedPhone(p)
+    expireStale.mutate({ phone: p })
+  }, [searched, maintainedPhone])
 
   const search = () => {
     const p = phone.trim()
     setSearched(p)
-    if (p.length >= 9) localStorage.setItem(SAVED_PHONE_KEY, p)
+    if (p.length >= 9) {
+      localStorage.setItem(SAVED_PHONE_KEY, p)
+      if (p !== searched) setMaintainedPhone('')
+    }
   }
 
   return (
@@ -109,6 +126,7 @@ export default function MyOrders() {
                   <span className="font-extrabold">{fmt(o.total)}</span>
                 </div>
                 <p className="mt-2 text-xs text-neutral-500">Deliver to: {o.address}</p>
+                {o.status === 'placed' && <p className="mt-2 text-xs font-semibold text-amber-700">Need to correct a mistake? Open the order to cancel before fulfilment starts.</p>}
                 <Link to={`/orders/${encodeURIComponent(o.code)}`} className="mt-4 flex min-h-11 items-center justify-between border-t border-neutral-100 pt-3 text-sm font-bold text-emerald-700">
                   View order details <ChevronRight size={18} />
                 </Link>
