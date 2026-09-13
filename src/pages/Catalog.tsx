@@ -43,7 +43,7 @@ export default function Catalog() {
   }
 
   return (
-    <div className="min-h-screen bg-[#faf9f7] text-neutral-900 antialiased">
+    <div className="ugsouq-page-bg min-h-screen text-neutral-900 antialiased dark:text-neutral-100">
       <Header />
 
       <div className="mx-auto max-w-7xl px-4 py-8">
@@ -112,9 +112,9 @@ export default function Catalog() {
                 <div key={key} className="group bg-white rounded-2xl border border-neutral-200 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all">
                   <div className="relative bg-white">
                     {p.kind === 'product' ? (
-                      <Link to={`/product/${p.slug}`}><img src={p.image} alt={p.name} className="aspect-square w-full bg-neutral-50 object-contain p-2" loading="lazy" /></Link>
+                      <Link to={`/product/${p.slug}`}><img src={p.image} alt={p.name} className="product-image-standard" loading="lazy" /></Link>
                     ) : (
-                      <img src={p.image} alt={p.name} className="aspect-square w-full bg-neutral-50 object-contain p-2" loading="lazy" />
+                      <img src={p.image} alt={p.name} className="product-image-standard" loading="lazy" />
                     )}
                     {p.discount > 0 && (
                       <span className="absolute top-3 left-3 text-xs font-bold text-white px-2 py-1 rounded-full" style={{ background: ORANGE }}>−{p.discount}%</span>
@@ -198,4 +198,3 @@ export default function Catalog() {
     </div>
   )
 }
-
