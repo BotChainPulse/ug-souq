@@ -22,7 +22,7 @@ export default function SellerPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#faf9f7] flex flex-col">
+      <div className="ugsouq-page-bg min-h-screen flex flex-col text-neutral-900 dark:text-neutral-100">
         <Header />
         <div className="flex-1 mx-auto w-full max-w-7xl px-4 py-10">
           <div className="h-40 rounded-2xl bg-white border border-neutral-200 animate-pulse mb-6" />
@@ -39,7 +39,7 @@ export default function SellerPage() {
 
   if (!seller) {
     return (
-      <div className="min-h-screen bg-[#faf9f7] flex flex-col">
+      <div className="ugsouq-page-bg min-h-screen flex flex-col text-neutral-900 dark:text-neutral-100">
         <Header />
         <div className="flex-1 mx-auto w-full max-w-3xl px-4 py-16 text-center">
           <Store size={40} className="mx-auto text-neutral-300" />
@@ -54,7 +54,7 @@ export default function SellerPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#faf9f7] text-neutral-900 antialiased flex flex-col">
+    <div className="ugsouq-page-bg min-h-screen text-neutral-900 antialiased flex flex-col dark:text-neutral-100">
       <Header />
       <main className="flex-1 mx-auto w-full max-w-7xl px-4 py-4 sm:py-6">
         <Link to="/catalog" className="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-800 mb-3">
@@ -99,14 +99,14 @@ export default function SellerPage() {
                 <div className="block relative bg-white">
                   {p.kind === 'product' ? (
                     <Link to={'/product/' + p.slug}>
-                      <img src={p.image} alt={p.name} className="aspect-square w-full bg-neutral-50 object-contain p-2" />
+                      <img src={p.image} alt={p.name} className="product-image-standard" loading="lazy" />
                       {p.discount > 0 && (
                         <span className="absolute top-3 left-3 text-[11px] font-bold text-white px-2 py-0.5 rounded-full" style={{ background: ORANGE }}>{'-' + p.discount + '%'}</span>
                       )}
                     </Link>
                   ) : (
                     <>
-                      <img src={p.image} alt={p.name} className="aspect-square w-full bg-neutral-50 object-contain p-2" />
+                      <img src={p.image} alt={p.name} className="product-image-standard" loading="lazy" />
                       {p.discount > 0 && (
                         <span className="absolute top-3 left-3 text-[11px] font-bold text-white px-2 py-0.5 rounded-full" style={{ background: ORANGE }}>{'-' + p.discount + '%'}</span>
                       )}
