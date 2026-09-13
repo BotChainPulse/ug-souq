@@ -79,6 +79,38 @@ async function createCancellationRequest(order: typeof orders.$inferSelect, reas
 }
 
 const buyerOrdersRouter = t.router({
+  cancellationStatus: t.procedure
+    .input(z.object({
+      code: z.string().trim().min(4).max(32),
+      phone: z.string().trim().min(9).max(32),
+    }))
+    .query(async ({ input }) => {
+      const db = getDb();
+      const code = input.code.trim().toUpperCase();
+      const phone = normPhone(input.phone);
+      const [order] = await db.select().from(orders).where(eq(orders.code, code)).limit(1);
+
+      if (!order || normPhone(order.phone) !== phone) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Order not found for that code and phone number." });
+      }
+
+      if (order.status === "cancelled") {
+        return { pending: false, status: "cancelled" as const, requestId: null };
+      }
+
+      const existing = await db.select().from(returns)
+        .where(eq(returns.orderId, Number(order.id)))
+        .orderBy(desc(returns.createdAt));
+      const open = existing.find((row) => OPEN_CANCELLATION_REQUESTS.has(row.status));
+      if (!open) return { pending: false, status: null, requestId: null };
+
+      return {
+        pending: true,
+        status: open.status,
+        requestId: Number(open.id),
+      };
+    }),
+
   cancel: t.procedure
     .input(z.object({
       code: z.string().trim().min(4).max(32),
