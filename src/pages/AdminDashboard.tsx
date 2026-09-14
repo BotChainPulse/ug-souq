@@ -86,14 +86,15 @@ export default function AdminDashboard() {
   const orders = ((ordersQuery.data as any)?.orders ?? ordersQuery.data ?? []) as any[]
   const sellers = (sellersQuery.data ?? []) as any[]
   const payouts = ((payoutsQuery.data as any)?.pending ?? []) as any[]
-  const marketingSubscribers = (marketingQuery.data ?? []) as any[]
+  const marketingData = (marketingQuery.data as any) ?? {}
+  const marketingSubscribers = Array.isArray(marketingData?.rows) ? marketingData.rows : []
 
   const paidOrders = useMemo(() => orders.filter((order) => order?.paymentStatus === 'paid').length, [orders])
   const activeDeliveries = useMemo(() => orders.filter((order) => ['pending_delivery', 'on_the_way'].includes(String(order?.status))).length, [orders])
   const approvedSellers = useMemo(() => sellers.filter((seller) => seller?.status === 'approved').length, [sellers])
-  const marketingOptIns = useMemo(() => marketingSubscribers.filter((subscriber) => subscriber?.emailOptIn || subscriber?.whatsappOptIn).length, [marketingSubscribers])
+  const marketingOptIns = Number(marketingData?.totals?.subscribers ?? marketingSubscribers.filter((subscriber: any) => subscriber?.emailOptIn || subscriber?.whatsappOptIn).length)
   const loading = statsQuery.isLoading || ordersQuery.isLoading
-  const hasError = Boolean(statsQuery.error || ordersQuery.error)
+  const hasError = Boolean(statsQuery.error || ordersQuery.error || marketingQuery.error)
 
   const login = () => {
     const key = keyInput.trim()
