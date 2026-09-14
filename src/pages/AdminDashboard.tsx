@@ -10,6 +10,7 @@ import {
   CreditCard,
   Crown,
   LogOut,
+  Megaphone,
   Menu,
   MessageSquareText,
   PackageCheck,
@@ -79,15 +80,18 @@ export default function AdminDashboard() {
   const ordersQuery = trpc.admin.orders.useQuery({ key: adminKey, search: orderSearch || undefined }, { enabled: !!adminKey, retry: false })
   const sellersQuery = trpc.admin.sellers.useQuery({ key: adminKey }, { enabled: !!adminKey, retry: false })
   const payoutsQuery = trpc.admin.pendingPayouts.useQuery({ key: adminKey }, { enabled: !!adminKey, retry: false })
+  const marketingQuery = trpc.admin.marketingSubscribers.useQuery({ key: adminKey }, { enabled: !!adminKey, retry: false })
 
   const stats = (statsQuery.data as any) ?? {}
   const orders = ((ordersQuery.data as any)?.orders ?? ordersQuery.data ?? []) as any[]
   const sellers = (sellersQuery.data ?? []) as any[]
   const payouts = ((payoutsQuery.data as any)?.pending ?? []) as any[]
+  const marketingSubscribers = (marketingQuery.data ?? []) as any[]
 
   const paidOrders = useMemo(() => orders.filter((order) => order?.paymentStatus === 'paid').length, [orders])
   const activeDeliveries = useMemo(() => orders.filter((order) => ['pending_delivery', 'on_the_way'].includes(String(order?.status))).length, [orders])
   const approvedSellers = useMemo(() => sellers.filter((seller) => seller?.status === 'approved').length, [sellers])
+  const marketingOptIns = useMemo(() => marketingSubscribers.filter((subscriber) => subscriber?.emailOptIn || subscriber?.whatsappOptIn).length, [marketingSubscribers])
   const loading = statsQuery.isLoading || ordersQuery.isLoading
   const hasError = Boolean(statsQuery.error || ordersQuery.error)
 
@@ -109,6 +113,7 @@ export default function AdminDashboard() {
     ordersQuery.refetch()
     sellersQuery.refetch()
     payoutsQuery.refetch()
+    marketingQuery.refetch()
   }
 
   if (!adminKey) {
@@ -137,6 +142,7 @@ export default function AdminDashboard() {
     ['Customers', 'Customer account, order history and support operations.', 'Operations', Users],
     ['Sellers & Products', 'Seller approvals, listing moderation and catalog health.', `${approvedSellers} approved`, Store],
     ['Delivery Control', 'Delivery partners, dispatch queue and tracking operations.', `${activeDeliveries} active`, Truck],
+    ['Marketing Campaigns', 'Build mobile promotional emails from opted-in customers and marketplace products.', `${marketingOptIns} opt-ins`, Megaphone],
     ['SMS & Notifications', 'Africa’s Talking confirmations and delivery alerts.', 'Setup required', MessageSquareText],
     ['Returns & Refunds', 'Return requests, pickup, refunds and closure.', 'Operations', RotateCcw],
     ['Seller Payouts', 'Commission settlement and seller payout queue.', `${payouts.length} pending`, WalletCards],
@@ -158,6 +164,7 @@ export default function AdminDashboard() {
         <nav className="space-y-1 p-4 text-sm">
           <button className="flex w-full items-center gap-3 rounded-xl bg-white/10 px-3 py-3 font-bold"><Activity size={18} /> Dashboard</button>
           <button onClick={() => navigate('/admin/operations')} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 font-semibold text-slate-300 hover:bg-white/5"><Boxes size={18} /> Operations</button>
+          <button onClick={() => navigate('/admin/marketing')} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 font-semibold text-slate-300 hover:bg-white/5"><Megaphone size={18} /> Marketing Campaigns</button>
           <button onClick={() => navigate('/plus')} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 font-semibold text-slate-300 hover:bg-white/5"><Crown size={18} /> Plus Membership</button>
         </nav>
         <div className="absolute inset-x-0 bottom-0 border-t border-white/10 p-4"><button onClick={logout} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-rose-300"><LogOut size={18} /> Sign out</button></div>
@@ -174,7 +181,7 @@ export default function AdminDashboard() {
         <main className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
           <section className="rounded-3xl bg-slate-950 p-6 text-white">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">UG Souq Operations</p>
-            <div className="mt-3 flex flex-col justify-between gap-5 lg:flex-row lg:items-end"><div><h2 className="text-2xl font-black sm:text-3xl">One place to run the marketplace.</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">This administrator-only dashboard separates business operations from the shopper experience and creates dedicated space for payments, Plus membership, SMS and delivery control.</p></div><button onClick={() => navigate('/admin/operations')} className="flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold" style={{ backgroundColor: BRAND }}>Detailed operations <ArrowRight size={16} /></button></div>
+            <div className="mt-3 flex flex-col justify-between gap-5 lg:flex-row lg:items-end"><div><h2 className="text-2xl font-black sm:text-3xl">One place to run the marketplace.</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">This administrator-only dashboard separates business operations from the shopper experience and creates dedicated space for payments, Plus membership, marketing, SMS and delivery control.</p></div><button onClick={() => navigate('/admin/operations')} className="flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold" style={{ backgroundColor: BRAND }}>Detailed operations <ArrowRight size={16} /></button></div>
           </section>
 
           {hasError && <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"><AlertTriangle size={17} />Some live admin data could not be loaded. Check the admin key or backend connection.</div>}
@@ -187,7 +194,7 @@ export default function AdminDashboard() {
             <Metric label="Active Delivery" value={String(activeDeliveries)} icon={Truck} note="Preparing or on the way" />
             <Metric label="Paid Orders" value={String(paidOrders)} icon={CreditCard} note="Loaded payment results" />
             <Metric label="Pending Payouts" value={String(payouts.length)} icon={WalletCards} note="Seller settlements" />
-            <Metric label="Plus & SMS" value="Setup" icon={Crown} note="Flutterwave + Africa’s Talking" />
+            <Metric label="Marketing Opt-ins" value={String(marketingOptIns)} icon={Megaphone} note="Email or WhatsApp consent" />
           </section>
 
           <section className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
@@ -205,7 +212,7 @@ export default function AdminDashboard() {
             </div>
           </section>
 
-          <section><div className="mb-3"><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Control center</p><h2 className="text-lg font-black">Administrator modules</h2></div><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{modules.map(([title, description, status, icon]) => <AdminModule key={title} title={title} description={description} status={status} icon={icon} onClick={() => title === 'UG Souq Plus' ? navigate('/plus') : navigate('/admin/operations')} />)}</div></section>
+          <section><div className="mb-3"><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Control center</p><h2 className="text-lg font-black">Administrator modules</h2></div><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{modules.map(([title, description, status, icon]) => <AdminModule key={title} title={title} description={description} status={status} icon={icon} onClick={() => title === 'UG Souq Plus' ? navigate('/plus') : title === 'Marketing Campaigns' ? navigate('/admin/marketing') : navigate('/admin/operations')} />)}</div></section>
         </main>
       </div>
     </div>
