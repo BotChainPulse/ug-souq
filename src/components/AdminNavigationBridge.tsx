@@ -33,6 +33,13 @@ export default function AdminNavigationBridge() {
         event.preventDefault()
         event.stopPropagation()
         navigate('/admin/ads')
+        return
+      }
+
+      if (label === 'Marketing') {
+        event.preventDefault()
+        event.stopPropagation()
+        navigate('/admin/marketing')
       }
     }
 
