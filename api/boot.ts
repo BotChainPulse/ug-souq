@@ -7,6 +7,7 @@ import { createContext } from "./context";
 import { env } from "./lib/env";
 import { isValidFlutterwaveWebhook, verifyPlusPayment } from "./plus";
 import { verifyPesapalPayment } from "./pesapal";
+import { registerMarketingCampaignRoutes, startMarketingCampaignScheduler } from "./marketingCampaigns";
 
 async function ensureStartupSchema() {
   const { getDb } = await import("./queries/connection");
@@ -218,6 +219,7 @@ app.use("/api/trpc/*", async (c) => {
     createContext,
   });
 });
+registerMarketingCampaignRoutes(app);
 
 // Public sponsored seller campaigns. Only admin-activated bookings are exposed.
 // The creative is taken from the seller's selected approved listing so no unreviewed image can become an ad.
@@ -236,7 +238,6 @@ app.get("/api/ads/active", async (c) => {
     .innerJoin(sellers, eq(sellerAdBookings.sellerId, sellers.id))
     .where(and(eq(sellerAdBookings.status, "active"), eq(sellers.status, "approved")))
     .orderBy(desc(sellerAdBookings.createdAt));
-
   const ads = await Promise.all(active.map(async ({ booking, seller }) => {
     const auditRows = await db
       .select()
@@ -444,6 +445,7 @@ export default app;
 
 if (env.isProduction) {
   await ensureStartupSchema();
+  startMarketingCampaignScheduler();
   const { serve } = await import("@hono/node-server");
   const { serveStaticFiles } = await import("./lib/vite");
   serveStaticFiles(app);
