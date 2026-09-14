@@ -24,6 +24,7 @@ import AdminLaunch from './pages/AdminLaunch'
 import AdminListingsReview from './pages/AdminListingsReview'
 import AdminDeliveriesSafe from './pages/AdminDeliveriesSafe'
 import AdminAdsSafe from './pages/AdminAdsSafe'
+import AdminMarketingCampaigns from './pages/AdminMarketingCampaigns'
 import Unsubscribe from './pages/Unsubscribe'
 import Promotions from './pages/Promotions'
 import Catalog from './pages/Catalog'
@@ -86,6 +87,7 @@ export default function App() {
         <Route path="/admin/listings" element={<AdminListingsReview />} />
         <Route path="/admin/deliveries" element={<AdminDeliveriesSafe />} />
         <Route path="/admin/ads" element={<AdminAdsSafe />} />
+        <Route path="/admin/marketing" element={<AdminMarketingCampaigns />} />
         <Route path="/catalog" element={<Catalog />} />
         <Route path="/product/:slug" element={<ProductDetail />} />
         <Route path="/seller/:id" element={<SellerPage />} />
