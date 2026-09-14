@@ -6,7 +6,7 @@ export default function AdminNavigationBridge() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (location.pathname !== '/admin/operations') return
+    if (!location.pathname.startsWith('/admin')) return
 
     const onClick = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null
@@ -15,28 +15,28 @@ export default function AdminNavigationBridge() {
 
       const label = button.textContent?.replace(/\s+/g, ' ').trim() ?? ''
 
-      if (label === 'Listings' || label === 'Review Listings') {
+      if (location.pathname === '/admin/operations' && (label === 'Listings' || label === 'Review Listings')) {
         event.preventDefault()
         event.stopPropagation()
         navigate('/admin/listings')
         return
       }
 
-      if (label === 'Deliveries') {
+      if (location.pathname === '/admin/operations' && label === 'Deliveries') {
         event.preventDefault()
         event.stopPropagation()
         navigate('/admin/deliveries')
         return
       }
 
-      if (label === 'Seller Ads') {
+      if (location.pathname === '/admin/operations' && label === 'Seller Ads') {
         event.preventDefault()
         event.stopPropagation()
         navigate('/admin/ads')
         return
       }
 
-      if (label === 'Marketing') {
+      if (label === 'Marketing' || label === 'Marketing Campaigns' || label.startsWith('Marketing Campaigns ')) {
         event.preventDefault()
         event.stopPropagation()
         navigate('/admin/marketing')
