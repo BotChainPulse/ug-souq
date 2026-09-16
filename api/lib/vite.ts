@@ -16,8 +16,19 @@ export function serveStaticFiles(app: App) {
     if (!accept.includes("text/html")) {
       return c.json({ error: "Not Found" }, 404);
     }
+
     const indexPath = path.resolve(distPath, "index.html");
-    const content = fs.readFileSync(indexPath, "utf-8");
+    let content = fs.readFileSync(indexPath, "utf-8");
+    const pathname = new URL(c.req.url).pathname;
+    const isAdmin = pathname === "/admin" || pathname.startsWith("/admin/");
+
+    if (isAdmin) {
+      content = content
+        .replace("<title>UG Souq</title>", "<title>UGSouq Admin</title>")
+        .replace('href="/manifest.webmanifest"', 'href="/admin-manifest.webmanifest"')
+        .replace('content="UG Souq"', 'content="UGSouq Admin"');
+    }
+
     return c.html(content);
   });
 }
