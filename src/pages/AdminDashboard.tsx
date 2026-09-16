@@ -27,6 +27,7 @@ import {
   X,
 } from 'lucide-react'
 import { trpc } from '../providers/trpc'
+import { clearAdminSessionKey, getAdminSessionKey, setAdminSessionKey } from '../lib/adminSession'
 
 const BRAND = '#047857'
 
@@ -71,7 +72,7 @@ function AdminModule({ title, description, status, icon: IconComponent, onClick 
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
-  const [adminKey, setAdminKey] = useState(() => localStorage.getItem('ug_admin_key') || '')
+  const [adminKey, setAdminKey] = useState(getAdminSessionKey)
   const [keyInput, setKeyInput] = useState('')
   const [mobileMenu, setMobileMenu] = useState(false)
   const [orderSearch, setOrderSearch] = useState('')
@@ -99,12 +100,12 @@ export default function AdminDashboard() {
   const login = () => {
     const key = keyInput.trim()
     if (!key) return
-    localStorage.setItem('ug_admin_key', key)
+    setAdminSessionKey(key)
     setAdminKey(key)
   }
 
   const logout = () => {
-    localStorage.removeItem('ug_admin_key')
+    clearAdminSessionKey()
     setAdminKey('')
     setKeyInput('')
   }
@@ -151,6 +152,22 @@ export default function AdminDashboard() {
     ['Marketplace Settings', 'Commission, delivery fees and platform configuration.', 'Manage', Settings],
     ['Detailed Operations', 'Open the existing full administrator operations console.', 'Available', Boxes],
   ] as const
+
+  const moduleDestinations: Record<string, string> = {
+    Orders: '/admin/operations?tab=orders',
+    Payments: '/admin/operations?tab=payments',
+    'UG Souq Plus': '/admin/operations?tab=plus',
+    Customers: '/admin/operations?tab=customers',
+    'Sellers & Products': '/admin/operations?tab=sellers',
+    'Delivery Control': '/admin/deliveries',
+    'Marketing Campaigns': '/admin/marketing',
+    'SMS & Notifications': '/admin/operations?tab=notifications',
+    'Returns & Refunds': '/admin/operations?tab=returns',
+    'Seller Payouts': '/admin/operations?tab=payouts',
+    Reports: '/admin/operations?tab=reports',
+    'Marketplace Settings': '/admin/operations?tab=settings',
+    'Detailed Operations': '/admin/operations',
+  }
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-950">
@@ -202,7 +219,7 @@ export default function AdminDashboard() {
             <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
               <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Operations queue</p><h2 className="font-black">Recent orders</h2></div><div className="relative sm:w-64"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input value={orderSearch} onChange={(e) => setOrderSearch(e.target.value)} placeholder="Search orders" className="w-full rounded-xl border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-emerald-400" /></div></div>
               <div className="divide-y divide-slate-100">
-                {orders.slice(0, 6).map((order, index) => <div key={order?.id ?? order?.code ?? index} className="flex items-center justify-between gap-4 p-4"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="font-mono text-sm font-black">{order?.code ?? `#${order?.id ?? '-'}`}</span><span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${order?.paymentStatus === 'paid' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{order?.paymentStatus === 'paid' ? 'Paid' : order?.paymentStatus ?? 'Unpaid'}</span></div><p className="mt-1 truncate text-sm text-slate-500">{order?.customerName ?? 'Customer'} · {order?.status ?? 'placed'}</p></div><div className="text-right"><p className="whitespace-nowrap text-sm font-black">UGX {Number(order?.total ?? 0).toLocaleString()}</p><button onClick={() => navigate('/admin/operations')} className="mt-1 text-xs font-bold text-emerald-700">Manage</button></div></div>)}
+                {orders.slice(0, 6).map((order, index) => <div key={order?.id ?? order?.code ?? index} className="flex items-center justify-between gap-4 p-4"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="font-mono text-sm font-black">{order?.code ?? `#${order?.id ?? '-'}`}</span><span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${order?.paymentStatus === 'paid' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{order?.paymentStatus === 'paid' ? 'Paid' : order?.paymentStatus ?? 'Unpaid'}</span></div><p className="mt-1 truncate text-sm text-slate-500">{order?.customerName ?? 'Customer'} · {order?.status ?? 'placed'}</p></div><div className="text-right"><p className="whitespace-nowrap text-sm font-black">UGX {Number(order?.total ?? 0).toLocaleString()}</p><button onClick={() => navigate('/admin/operations?tab=orders')} className="mt-1 text-xs font-bold text-emerald-700">Manage</button></div></div>)}
                 {!loading && orders.length === 0 && <div className="p-8 text-center text-sm text-slate-500">No orders found.</div>}
               </div>
             </div>
@@ -213,7 +230,7 @@ export default function AdminDashboard() {
             </div>
           </section>
 
-          <section><div className="mb-3"><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Control center</p><h2 className="text-lg font-black">Administrator modules</h2></div><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{modules.map(([title, description, status, icon]) => <AdminModule key={title} title={title} description={description} status={status} icon={icon} onClick={() => title === 'UG Souq Plus' ? navigate('/plus') : title === 'Marketing Campaigns' ? navigate('/admin/marketing') : navigate('/admin/operations')} />)}</div></section>
+          <section><div className="mb-3"><p className="text-xs font-bold uppercase tracking-wide text-slate-500">Control center</p><h2 className="text-lg font-black">Administrator modules</h2></div><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{modules.map(([title, description, status, icon]) => <AdminModule key={title} title={title} description={description} status={status} icon={icon} onClick={() => navigate(moduleDestinations[title])} />)}</div></section>
         </main>
       </div>
     </div>

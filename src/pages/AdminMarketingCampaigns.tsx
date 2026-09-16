@@ -17,6 +17,7 @@ import {
   Users,
 } from 'lucide-react'
 import { trpc } from '../providers/trpc'
+import { getAdminSessionKey } from '../lib/adminSession'
 
 type Channel = 'email' | 'whatsapp' | 'both'
 type Draft = {
@@ -83,7 +84,7 @@ function ChannelPill({ active, children, onClick }: { active: boolean; children:
 
 export default function AdminMarketingCampaigns() {
   const navigate = useNavigate()
-  const [adminKey] = useState(() => localStorage.getItem('ug_admin_key') || '')
+  const [adminKey] = useState(getAdminSessionKey)
   const [draft, setDraft] = useState<Draft>(() => blankDraft())
   const [campaigns, setCampaigns] = useState<CampaignRecord[]>([])
   const [providerConfigured, setProviderConfigured] = useState(false)

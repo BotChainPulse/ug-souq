@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { ArrowLeft, CheckCircle2, Megaphone, Phone, RefreshCw, XCircle } from 'lucide-react'
 import { trpc } from '../providers/trpc'
+import { getAdminSessionKey } from '../lib/adminSession'
 
 const MAX_ACTIVE_ADS = 10
 
@@ -17,7 +18,7 @@ const statusLabel = (status: string) => status === 'paid' ? 'queued' : status
 
 export default function AdminAdsSafe() {
   const navigate = useNavigate()
-  const [adminKey] = useState(() => localStorage.getItem('ug_admin_key') || '')
+  const [adminKey] = useState(getAdminSessionKey)
   const query = trpc.admin.adBookings.useQuery({ key: adminKey }, { enabled: !!adminKey, retry: false })
   const update = trpc.admin.setAdBookingStatus.useMutation({ onSuccess: () => query.refetch() })
   const rows = ((query.data as any)?.rows ?? []) as any[]

@@ -1,7 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import React from 'react'
-import { useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
 import { trpc } from '../providers/trpc'
+import { clearAdminSessionKey, getAdminSessionKey, setAdminSessionKey } from '../lib/adminSession'
+import BuyersPanel from '../components/admin/BuyersPanel'
+import { NotificationsPanel, PaymentsPanel, PlusMembersPanel, ReportsPanel } from '../components/admin/OperationsPanels'
 import {
   LayoutDashboard, Store, Package, ShoppingCart, Users, CreditCard,
   Truck, RotateCcw, Megaphone, Link2, Settings, FileText, LogOut,
@@ -32,6 +35,11 @@ const SELLER_STATUS_COLORS: Record<string, string> = {
 }
 
 const ORDER_STATUSES = ["placed","confirmed","pending_delivery","on_the_way","delivered","cancelled"] as const
+const ADMIN_TAB_IDS = new Set([
+  'overview', 'sellers', 'listings', 'orders', 'payments', 'customers', 'plus',
+  'accounts', 'payouts', 'deliveries', 'returns', 'ads', 'marketing',
+  'notifications', 'affiliates', 'audit', 'reports', 'settings',
+])
 
 const maskSensitive = (value: string | null | undefined) => {
   const clean = String(value ?? "").trim()
@@ -564,7 +572,8 @@ function Deliveries({ adminKey }: { adminKey: string }) {
   const setStatus = trpc.admin.setDeliveryPartnerStatus.useMutation({ onSuccess: () => refetch() })
   if (isLoading) return <Loading />
   if (error) return <QueryError title="Failed to load delivery partners" error={error.message} onRetry={() => refetch()} />
-  const list = (data as any[]) ?? []
+  const deliveryData = (data as any) ?? {}
+  const list = Array.isArray(deliveryData) ? deliveryData : Array.isArray(deliveryData.partners) ? deliveryData.partners : []
   return (
     <div className="space-y-4">
       <div className="relative">
@@ -577,15 +586,15 @@ function Deliveries({ adminKey }: { adminKey: string }) {
         {list.map((p: any, i: number) => (
           <div key={i} className="bg-white rounded-xl border border-neutral-200 p-4">
             <div className="flex flex-wrap items-center gap-2 mb-2">
-              <span className="font-bold text-sm">{p?.name ?? "Unknown"}</span>
+              <span className="font-bold text-sm">{p?.fullName ?? p?.name ?? "Unknown"}</span>
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${SELLER_STATUS_COLORS[p?.status] || SELLER_STATUS_COLORS.pending}`}>{p?.status ?? "pending"}</span>
             </div>
-            <p className="text-sm text-neutral-600">{p?.phone ?? "-"} · {p?.vehicleType ?? "-"} · {p?.zone ?? "-"}</p>
+            <p className="text-sm text-neutral-600">{p?.phone ?? "-"} · {p?.vehicleType ?? "-"} · {p?.area ?? p?.zone ?? "-"}</p>
             {p?.status === "pending" && (
               <div className="mt-3 flex gap-2">
-                <button onClick={() => { if (window.confirm(`Approve ${p?.name}?`)) setStatus.mutate({ key: adminKey, id: Number(p?.id), status: "approved" }) }} disabled={setStatus.isLoading}
+                <button onClick={() => { if (window.confirm(`Approve ${p?.fullName ?? p?.name}?`)) setStatus.mutate({ key: adminKey, id: Number(p?.id), status: "approved" }) }} disabled={setStatus.isPending}
                   className="text-sm px-3 py-1.5 bg-emerald-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-1"><Check size={14} /> Approve</button>
-                <button onClick={() => { if (window.confirm(`Reject ${p?.name}?`)) setStatus.mutate({ key: adminKey, id: Number(p?.id), status: "rejected" }) }} disabled={setStatus.isLoading}
+                <button onClick={() => { if (window.confirm(`Reject ${p?.fullName ?? p?.name}?`)) setStatus.mutate({ key: adminKey, id: Number(p?.id), status: "rejected" }) }} disabled={setStatus.isPending}
                   className="text-sm px-3 py-1.5 bg-red-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-1"><X size={14} /> Reject</button>
               </div>
             )}
@@ -621,26 +630,26 @@ function Returns({ adminKey }: { adminKey: string }) {
               <span className="font-bold text-sm">Order #{r?.orderId ?? r?.orderCode ?? "-"}</span>
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${rColors[r?.status] || rColors.requested}`}>{r?.status ?? "requested"}</span>
             </div>
-            <p className="text-sm text-neutral-600">{r?.customerName ?? "-"} · {r?.phone ?? "-"}</p>
+            <p className="text-sm text-neutral-600">{r?.customerName ?? "-"} · {r?.customerPhone ?? "-"}</p>
             <p className="text-sm text-neutral-600 mt-1"><strong>Reason:</strong> {r?.reason ?? "-"}</p>
             <p className="text-sm text-neutral-600"><strong>Refund:</strong> UGX {(r?.refundAmount ?? 0).toLocaleString()}</p>
             <div className="mt-3 flex flex-wrap gap-2">
               {r?.status === "requested" && (
-                <><button onClick={() => { if (window.confirm("Approve return?")) updateReturn.mutate({ key: adminKey, id: Number(r?.id), status: "approved" }) }} disabled={updateReturn.isLoading}
+                <><button onClick={() => { if (window.confirm("Approve return?")) updateReturn.mutate({ key: adminKey, id: Number(r?.id), status: "approved" }) }} disabled={updateReturn.isPending}
                   className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded-lg disabled:opacity-50">Approve</button>
-                  <button onClick={() => { if (window.confirm("Reject return?")) updateReturn.mutate({ key: adminKey, id: Number(r?.id), status: "rejected" }) }} disabled={updateReturn.isLoading}
+                  <button onClick={() => { if (window.confirm("Reject return?")) updateReturn.mutate({ key: adminKey, id: Number(r?.id), status: "rejected" }) }} disabled={updateReturn.isPending}
                     className="text-sm px-3 py-1.5 bg-red-600 text-white rounded-lg disabled:opacity-50">Reject</button></>
               )}
               {r?.status === "approved" && (
-                <button onClick={() => { if (window.confirm("Mark picked up?")) updateReturn.mutate({ key: adminKey, id: Number(r?.id), status: "picked_up" }) }} disabled={updateReturn.isLoading}
+                <button onClick={() => { if (window.confirm("Mark picked up?")) updateReturn.mutate({ key: adminKey, id: Number(r?.id), status: "picked_up" }) }} disabled={updateReturn.isPending}
                   className="text-sm px-3 py-1.5 bg-sky-600 text-white rounded-lg disabled:opacity-50">Mark Picked Up</button>
               )}
               {r?.status === "picked_up" && (
-                <button onClick={() => { if (window.confirm("Process refund?")) updateReturn.mutate({ key: adminKey, id: Number(r?.id), status: "refunded" }) }} disabled={updateReturn.isLoading}
-                  className="text-sm px-3 py-1.5 bg-emerald-600 text-white rounded-lg disabled:opacity-50">Process Refund</button>
+                <button onClick={() => { const reference = window.prompt("Enter the verified manual refund transaction/reference. This records proof; it does not send money."); if (reference?.trim()) updateReturn.mutate({ key: adminKey, id: Number(r?.id), status: "refunded", adminNotes: `Manual refund reference: ${reference.trim()}` }) }} disabled={updateReturn.isPending}
+                  className="text-sm px-3 py-1.5 bg-emerald-600 text-white rounded-lg disabled:opacity-50">Record manual refund</button>
               )}
               {r?.status === "refunded" && (
-                <button onClick={() => { if (window.confirm("Close return?")) updateReturn.mutate({ key: adminKey, id: Number(r?.id), status: "closed" }) }} disabled={updateReturn.isLoading}
+                <button onClick={() => { if (window.confirm("Close return?")) updateReturn.mutate({ key: adminKey, id: Number(r?.id), status: "closed" }) }} disabled={updateReturn.isPending}
                   className="text-sm px-3 py-1.5 bg-neutral-600 text-white rounded-lg disabled:opacity-50">Close</button>
               )}
             </div>
@@ -839,11 +848,10 @@ function AdminSettings({ adminKey }: { adminKey: string }) {
 // ============================================
 export default function Admin() {
   const navigate = useNavigate()
-  const [tab, setTab] = useState("overview")
-  const [adminKey, setAdminKey] = useState(() => {
-    localStorage.removeItem("ug_admin_key")
-    return sessionStorage.getItem("ug_admin_key") || ""
-  })
+  const location = useLocation()
+  const requestedTab = new URLSearchParams(location.search).get('tab') || 'overview'
+  const [tab, setTab] = useState(requestedTab)
+  const [adminKey, setAdminKey] = useState(getAdminSessionKey)
   const [keyInput, setKeyInput] = useState("")
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -851,18 +859,27 @@ export default function Admin() {
     { key: adminKey }, { enabled: !!adminKey, retry: false }
   )
 
+  useEffect(() => {
+    setTab(ADMIN_TAB_IDS.has(requestedTab) ? requestedTab : 'overview')
+  }, [requestedTab])
+
   const login = () => {
     if (keyInput.trim()) {
-      sessionStorage.setItem("ug_admin_key", keyInput.trim())
+      setAdminSessionKey(keyInput.trim())
       setAdminKey(keyInput.trim())
     }
   }
 
   const logout = () => {
-    sessionStorage.removeItem("ug_admin_key")
-    localStorage.removeItem("ug_admin_key")
+    clearAdminSessionKey()
     setAdminKey("")
     setKeyInput("")
+  }
+
+  const openTab = (nextTab: string) => {
+    setTab(nextTab)
+    setSidebarOpen(false)
+    navigate(`/admin/operations?tab=${encodeURIComponent(nextTab)}`)
   }
 
   if (!adminKey) {
@@ -888,14 +905,19 @@ export default function Admin() {
     { id: "sellers", label: "Sellers", icon: Store },
     { id: "listings", label: "Listings", icon: Package },
     { id: "orders", label: "Orders", icon: ShoppingCart },
+    { id: "payments", label: "Payments", icon: CreditCard },
+    { id: "customers", label: "Customers", icon: Users },
+    { id: "plus", label: "UG Souq Plus", icon: ShieldCheck },
     { id: "accounts", label: "Accounts", icon: Users },
     { id: "payouts", label: "Payouts", icon: CreditCard },
     { id: "deliveries", label: "Deliveries", icon: Truck },
     { id: "returns", label: "Returns", icon: RotateCcw },
     { id: "ads", label: "Seller Ads", icon: Megaphone },
     { id: "marketing", label: "Marketing", icon: Mail },
+    { id: "notifications", label: "Notifications", icon: MessageCircle },
     { id: "affiliates", label: "Affiliates", icon: Link2 },
     { id: "audit", label: "Audit Log", icon: FileText },
+    { id: "reports", label: "Reports", icon: TrendingUp },
     { id: "settings", label: "Settings", icon: Settings },
   ]
 
@@ -912,7 +934,7 @@ export default function Admin() {
         </div>
         <nav className="px-3 py-2 space-y-1">
           {tabs.map((t) => (
-            <button key={t.id} onClick={() => { setTab(t.id); setSidebarOpen(false) }}
+            <button key={t.id} onClick={() => openTab(t.id)}
               className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition ${tab === t.id ? "bg-neutral-100 text-neutral-900" : "text-neutral-600 hover:bg-neutral-50"}`}>
               <t.icon size={18} />{t.label}
             </button>
@@ -950,10 +972,10 @@ export default function Admin() {
               <div className="bg-white rounded-xl border border-neutral-200 p-4">
                 <h3 className="font-semibold text-sm mb-3">Quick Actions</h3>
                 <div className="flex flex-wrap gap-2">
-                  <button onClick={() => setTab("orders")} className="px-3 py-1.5 bg-neutral-900 text-white rounded-lg text-sm font-medium">View Orders</button>
-                  <button onClick={() => setTab("sellers")} className="px-3 py-1.5 bg-neutral-100 text-neutral-900 rounded-lg text-sm font-medium">Review Sellers</button>
-                  <button onClick={() => setTab("listings")} className="px-3 py-1.5 bg-neutral-100 text-neutral-900 rounded-lg text-sm font-medium">Review Listings</button>
-                  <button onClick={() => setTab("payouts")} className="px-3 py-1.5 bg-neutral-100 text-neutral-900 rounded-lg text-sm font-medium">Process Payouts</button>
+                  <button onClick={() => openTab("orders")} className="px-3 py-1.5 bg-neutral-900 text-white rounded-lg text-sm font-medium">View Orders</button>
+                  <button onClick={() => openTab("sellers")} className="px-3 py-1.5 bg-neutral-100 text-neutral-900 rounded-lg text-sm font-medium">Review Sellers</button>
+                  <button onClick={() => openTab("listings")} className="px-3 py-1.5 bg-neutral-100 text-neutral-900 rounded-lg text-sm font-medium">Review Listings</button>
+                  <button onClick={() => openTab("payouts")} className="px-3 py-1.5 bg-neutral-100 text-neutral-900 rounded-lg text-sm font-medium">Process Payouts</button>
                 </div>
               </div>
             </div>
@@ -961,14 +983,19 @@ export default function Admin() {
           {tab === "sellers" && <Sellers adminKey={adminKey} />}
           {tab === "listings" && <Listings adminKey={adminKey} />}
           {tab === "orders" && <OrderErrorBoundary><Orders adminKey={adminKey} /></OrderErrorBoundary>}
+          {tab === "payments" && <PaymentsPanel adminKey={adminKey} />}
+          {tab === "customers" && <BuyersPanel adminKey={adminKey} />}
+          {tab === "plus" && <PlusMembersPanel adminKey={adminKey} />}
           {tab === "accounts" && <Accounts adminKey={adminKey} />}
           {tab === "payouts" && <Payouts adminKey={adminKey} />}
           {tab === "deliveries" && <Deliveries adminKey={adminKey} />}
           {tab === "returns" && <Returns adminKey={adminKey} />}
           {tab === "ads" && <SellerAds adminKey={adminKey} />}
           {tab === "marketing" && <MarketingSubscribers adminKey={adminKey} />}
+          {tab === "notifications" && <NotificationsPanel adminKey={adminKey} />}
           {tab === "affiliates" && <Affiliates adminKey={adminKey} />}
           {tab === "audit" && <AuditLog adminKey={adminKey} />}
+          {tab === "reports" && <ReportsPanel adminKey={adminKey} />}
           {tab === "settings" && <AdminSettings adminKey={adminKey} />}
         </div>
       </main>

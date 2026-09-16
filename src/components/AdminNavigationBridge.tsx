@@ -40,14 +40,6 @@ export default function AdminNavigationBridge() {
         event.preventDefault()
         event.stopPropagation()
 
-        // The legacy operations console stores the admin key in sessionStorage,
-        // while the campaign studio reads localStorage. Keep both in sync so
-        // opening Marketing does not bounce back to the admin overview.
-        const sessionKey = sessionStorage.getItem('ug_admin_key')
-        if (sessionKey && !localStorage.getItem('ug_admin_key')) {
-          localStorage.setItem('ug_admin_key', sessionKey)
-        }
-
         navigate('/admin/marketing')
       }
     }

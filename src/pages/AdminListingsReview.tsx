@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 import { AlertTriangle, ArrowLeft, Check, CheckCircle, Package, Search, X } from 'lucide-react'
 import { trpc } from '../providers/trpc'
+import { getAdminSessionKey } from '../lib/adminSession'
 
 const statusClass: Record<string, string> = {
   pending: 'bg-amber-100 text-amber-800',
@@ -12,7 +13,7 @@ const statusClass: Record<string, string> = {
 }
 
 export default function AdminListingsReview() {
-  const [adminKey] = useState(() => localStorage.getItem('ug_admin_key') || '')
+  const [adminKey] = useState(getAdminSessionKey)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending')
 

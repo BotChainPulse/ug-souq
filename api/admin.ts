@@ -8,11 +8,13 @@ import {
   sellers, orders, orderItems, affiliates, products, listings,
   sellerAdBookings, deliveryPartners, adminAuditLogs, payouts,
   platformSettings, sellerContracts, notifications, returns, customers, marketingSubscribers,
-  sellerSubscriptions, sellerPlanPayments, sellerIdentityDocuments, paymentTransactions
+  sellerSubscriptions, sellerPlanPayments, sellerIdentityDocuments, paymentTransactions,
+  plusMemberships, plusPayments
 } from "../db/schema";
 import { FREE_LISTING_LIMIT, PRO_COMMISSION_RATE, PRO_LISTING_LIMIT, PRO_MONTHLY_FEE, sellerPlan } from "./sellerPolicy";
 import { sellerApprovalMissingFields } from "./sellerApproval";
 import { decryptIdentity, reviewedDocumentRetentionDate } from "./identity";
+import { canMoveReturnStatus } from "./returnPolicy";
 
 const ADMIN_KEY = process.env.ADMIN_KEY;
 
@@ -759,6 +761,36 @@ export const adminRouter = createRouter({
     return withItems;
   }),
 
+  plusMembers: publicQuery.input(z.object({ key: z.string() })).query(async ({ input }) => {
+    requireAdmin(input.key);
+    const db = getDb();
+    const rows = await db
+      .select({ membership: plusMemberships, customer: customers })
+      .from(plusMemberships)
+      .innerJoin(customers, eq(plusMemberships.customerId, customers.id))
+      .orderBy(desc(plusMemberships.updatedAt));
+
+    return Promise.all(rows.map(async ({ membership, customer }) => {
+      const [latestPayment] = await db
+        .select({
+          id: plusPayments.id,
+          reference: plusPayments.reference,
+          amount: plusPayments.amount,
+          currency: plusPayments.currency,
+          status: plusPayments.status,
+          transactionId: plusPayments.transactionId,
+          verifiedAt: plusPayments.verifiedAt,
+          createdAt: plusPayments.createdAt,
+        })
+        .from(plusPayments)
+        .where(eq(plusPayments.membershipId, membership.id))
+        .orderBy(desc(plusPayments.createdAt))
+        .limit(1);
+
+      return { ...membership, customer, latestPayment: latestPayment ?? null };
+    }));
+  }),
+
   // ============================================
   // LISTINGS (with search)
   // ============================================
@@ -1502,11 +1534,20 @@ export const adminRouter = createRouter({
     .mutation(async ({ input }) => {
       requireAdmin(input.key);
       const db = getDb();
+      const [before] = await db.select().from(returns).where(eq(returns.id, input.id)).limit(1);
+      if (!before) throw new TRPCError({ code: "NOT_FOUND", message: "Return request not found." });
+      if (!canMoveReturnStatus(before.status, input.status)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: `Return cannot move from ${before.status} to ${input.status}.` });
+      }
+      if (input.status === "refunded" && !input.adminNotes?.trim()) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Record the verified manual refund reference before marking this request refunded." });
+      }
       const updates: any = { status: input.status };
       if (input.adminNotes !== undefined) updates.adminNotes = input.adminNotes;
       if (input.status === "refunded" || input.status === "closed") updates.resolvedAt = new Date();
       await db.update(returns).set(updates).where(eq(returns.id, input.id));
-      await writeAudit({ key: input.key, action: "return.status.changed", entityType: "return", entityId: input.id, meta: { status: input.status } });
+      const [after] = await db.select().from(returns).where(eq(returns.id, input.id)).limit(1);
+      await writeAudit({ key: input.key, action: "return.status.changed", entityType: "return", entityId: input.id, beforeState: before, afterState: after, meta: { status: input.status } });
       return { ok: true };
     }),
 

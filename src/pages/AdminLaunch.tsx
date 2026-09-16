@@ -15,6 +15,7 @@ import {
   Users,
 } from 'lucide-react'
 import { trpc } from '../providers/trpc'
+import { clearAdminSessionKey, getAdminSessionKey, setAdminSessionKey } from '../lib/adminSession'
 
 const ORDER_LABELS: Record<string, string> = {
   placed: 'Placed',
@@ -56,10 +57,7 @@ function customerMessage(order: any) {
 
 export default function AdminLaunch() {
   const navigate = useNavigate()
-  const [adminKey, setAdminKey] = useState(() => {
-    localStorage.removeItem('ug_admin_key')
-    return sessionStorage.getItem('ug_admin_key') || ''
-  })
+  const [adminKey, setAdminKey] = useState(getAdminSessionKey)
   const [keyInput, setKeyInput] = useState('')
   const [loginError, setLoginError] = useState('')
   const [search, setSearch] = useState('')
@@ -69,7 +67,7 @@ export default function AdminLaunch() {
   const login = trpc.admin.login.useMutation({
     onSuccess: () => {
       const key = keyInput.trim()
-      sessionStorage.setItem('ug_admin_key', key)
+      setAdminSessionKey(key)
       setAdminKey(key)
       setLoginError('')
     },
@@ -102,8 +100,7 @@ export default function AdminLaunch() {
   const assignDeliveryPartner = trpc.admin.assignDeliveryPartner.useMutation({ onSuccess: refresh })
 
   const logout = () => {
-    sessionStorage.removeItem('ug_admin_key')
-    localStorage.removeItem('ug_admin_key')
+    clearAdminSessionKey()
     setAdminKey('')
     setKeyInput('')
   }

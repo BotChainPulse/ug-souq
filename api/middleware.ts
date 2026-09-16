@@ -5,6 +5,7 @@ import superjson from "superjson";
 import type { TrpcContext } from "./context";
 import { getDb } from "./queries/connection";
 import { listings, notifications, orderItems, orders, paymentTransactions, products, returns } from "../db/schema";
+import { returnWindowMs } from "./returnPolicy";
 
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
@@ -87,6 +88,57 @@ async function hasOpenCancellationRequest(orderId: number) {
 }
 
 const buyerOrdersRouter = t.router({
+  requestReturn: t.procedure
+    .input(z.object({
+      code: z.string().trim().min(4).max(32),
+      phone: z.string().trim().min(9).max(32),
+      reason: z.string().trim().min(3).max(180),
+      details: z.string().trim().max(500).optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const code = input.code.trim().toUpperCase();
+      const phone = normPhone(input.phone);
+      const [order] = await db.select().from(orders).where(eq(orders.code, code)).limit(1);
+
+      if (!order || normPhone(order.phone) !== phone) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Order not found for that code and phone number." });
+      }
+      if (order.status !== "delivered") {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Returns can be requested after delivery. Use order cancellation if the order has not been delivered." });
+      }
+      const items = await db.select().from(orderItems).where(eq(orderItems.orderId, Number(order.id)));
+      const foodOrder = items.some((item) => item.itemType === "menu_item");
+      const deliveredAt = new Date(order.deliveredAt ?? order.createdAt).getTime();
+      const allowedWindowMs = returnWindowMs(foodOrder);
+      if (!Number.isFinite(deliveredAt) || Date.now() - deliveredAt > allowedWindowMs) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: foodOrder ? "The two-hour food issue window has closed. Contact support if the order created a safety concern." : "The seven-day return window for this order has closed. Contact support if the item is unsafe or materially misdescribed." });
+      }
+      const existing = await db.select().from(returns)
+        .where(eq(returns.orderId, Number(order.id)))
+        .orderBy(desc(returns.createdAt));
+      const open = existing.find((row) => OPEN_CANCELLATION_REQUESTS.has(row.status));
+      if (open) return { ok: true, alreadyOpen: true, requestId: Number(open.id) };
+
+      const reason = input.details ? `${input.reason}: ${input.details}` : input.reason;
+      const [request] = await db.insert(returns).values({
+        orderId: Number(order.id),
+        orderCode: order.code,
+        customerName: order.customerName,
+        customerPhone: order.phone,
+        reason,
+        refundAmount: order.paymentStatus === "paid" ? order.total : 0,
+      }).$returningId();
+      await db.insert(notifications).values({
+        type: "order_cancelled",
+        title: "Buyer requested a return",
+        message: `Return requested for delivered order ${order.code}. Review the item and refund eligibility.`,
+        entityType: "return",
+        entityId: String(request.id),
+      });
+      return { ok: true, alreadyOpen: false, requestId: Number(request.id) };
+    }),
+
   cancellationStatus: t.procedure
     .input(z.object({
       code: z.string().trim().min(4).max(32),
