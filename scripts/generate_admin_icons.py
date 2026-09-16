@@ -32,11 +32,19 @@ def admin_badge() -> Image.Image:
 def compose(source: str, output: str) -> None:
     base = Image.open(PUBLIC / source).convert("RGBA").resize((512, 512), Image.Resampling.LANCZOS)
     base.alpha_composite(admin_badge())
-    base.save(PUBLIC / output, optimize=True)
+    base.quantize(
+        colors=256,
+        method=Image.Quantize.FASTOCTREE,
+        dither=Image.Dither.FLOYDSTEINBERG,
+    ).save(PUBLIC / output, optimize=True)
 
 
 compose("icon-512.png", "admin-icon-512.png")
 compose("icon-maskable-512.png", "admin-icon-maskable-512.png")
-Image.open(PUBLIC / "admin-icon-512.png").resize((192, 192), Image.Resampling.LANCZOS).save(
-    PUBLIC / "admin-icon-192.png", optimize=True
-)
+Image.open(PUBLIC / "admin-icon-512.png").convert("RGBA").resize(
+    (192, 192), Image.Resampling.LANCZOS
+).quantize(
+    colors=256,
+    method=Image.Quantize.FASTOCTREE,
+    dither=Image.Dither.FLOYDSTEINBERG,
+).save(PUBLIC / "admin-icon-192.png", optimize=True)
