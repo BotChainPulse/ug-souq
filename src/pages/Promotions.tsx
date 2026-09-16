@@ -5,11 +5,12 @@ import Header from '../components/Header'
 import Footer from '../components/Footer'
 
 type SponsoredAd = {
-  id: number
+  id: number | string
+  placementType: 'paid' | 'launch'
   sellerId: number
   sellerName: string
   sellerVerified: boolean
-  planType: 'weekly' | 'monthly'
+  planType: 'weekly' | 'monthly' | null
   image: string
   headline: string
   message: string | null
@@ -34,9 +35,9 @@ export default function Promotions() {
       <Header />
       <main className="mx-auto max-w-7xl px-4 py-7 sm:py-10">
         <div className="rounded-3xl bg-emerald-950 p-6 text-white sm:p-8">
-          <p className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.18em] text-emerald-300"><Megaphone size={15} /> Sponsored marketplace</p>
+          <p className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.18em] text-emerald-300"><Megaphone size={15} /> Featured marketplace</p>
           <h1 className="mt-2 text-2xl font-extrabold sm:text-4xl">Featured sellers on UG Souq</h1>
-          <p className="mt-2 max-w-2xl text-sm text-emerald-50/80">Paid promotions approved for placement. Sponsorship does not grant a verification badge.</p>
+          <p className="mt-2 max-w-2xl text-sm text-emerald-50/80">Paid seller promotions and clearly labelled UGSouq launch features. Placement never grants a verification badge.</p>
         </div>
 
         {loading ? (
@@ -52,7 +53,7 @@ export default function Promotions() {
               <article key={ad.id} className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
                 <img src={ad.image || '/images/product-default.png'} alt={ad.headline} className="product-image-standard" />
                 <div className="p-4">
-                  <div className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-400"><Megaphone size={12} /> Sponsored · paid placement</div>
+                  <div className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-400"><Megaphone size={12} /> {ad.placementType === 'paid' ? 'Sponsored · paid placement' : 'Featured · UGSouq launch placement'}</div>
                   <h2 className="mt-2 text-lg font-extrabold">{ad.headline}</h2>
                   {ad.message && <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">{ad.message}</p>}
                   <div className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-neutral-600 dark:text-neutral-300">

@@ -3,11 +3,12 @@ import { Link } from 'react-router'
 import { Megaphone, X } from 'lucide-react'
 
 type SponsoredAd = {
-  id: number
+  id: number | string
+  placementType: 'paid' | 'launch'
   sellerId: number
   sellerName: string
   sellerVerified: boolean
-  planType: 'weekly' | 'monthly'
+  planType: 'weekly' | 'monthly' | null
   image: string
   headline: string
   message: string | null
@@ -41,7 +42,7 @@ export default function SponsoredBanner() {
       <div className="flex items-center gap-3 overflow-hidden rounded-2xl border border-emerald-200 bg-white p-2.5 shadow-2xl">
         <img src={ad.image || '/images/product-default.png'} alt="" className="h-14 w-14 shrink-0 rounded-xl bg-neutral-50 object-contain p-1" />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-emerald-700"><Megaphone size={12} /> Sponsored</div>
+          <div className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-emerald-700"><Megaphone size={12} /> {ad.placementType === 'paid' ? 'Sponsored' : 'UGSouq featured'}</div>
           <p className="truncate text-sm font-extrabold text-neutral-900">{ad.headline}</p>
           <p className="truncate text-xs text-neutral-500">{ad.message || `Promoted by ${ad.sellerName}`}</p>
         </div>

@@ -4,11 +4,12 @@ import { BadgeCheck, ChevronLeft, ChevronRight, Megaphone } from 'lucide-react'
 import { fmt } from '../lib/cart'
 
 type SponsoredAd = {
-  id: number
+  id: number | string
+  placementType: 'paid' | 'launch'
   sellerId: number
   sellerName: string
   sellerVerified: boolean
-  planType: 'weekly' | 'monthly'
+  planType: 'weekly' | 'monthly' | null
   listingId: number | null
   headline: string
   message: string | null
@@ -31,7 +32,7 @@ export default function SponsoredCarousel() {
   useEffect(() => {
     fetch('/api/ads/active')
       .then((response) => response.ok ? response.json() : [])
-      .then((data) => setAds(Array.isArray(data) ? data.filter((ad) => ad?.listingId && ad?.stock !== 0) : []))
+      .then((data) => setAds(Array.isArray(data) ? data.filter((ad) => ad?.targetPath && ad?.stock !== 0) : []))
       .catch(() => setAds([]))
   }, [])
 
@@ -53,11 +54,12 @@ export default function SponsoredCarousel() {
     const distance = endX - touchStart.current
     touchStart.current = null
     if (Math.abs(distance) < 45) return
-    distance > 0 ? previous() : next()
+    if (distance > 0) previous()
+    else next()
   }
 
   return (
-    <section className="mx-auto max-w-7xl px-3 pt-4 sm:px-4" aria-label="Sponsored seller deals">
+    <section className="mx-auto max-w-7xl px-3 pt-4 sm:px-4" aria-label="Featured marketplace deals">
       <div
         className="relative overflow-hidden rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 via-white to-emerald-50 shadow-sm dark:border-neutral-700 dark:from-neutral-900 dark:via-neutral-900 dark:to-emerald-950/30"
         onMouseEnter={() => setPaused(true)}
@@ -69,7 +71,7 @@ export default function SponsoredCarousel() {
       >
         <div className="grid min-h-44 grid-cols-[1.05fr_0.95fr] sm:min-h-64 sm:grid-cols-2">
           <div className="flex min-w-0 flex-col justify-center p-4 pr-1 sm:p-8 sm:pr-4">
-            <div className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.15em] text-emerald-700 dark:text-emerald-400 sm:text-xs"><Megaphone size={13} /> Sponsored · paid placement</div>
+            <div className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.15em] text-emerald-700 dark:text-emerald-400 sm:text-xs"><Megaphone size={13} /> {ad.placementType === 'paid' ? 'Sponsored · paid placement' : 'Featured · UGSouq launch placement'}</div>
             <h2 className="mt-2 line-clamp-2 text-lg font-black leading-tight text-neutral-950 dark:text-neutral-100 sm:text-3xl">{ad.headline}</h2>
             {ad.message && <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-neutral-600 dark:text-neutral-400 sm:text-sm">{ad.message}</p>}
             <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-xs font-semibold text-neutral-600 dark:text-neutral-300 sm:text-sm">
@@ -81,7 +83,7 @@ export default function SponsoredCarousel() {
           </div>
           <Link to={ad.targetPath} className="relative min-w-0 bg-white/70 dark:bg-neutral-900/70">
             <img key={ad.id} src={ad.image || '/images/product-default.png'} alt={ad.headline} className="h-full max-h-64 w-full object-contain p-2 sm:p-4" />
-            <span className="absolute right-2 top-2 rounded-full bg-neutral-950/80 px-2 py-1 text-[9px] font-bold uppercase text-white">Sponsored</span>
+            <span className="absolute right-2 top-2 rounded-full bg-neutral-950/80 px-2 py-1 text-[9px] font-bold uppercase text-white">{ad.placementType === 'paid' ? 'Sponsored' : 'UGSouq featured'}</span>
           </Link>
         </div>
 

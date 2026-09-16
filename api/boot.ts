@@ -227,8 +227,8 @@ registerMarketingCampaignRoutes(app);
 // weekly = 7 days, monthly = 30 days. Expired campaigns are completed lazily when this feed is read.
 app.get("/api/ads/active", async (c) => {
   const { getDb } = await import("./queries/connection");
-  const { sellerAdBookings, sellers, listings, adminAuditLogs } = await import("../db/schema");
-  const { eq, desc, and } = await import("drizzle-orm");
+  const { sellerAdBookings, sellers, listings, products, adminAuditLogs } = await import("../db/schema");
+  const { eq, desc, and, inArray } = await import("drizzle-orm");
   const db = getDb();
   const now = new Date();
 
@@ -308,6 +308,7 @@ app.get("/api/ads/active", async (c) => {
 
     return {
       id: booking.id,
+      placementType: "paid" as const,
       sellerId: seller.id,
       sellerName: seller.shopName,
       sellerVerified: seller.verified,
@@ -329,7 +330,49 @@ app.get("/api/ads/active", async (c) => {
     };
   }));
 
-  return c.json(ads.filter(Boolean));
+  const paidAds = ads.filter(Boolean);
+  if (paidAds.length > 0) return c.json(paidAds);
+
+  // Keep launch-day storefronts useful while the paid seller-ad queue is empty.
+  // These are platform-funded house placements built from live, in-stock catalogue
+  // records. They never consume a paid slot and disappear as soon as a real paid
+  // campaign is active.
+  const launchSlugs = ["tecno-spark-20", "samsung-a15", "refurb-iphone-11"];
+  const launchProducts = await db
+    .select({ product: products, seller: sellers })
+    .from(products)
+    .innerJoin(sellers, eq(products.sellerId, sellers.id))
+    .where(and(
+      inArray(products.slug, launchSlugs),
+      eq(sellers.status, "approved"),
+    ));
+
+  const orderedLaunchProducts = launchProducts
+    .filter(({ product }) => product.stock > 0)
+    .sort((a, b) => launchSlugs.indexOf(a.product.slug) - launchSlugs.indexOf(b.product.slug));
+
+  return c.json(orderedLaunchProducts.map(({ product, seller }) => ({
+    id: `launch-product-${product.id}`,
+    placementType: "launch" as const,
+    sellerId: seller.id,
+    sellerName: seller.shopName,
+    sellerVerified: seller.verified,
+    planType: null,
+    startsAt: null,
+    expiresAt: null,
+    listingId: null,
+    headline: product.name,
+    message: "Featured by UGSouq to welcome buyers and new sellers.",
+    objective: "marketplace_launch",
+    cta: "view_product",
+    ctaLabel: "View product",
+    requestedStartDate: null,
+    image: product.image || "/images/product-default.png",
+    price: product.price,
+    oldPrice: product.oldPrice,
+    stock: product.stock,
+    targetPath: `/product/${product.slug}`,
+  })));
 });
 
 // Flutterwave returns the buyer here after hosted checkout. We always verify with Flutterwave
