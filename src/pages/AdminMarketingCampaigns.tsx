@@ -115,10 +115,10 @@ export default function AdminMarketingCampaigns() {
 
   const loadServerState = async () => {
     if (!adminKey) return
-    const encoded = encodeURIComponent(adminKey)
+    const headers = { Authorization: `Bearer ${adminKey}` }
     const [statusResponse, campaignResponse] = await Promise.all([
-      fetch(`/api/admin/marketing/status?key=${encoded}`),
-      fetch(`/api/admin/marketing/campaigns?key=${encoded}`),
+      fetch('/api/admin/marketing/status', { headers }),
+      fetch('/api/admin/marketing/campaigns', { headers }),
     ])
     const status = await statusResponse.json().catch(() => ({}))
     const list = await campaignResponse.json().catch(() => [])

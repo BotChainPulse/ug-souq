@@ -27,6 +27,12 @@ function requireAdmin(key: string) {
   }
 }
 
+function requestAdminKey(c: any) {
+  const authorization = String(c.req.header("authorization") || "");
+  if (authorization.toLowerCase().startsWith("bearer ")) return authorization.slice(7).trim();
+  return String(c.req.header("x-admin-key") || "");
+}
+
 function rawClient() {
   const db = getDb();
   const raw: any = (db as any).$client;
@@ -93,7 +99,7 @@ function renderEmail(campaign: ReturnType<typeof normalizeCampaign>, subscriber?
     ? `${base}/unsubscribe?token=${encodeURIComponent(subscriber.unsubscribeToken)}&channel=email`
     : `${base}/preferences`;
   const greeting = subscriber?.name ? `Hi ${esc(subscriber.name)},` : "Hello,";
-  const cards = campaign.products.map((product) => `
+  const cards = campaign.products.map((product: any) => `
     <td style="width:50%;padding:6px;vertical-align:top">
       <a href="${esc(product.url || `${base}/product/${product.slug}`)}" style="text-decoration:none;color:#0f172a">
         <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden">
@@ -110,7 +116,7 @@ function renderEmail(campaign: ReturnType<typeof normalizeCampaign>, subscriber?
 
   const rows: string[] = [];
   for (let index = 0; index < campaign.products.length; index += 2) {
-    rows.push(`<tr>${cards.split('</td>').slice(index, index + 2).map((cell) => cell ? `${cell}</td>` : '').join('')}</tr>`);
+    rows.push(`<tr>${cards.split('</td>').slice(index, index + 2).map((cell: string) => cell ? `${cell}</td>` : '').join('')}</tr>`);
   }
 
   const productRows = campaign.products.length
@@ -232,7 +238,7 @@ async function deliverCampaignById(id: number) {
 export function registerMarketingCampaignRoutes(app: Hono<any>) {
   app.get("/api/admin/marketing/status", async (c) => {
     try {
-      requireAdmin(c.req.query("key") || "");
+      requireAdmin(requestAdminKey(c));
       await ensureCampaignSchema();
       return c.json({ configured: providerConfigured(), provider: providerConfigured() ? "resend" : null, from: providerConfigured() ? fromAddress() : null });
     } catch (error: any) {
@@ -242,7 +248,7 @@ export function registerMarketingCampaignRoutes(app: Hono<any>) {
 
   app.get("/api/admin/marketing/campaigns", async (c) => {
     try {
-      requireAdmin(c.req.query("key") || "");
+      requireAdmin(requestAdminKey(c));
       await ensureCampaignSchema();
       const client = rawClient();
       const [rows]: any = await client.query(`SELECT * FROM marketing_campaigns ORDER BY updated_at DESC LIMIT 100`);
