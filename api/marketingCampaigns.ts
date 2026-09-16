@@ -75,7 +75,7 @@ function normalizeCampaign(input: any) {
     image: String(product?.image ?? "").slice(0, 2000),
     sellerName: String(product?.sellerName ?? "UGSouq seller").slice(0, 180),
     url: String(product?.url ?? "").slice(0, 1000),
-  })) : [];
+  })).filter((product: any) => product.oldPrice && product.oldPrice > product.price && Math.round((1 - product.price / product.oldPrice) * 100) >= 5) : [];
 
   const channel = ["email", "whatsapp", "both"].includes(input?.channel) ? input.channel : "email";
   return {
@@ -86,7 +86,7 @@ function normalizeCampaign(input: any) {
     headline: String(input?.headline ?? "UGSouq deals").trim().slice(0, 160),
     intro: String(input?.intro ?? "").trim().slice(0, 2000),
     ctaText: String(input?.ctaText ?? "Shop UGSouq").trim().slice(0, 80),
-    ctaUrl: String(input?.ctaUrl ?? `${process.env.APP_URL || "https://www.ugsouq.com"}/catalog?deals=true`).trim().slice(0, 500),
+    ctaUrl: String(input?.ctaUrl ?? `${process.env.APP_URL || "https://www.ugsouq.com"}/catalog?deals=1`).trim().slice(0, 500),
     channel,
     products,
     scheduledFor: input?.scheduledFor ? String(input.scheduledFor) : null,
@@ -272,6 +272,7 @@ export function registerMarketingCampaignRoutes(app: Hono<any>) {
       const campaign = normalizeCampaign(body?.campaign || {});
       const status = body?.status === "scheduled" ? "scheduled" : "draft";
       if (status === "scheduled" && !campaign.scheduledFor) return c.json({ error: "Choose a schedule time first" }, 400);
+      if (status === "scheduled" && campaign.products.length === 0) return c.json({ error: "Choose at least one active deal before scheduling" }, 400);
       const id = await saveCampaign(campaign, status);
       return c.json({ ok: true, id, status });
     } catch (error: any) {
@@ -286,6 +287,7 @@ export function registerMarketingCampaignRoutes(app: Hono<any>) {
       const email = String(body?.email || "").trim().toLowerCase();
       if (!/^\S+@\S+\.\S+$/.test(email)) return c.json({ error: "Enter a valid test email address" }, 400);
       const campaign = normalizeCampaign(body?.campaign || {});
+      if (campaign.products.length === 0) return c.json({ error: "Choose at least one active deal before sending a test" }, 400);
       await sendEmail(email, `[TEST] ${campaign.subject}`, renderEmail(campaign, { name: "UGSouq Admin" }));
       return c.json({ ok: true });
     } catch (error: any) {
@@ -298,6 +300,7 @@ export function registerMarketingCampaignRoutes(app: Hono<any>) {
       const body: any = await c.req.json();
       requireAdmin(String(body?.key || ""));
       const campaign = normalizeCampaign(body?.campaign || {});
+      if (campaign.products.length === 0) return c.json({ error: "Choose at least one active deal before sending" }, 400);
       const id = await saveCampaign(campaign, "draft");
       const result = await deliverCampaignById(id);
       return c.json({ ok: true, ...result });

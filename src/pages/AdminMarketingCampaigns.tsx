@@ -64,7 +64,7 @@ const blankDraft = (): Draft => ({
   headline: 'Top deals picked for you',
   intro: 'Shop selected marketplace offers while stock lasts. Prices and availability can change at any time.',
   ctaText: 'Shop UGSouq',
-  ctaUrl: 'https://www.ugsouq.com/catalog?deals=true',
+  ctaUrl: 'https://www.ugsouq.com/catalog?deals=1',
   channel: 'email',
   selectedProductSlugs: [],
   scheduledFor: '',
@@ -104,8 +104,11 @@ export default function AdminMarketingCampaigns() {
 
   const emailSubscribers = useMemo(() => subscribers.filter((item: any) => item?.emailOptIn && item?.email && !item?.emailUnsubscribedAt), [subscribers])
   const whatsappSubscribers = useMemo(() => subscribers.filter((item: any) => item?.whatsappOptIn && item?.phone && !item?.whatsappUnsubscribedAt), [subscribers])
-  const selectedProducts = useMemo(() => products.filter((product: any) => draft.selectedProductSlugs.includes(String(product?.slug))).slice(0, 6), [products, draft.selectedProductSlugs])
-  const dealProducts = useMemo(() => [...products].filter((product: any) => Number(product?.stock ?? 1) > 0).sort((a: any, b: any) => Number(b?.discount ?? 0) - Number(a?.discount ?? 0)).slice(0, 18), [products])
+  const dealProducts = useMemo(() => [...products]
+    .filter((product: any) => Number(product?.stock ?? 1) > 0 && Number(product?.discount ?? 0) >= 5)
+    .sort((a: any, b: any) => Number(b?.discount ?? 0) - Number(a?.discount ?? 0))
+    .slice(0, 18), [products])
+  const selectedProducts = useMemo(() => dealProducts.filter((product: any) => draft.selectedProductSlugs.includes(String(product?.slug))).slice(0, 6), [dealProducts, draft.selectedProductSlugs])
 
   const audienceCount = draft.channel === 'email'
     ? emailSubscribers.length
@@ -179,6 +182,7 @@ export default function AdminMarketingCampaigns() {
 
   const save = async (status: 'draft' | 'scheduled') => {
     if (status === 'scheduled' && !draft.scheduledFor) return setNotice({ kind: 'error', text: 'Choose a schedule time first.' })
+    if (status === 'scheduled' && selectedProducts.length === 0) return setNotice({ kind: 'error', text: 'Choose at least one active deal before scheduling.' })
     if (status === 'scheduled' && draft.channel === 'whatsapp') return setNotice({ kind: 'error', text: 'WhatsApp delivery is not connected yet. Use Email or Both for now.' })
     setBusy(status)
     setNotice(null)
@@ -196,6 +200,7 @@ export default function AdminMarketingCampaigns() {
 
   const sendTest = async () => {
     if (!testEmail.trim()) return setNotice({ kind: 'error', text: 'Enter the email address that should receive the test.' })
+    if (selectedProducts.length === 0) return setNotice({ kind: 'error', text: 'Choose at least one active deal before sending a test.' })
     setBusy('test')
     setNotice(null)
     try {
@@ -210,6 +215,7 @@ export default function AdminMarketingCampaigns() {
 
   const sendNow = async () => {
     if (draft.channel === 'whatsapp') return setNotice({ kind: 'error', text: 'WhatsApp delivery is not connected yet.' })
+    if (selectedProducts.length === 0) return setNotice({ kind: 'error', text: 'Choose at least one active deal before sending.' })
     if (!window.confirm(`Send this campaign now to ${emailSubscribers.length} opted-in email subscriber(s)?`)) return
     setBusy('send')
     setNotice(null)
@@ -250,7 +256,7 @@ export default function AdminMarketingCampaigns() {
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <button onClick={() => navigate('/admin')} className="rounded-xl border border-slate-200 p-2 text-slate-600" aria-label="Back to admin"><ArrowLeft size={19} /></button>
-            <div><p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">UGSouq Admin</p><h1 className="text-lg font-black">Marketing Campaigns</h1></div>
+            <div><p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">UGSouq Admin</p><h1 className="text-lg font-black">Marketing Deals</h1></div>
           </div>
           <button onClick={() => navigate('/admin/operations')} className="rounded-xl bg-slate-950 px-3 py-2 text-xs font-bold text-white">Operations</button>
         </div>
@@ -260,9 +266,9 @@ export default function AdminMarketingCampaigns() {
         <section className="rounded-3xl bg-slate-950 p-5 text-white sm:p-7">
           <div className="grid gap-5 lg:grid-cols-[1.4fr_0.6fr] lg:items-end">
             <div>
-              <p className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-emerald-300"><Megaphone size={15} /> Campaign studio</p>
-              <h2 className="mt-3 text-2xl font-black sm:text-3xl">Promotional campaigns, separate from order notifications.</h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">Audience counts come from UGSouq consent records. Unsubscribed customers are excluded.</p>
+              <p className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-emerald-300"><Megaphone size={15} /> Deals studio</p>
+              <h2 className="mt-3 text-2xl font-black sm:text-3xl">Promote genuine marketplace deals.</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">Only live items discounted by at least 5% are offered for selection. Audience counts come from UGSouq consent records and unsubscribed customers are excluded.</p>
             </div>
             <div className={`rounded-2xl border p-4 text-sm ${providerConfigured ? 'border-emerald-300/20 bg-emerald-300/10 text-emerald-100' : 'border-amber-300/20 bg-amber-300/10 text-amber-100'}`}>
               <p className="font-black">Email delivery: {providerConfigured ? 'Connected' : 'Not configured'}</p>
@@ -309,15 +315,16 @@ export default function AdminMarketingCampaigns() {
             </div>
 
             <div>
-              <div className="flex items-center justify-between"><div><p className="text-sm font-black">Choose products</p><p className="text-xs text-slate-500">Up to six current marketplace products.</p></div><span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold">{draft.selectedProductSlugs.length}/6</span></div>
+              <div className="flex items-center justify-between"><div><p className="text-sm font-black">Choose active deals</p><p className="text-xs text-slate-500">Up to six in-stock products with a genuine discount of 5% or more.</p></div><span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold">{draft.selectedProductSlugs.length}/6</span></div>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {dealProducts.length === 0 && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-900 sm:col-span-2">No eligible deals are live. A seller must provide a current selling price below the genuine previous price, and the approved item must remain in stock.</div>}
                 {dealProducts.map((product: any) => {
                   const slug = String(product?.slug ?? '')
                   const selected = draft.selectedProductSlugs.includes(slug)
                   return (
                     <button key={slug || product?.id} type="button" onClick={() => slug && toggleProduct(slug)} className={`flex items-center gap-3 rounded-xl border p-2 text-left ${selected ? 'border-emerald-600 bg-emerald-50' : 'border-slate-200'}`}>
                       <img src={product?.image || '/images/product-default.png'} alt="" className="h-14 w-14 rounded-lg object-cover" />
-                      <span className="min-w-0 flex-1"><span className="block truncate text-sm font-black">{product?.name}</span><span className="text-xs font-bold text-emerald-700">{money(product?.price)}</span><span className="block truncate text-[11px] text-slate-500">{product?.sellerName || 'UGSouq seller'}</span></span>
+                      <span className="min-w-0 flex-1"><span className="block truncate text-sm font-black">{product?.name}</span><span className="text-xs font-bold text-emerald-700">{money(product?.price)} · −{Number(product?.discount || 0)}%</span><span className="block truncate text-[11px] text-slate-500">{product?.sellerName || 'UGSouq seller'}</span></span>
                       <span className={`flex h-6 w-6 items-center justify-center rounded-full border ${selected ? 'border-emerald-700 bg-emerald-700 text-white' : 'border-slate-300 text-transparent'}`}><Check size={14} /></span>
                     </button>
                   )
@@ -336,9 +343,9 @@ export default function AdminMarketingCampaigns() {
 
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               <button onClick={() => save('draft')} disabled={!!busy} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border bg-white text-sm font-black disabled:opacity-50"><Save size={16} /> {busy === 'draft' ? 'Saving…' : 'Save draft'}</button>
-              <button onClick={() => save('scheduled')} disabled={!!busy || !draft.scheduledFor || draft.channel === 'whatsapp'} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 text-sm font-black text-white disabled:opacity-40"><CalendarClock size={16} /> {busy === 'scheduled' ? 'Scheduling…' : 'Schedule'}</button>
-              <button onClick={sendTest} disabled={!!busy || !providerConfigured} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 text-sm font-black text-emerald-800 disabled:opacity-40"><Mail size={16} /> {busy === 'test' ? 'Sending…' : 'Send test'}</button>
-              <button onClick={sendNow} disabled={!!busy || !providerConfigured || draft.channel === 'whatsapp' || emailSubscribers.length === 0} className="flex min-h-11 items-center justify-center gap-2 rounded-xl text-sm font-black text-white disabled:opacity-40" style={{ backgroundColor: BRAND }}><Send size={16} /> {busy === 'send' ? 'Sending…' : 'Send now'}</button>
+              <button onClick={() => save('scheduled')} disabled={!!busy || !draft.scheduledFor || draft.channel === 'whatsapp' || selectedProducts.length === 0} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 text-sm font-black text-white disabled:opacity-40"><CalendarClock size={16} /> {busy === 'scheduled' ? 'Scheduling…' : 'Schedule'}</button>
+              <button onClick={sendTest} disabled={!!busy || !providerConfigured || selectedProducts.length === 0} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 text-sm font-black text-emerald-800 disabled:opacity-40"><Mail size={16} /> {busy === 'test' ? 'Sending…' : 'Send test'}</button>
+              <button onClick={sendNow} disabled={!!busy || !providerConfigured || draft.channel === 'whatsapp' || emailSubscribers.length === 0 || selectedProducts.length === 0} className="flex min-h-11 items-center justify-center gap-2 rounded-xl text-sm font-black text-white disabled:opacity-40" style={{ backgroundColor: BRAND }}><Send size={16} /> {busy === 'send' ? 'Sending…' : 'Send now'}</button>
             </div>
           </div>
 

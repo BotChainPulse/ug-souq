@@ -76,7 +76,7 @@ export function NotificationsPanel({ adminKey }: { adminKey: string }) {
   const recentCampaigns = marketing.campaigns.slice(0, 5)
   return <div className="space-y-4">
     <section className="rounded-xl border border-neutral-200 bg-white p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="flex items-center gap-2 font-bold"><Megaphone size={18} /> Marketing notices</h2><p className="mt-1 text-xs text-neutral-500">Consent, delivery readiness and campaign results in one place.</p></div><Link to="/admin/marketing" className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white">Open campaign studio</Link></div>
+      <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="flex items-center gap-2 font-bold"><Megaphone size={18} /> Marketing delivery</h2><p className="mt-1 text-xs text-neutral-500">Consent, delivery readiness and deal-campaign results in one place.</p></div><Link to="/admin/marketing" className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white">Open deals studio</Link></div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl bg-neutral-50 p-3"><Mail size={17} className="text-emerald-700" /><p className="mt-2 text-xl font-black">{Number(totals.email || 0)}</p><p className="text-xs text-neutral-500">Email opt-ins</p></div>
         <div className="rounded-xl bg-neutral-50 p-3"><MessageCircle size={17} className="text-emerald-700" /><p className="mt-2 text-xl font-black">{Number(totals.whatsapp || 0)}</p><p className="text-xs text-neutral-500">WhatsApp opt-ins</p></div>

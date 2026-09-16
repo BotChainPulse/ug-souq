@@ -144,7 +144,7 @@ export default function AdminDashboard() {
     ['Customers', 'Customer account, order history and support operations.', 'Operations', Users],
     ['Sellers & Products', 'Seller approvals, listing moderation and catalog health.', `${approvedSellers} approved`, Store],
     ['Delivery Control', 'Delivery partners, dispatch queue and tracking operations.', `${activeDeliveries} active`, Truck],
-    ['Marketing Campaigns', 'Build mobile promotional emails from opted-in customers and marketplace products.', `${marketingOptIns} opt-ins`, Megaphone],
+    ['Marketing Deals', 'Select genuine discounted products and send them to opted-in customers.', `${marketingOptIns} opt-ins`, Megaphone],
     ['Notices & Messages', 'Operational alerts, email readiness and campaign delivery history.', 'Admin center', MessageSquareText],
     ['Returns & Refunds', 'Return requests, pickup, refunds and closure.', 'Operations', RotateCcw],
     ['Seller Payouts', 'Commission settlement and seller payout queue.', `${payouts.length} pending`, WalletCards],
@@ -160,7 +160,7 @@ export default function AdminDashboard() {
     Customers: '/admin/operations?tab=customers',
     'Sellers & Products': '/admin/operations?tab=sellers',
     'Delivery Control': '/admin/deliveries',
-    'Marketing Campaigns': '/admin/marketing',
+    'Marketing Deals': '/admin/marketing',
     'Notices & Messages': '/admin/operations?tab=notifications',
     'Returns & Refunds': '/admin/operations?tab=returns',
     'Seller Payouts': '/admin/operations?tab=payouts',
@@ -182,7 +182,7 @@ export default function AdminDashboard() {
         <nav className="space-y-1 p-4 text-sm">
           <button className="flex w-full items-center gap-3 rounded-xl bg-white/10 px-3 py-3 font-bold"><Activity size={18} /> Dashboard</button>
           <button onClick={() => navigate('/admin/operations')} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 font-semibold text-slate-300 hover:bg-white/5"><Boxes size={18} /> Operations</button>
-          <button onClick={() => navigate('/admin/marketing')} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 font-semibold text-slate-300 hover:bg-white/5"><Megaphone size={18} /> Marketing Campaigns</button>
+          <button onClick={() => navigate('/admin/marketing')} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 font-semibold text-slate-300 hover:bg-white/5"><Megaphone size={18} /> Marketing Deals</button>
           <button onClick={() => navigate('/plus')} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 font-semibold text-slate-300 hover:bg-white/5"><Crown size={18} /> Plus Membership</button>
         </nav>
         <div className="absolute inset-x-0 bottom-0 border-t border-white/10 p-4"><button onClick={logout} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-rose-300"><LogOut size={18} /> Sign out</button></div>
