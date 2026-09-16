@@ -6,7 +6,7 @@ import path from "path";
 
 type App = Hono<{ Bindings: HttpBindings }>;
 
-const ADMIN_MANIFEST_URL = "/admin-manifest.webmanifest?v=3";
+const ADMIN_MANIFEST_URL = "/admin-manifest.webmanifest?v=4";
 
 export function renderAppShell(content: string, pathname: string) {
   const isAdmin = pathname === "/admin" || pathname.startsWith("/admin/");

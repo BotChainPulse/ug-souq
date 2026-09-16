@@ -1,5 +1,14 @@
-const CACHE = 'ugsouq-v8'
-const SHELL = ['/', '/manifest.webmanifest', '/admin-manifest.webmanifest', '/icon-192.png', '/icon-512.png']
+const CACHE = 'ugsouq-v9'
+const SHELL = [
+  '/',
+  '/manifest.webmanifest',
+  '/admin-manifest.webmanifest',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/admin-icon-192.png',
+  '/admin-icon-512.png',
+  '/admin-icon-maskable-512.png',
+]
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()))

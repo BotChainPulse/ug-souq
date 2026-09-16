@@ -14,7 +14,7 @@ describe("renderAppShell", () => {
 
     expect(html).toContain("<title>UGSouq Admin</title>");
     expect(html).toContain('name="application-name" content="UGSouq Admin"');
-    expect(html).toContain('href="/admin-manifest.webmanifest?v=3"');
+    expect(html).toContain('href="/admin-manifest.webmanifest?v=4"');
     expect(html).toContain('content="Standalone administrator dashboard');
     expect(html).not.toContain('href="/manifest.webmanifest"');
   });
