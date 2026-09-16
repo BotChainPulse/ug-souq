@@ -1,5 +1,5 @@
 {
-  "id": "/admin",
+  "id": "/admin-app",
   "name": "UGSouq Admin",
   "short_name": "UG Admin",
   "description": "Standalone administrator dashboard for managing the UGSouq marketplace.",
@@ -9,6 +9,8 @@
   "orientation": "portrait",
   "background_color": "#faf9f7",
   "theme_color": "#e85d04",
+  "categories": ["business", "productivity"],
+  "prefer_related_applications": false,
   "icons": [
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
