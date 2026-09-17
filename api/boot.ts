@@ -8,6 +8,7 @@ import { env } from "./lib/env";
 import { isValidFlutterwaveWebhook, verifyPlusPayment } from "./plus";
 import { verifyPesapalPayment } from "./pesapal";
 import { registerMarketingCampaignRoutes, startMarketingCampaignScheduler } from "./marketingCampaigns";
+import { registerInboundEmailRoutes } from "./inboundEmail";
 
 async function ensureStartupSchema() {
   const { getDb } = await import("./queries/connection");
@@ -206,6 +207,16 @@ async function ensureStartupSchema() {
       INDEX idx_marketing_whatsapp_opt_in (whatsapp_opt_in)
     )
   `);
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS inbound_email_forwards (
+      email_id VARCHAR(64) PRIMARY KEY,
+      recipient_alias VARCHAR(255) NULL,
+      status ENUM('processing','forwarded') NOT NULL DEFAULT 'processing',
+      forwarded_at TIMESTAMP NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_inbound_forward_status (status)
+    )
+  `);
 }
 
 const app = new Hono<{ Bindings: HttpBindings }>();
@@ -220,6 +231,7 @@ app.use("/api/trpc/*", async (c) => {
   });
 });
 registerMarketingCampaignRoutes(app);
+registerInboundEmailRoutes(app);
 
 // Public sponsored seller campaigns. Only admin-activated bookings are exposed.
 // The creative is taken from the seller's selected approved listing so no unreviewed image can become an ad.
