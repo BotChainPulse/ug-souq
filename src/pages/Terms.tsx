@@ -16,7 +16,7 @@ export default function Terms() {
       <Header />
       <main className="mx-auto max-w-3xl px-4 py-10">
         <h1 className="text-2xl font-extrabold">Terms &amp; Conditions</h1>
-        <p className="mt-1 text-sm text-neutral-500">Last updated: 10 September 2026 · Governed by the laws of Uganda</p>
+        <p className="mt-1 text-sm text-neutral-500">Last updated: 22 September 2026 · Governed by the laws of Uganda</p>
 
         <Section title="1. Who we are">
           <p>UG Souq ("UG Souq", "we", "us") is an online marketplace operated from Kampala, Uganda. We connect buyers with independent sellers and restaurants. By using UG Souq you agree to these Terms. If you do not agree, please do not use the platform.</p>
@@ -55,7 +55,7 @@ export default function Terms() {
         </Section>
 
         <Section title="9. Affiliates">
-          <p>Affiliates earn commission on qualifying orders made through their links or coupon codes. Self-referrals, fake orders, and cookie-stuffing are prohibited and lead to removal and forfeiture of unpaid commissions. Commissions are paid via mobile money per the affiliate program schedule.</p>
+          <p>The affiliate program is currently accepting pilot applications only. Applying records interest and does not create an active earning account, guarantee acceptance, issue a working referral link or coupon, or create a right to commission or payment. Selected applicants will receive written activation, final commission rules and payout terms only after referral tracking and accounting are operational.</p>
         </Section>
 
         <Section title="10. Liability">
