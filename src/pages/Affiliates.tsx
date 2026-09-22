@@ -127,7 +127,7 @@ export default function Affiliates() {
           {submitted ? (
             <div className="text-center py-6" role="status">
               <CircleCheckBig size={44} className="mx-auto text-green-600" />
-              <h2 className="font-extrabold text-xl mt-4">Application received</h2>
+              <h2 id="pilot-application-heading" className="font-extrabold text-xl mt-4">Application received</h2>
               <p className="text-sm text-neutral-600 mt-2">
                 Thank you. This records your interest in the pilot; it is not an active affiliate account and no earnings start yet.
                 UGSouq will contact selected applicants after the tracking and payout tools are ready.
