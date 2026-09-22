@@ -1,37 +1,56 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import {
-  Link2, Percent, LayoutDashboard, Image, Users, MessageCircle, ChevronRight,
-  CircleCheckBig, Share2, Banknote,
+  Users, MessageCircle, ChevronRight, CircleCheckBig, Share2, Image,
 } from 'lucide-react'
 import { ORANGE, WA_LINK } from '../lib/site'
 import { trpc } from '@/providers/trpc'
 
-const perks = [
-  { icon: Percent, t: 'Up to 8% commission', d: 'Earn on every qualifying order made through your link or coupon code.' },
-  { icon: Link2, t: 'Custom links & coupons', d: 'Get your own trackable links and discount codes that fit your audience.' },
-  { icon: LayoutDashboard, t: 'Performance dashboard', d: 'Track clicks, orders and earnings in real time from your phone.' },
-  { icon: Image, t: 'Ready-made creatives', d: 'Banners, product photos and captions for WhatsApp, TikTok and Instagram.' },
+const pilotDetails = [
+  {
+    icon: Users,
+    t: 'Applications are open',
+    d: 'Tell us where you plan to promote UGSouq. We are currently collecting interest for the pilot.',
+  },
+  {
+    icon: Share2,
+    t: 'Manual review',
+    d: 'UGSouq will review each application before inviting selected pilot partners.',
+  },
+  {
+    icon: Image,
+    t: 'Tools are still being built',
+    d: 'Referral links, coupons, reporting, commission accounting and payouts are not active yet.',
+  },
 ]
 
 const steps = [
-  { icon: Users, t: 'Join free', d: 'Sign up with your name, phone and how you plan to promote (WhatsApp, TikTok, campus, church group…).' },
-  { icon: Share2, t: 'Share your link', d: 'Pick products from any verified seller and share your unique link or coupon.' },
-  { icon: Banknote, t: 'Get paid monthly', d: 'Commissions are paid to your MTN MoMo or Airtel Money every month.' },
+  {
+    t: 'Apply for the pilot',
+    d: 'Share your name, WhatsApp number and main promotional channel.',
+  },
+  {
+    t: 'Wait for review',
+    d: 'Submitting the form records your interest only. It does not activate an affiliate account.',
+  },
+  {
+    t: 'Receive written activation',
+    d: 'Selected partners will receive the final commission rules and activation instructions before promotion begins.',
+  },
 ]
 
 const faqs = [
-  ['How much can I earn?', 'Commission ranges from 2% to 8% depending on the product category. Electronics earn less per sale but sell in high volume; fashion and beauty earn more.'],
-  ['Do I need a website?', 'No. Most UG Souq affiliates promote through WhatsApp status, TikTok, Instagram and community groups. Your link works anywhere.'],
-  ['When do I get paid?', 'Monthly, straight to your mobile money. Orders that are returned or refunded don’t earn commission.'],
-  ['Can I choose which sellers to promote?', 'Yes — you can build links for any product, and we recommend promoting verified sellers since their listings convert better.'],
+  ['Can I earn commission now?', 'No. Referral tracking, coupon attribution, commission accounting and payouts are not active yet.'],
+  ['Will I receive an affiliate link immediately?', 'No. Applying records your interest. A link will be issued only after the pilot is activated and you are accepted in writing.'],
+  ['Does applying guarantee acceptance?', 'No. UGSouq will review pilot applications and contact selected applicants when the operational tools are ready.'],
+  ['What happens to my details?', 'UGSouq uses your name, WhatsApp number and selected channel only to review your pilot application and contact you about the program.'],
 ]
 
 export default function Affiliates() {
   const [form, setForm] = useState({ name: '', phone: '', channel: 'WhatsApp' })
+  const [consent, setConsent] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
   const join = trpc.affiliates.join.useMutation()
-  const [code, setCode] = useState<string | null>(null)
-  const joined = code !== null
 
   return (
     <div className="min-h-screen bg-[#faf9f7] text-neutral-900 antialiased">
@@ -39,7 +58,7 @@ export default function Affiliates() {
         <div className="mx-auto max-w-6xl px-4 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             <img src="/logo-mark.png" alt="UG Souq logo" className="w-8 h-8 rounded-lg object-cover bg-white" />
-            <span className="font-extrabold text-lg">UG Souq <span className="font-semibold text-neutral-500">Affiliates</span></span>
+            <span className="font-extrabold text-lg">UG Souq <span className="font-semibold text-neutral-500">Affiliate Pilot</span></span>
           </Link>
           <a href={WA_LINK} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm font-semibold text-green-700 bg-green-50 border border-green-200 px-4 py-2 rounded-full hover:bg-green-100">
             <MessageCircle size={16} /> Ask us
@@ -47,22 +66,26 @@ export default function Affiliates() {
         </div>
       </header>
 
-      {/* Hero */}
       <section className="bg-neutral-900 text-white">
         <div className="mx-auto max-w-6xl px-4 py-16 text-center">
-          <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight">Earn money sharing<br />products you love</h1>
-          <p className="mt-4 text-neutral-300 max-w-xl mx-auto">Join the UG Souq Affiliate Program — free to join, up to 8% commission on every sale you generate. Share links, get paid by MoMo.</p>
-          <a href="#join" className="mt-8 inline-flex items-center gap-2 text-sm font-bold text-neutral-900 bg-white px-7 py-3.5 rounded-full hover:bg-neutral-100 transition-colors">
-            Join now — it's free <ChevronRight size={16} />
+          <span className="inline-flex rounded-full bg-amber-300 px-3 py-1 text-xs font-extrabold uppercase tracking-wide text-neutral-900">
+            Pilot applications only
+          </span>
+          <h1 className="mt-5 text-3xl md:text-5xl font-extrabold tracking-tight">Help shape the<br />UGSouq affiliate pilot</h1>
+          <p className="mt-4 text-neutral-300 max-w-2xl mx-auto">
+            We are collecting interest while referral tracking, coupon attribution, reporting and payout tools are being built.
+            Applying does not activate earning or guarantee acceptance.
+          </p>
+          <a href="#apply" className="mt-8 inline-flex items-center gap-2 text-sm font-bold text-neutral-900 bg-white px-7 py-3.5 rounded-full hover:bg-neutral-100 transition-colors">
+            Apply for the pilot <ChevronRight size={16} />
           </a>
         </div>
       </section>
 
-      {/* Perks */}
-      <section className="mx-auto max-w-6xl px-4 mt-12">
-        <h2 className="text-2xl font-extrabold text-center">Everything you need to succeed</h2>
-        <div className="mt-8 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {perks.map(({ icon: Icon, t, d }) => (
+      <section className="mx-auto max-w-6xl px-4 mt-12" aria-labelledby="pilot-status-heading">
+        <h2 id="pilot-status-heading" className="text-2xl font-extrabold text-center">Current pilot status</h2>
+        <div className="mt-8 grid sm:grid-cols-3 gap-4">
+          {pilotDetails.map(({ icon: Icon, t, d }) => (
             <div key={t} className="bg-white rounded-2xl border border-neutral-200 p-5">
               <span className="w-11 h-11 rounded-full grid place-items-center bg-orange-50"><Icon size={20} style={{ color: ORANGE }} /></span>
               <h3 className="font-bold text-sm mt-3">{t}</h3>
@@ -72,77 +95,108 @@ export default function Affiliates() {
         </div>
       </section>
 
-      {/* How it works */}
-      <section className="mx-auto max-w-6xl px-4 mt-14">
-        <h2 className="text-2xl font-extrabold text-center">Start earning in 3 steps</h2>
+      <section className="mx-auto max-w-6xl px-4 mt-14" aria-labelledby="application-process-heading">
+        <h2 id="application-process-heading" className="text-2xl font-extrabold text-center">How pilot applications work</h2>
         <div className="mt-8 grid sm:grid-cols-3 gap-4">
-          {steps.map(({ icon: Icon, t, d }, i) => (
+          {steps.map(({ t, d }, index) => (
             <div key={t} className="relative bg-white rounded-2xl border border-neutral-200 p-6">
-              <span className="absolute top-5 right-5 text-3xl font-extrabold text-neutral-100">{i + 1}</span>
-              <span className="w-11 h-11 rounded-full grid place-items-center bg-orange-50"><Icon size={20} style={{ color: ORANGE }} /></span>
-              <h3 className="font-bold mt-3">{t}</h3>
-              <p className="text-sm text-neutral-600 mt-1">{d}</p>
+              <span className="absolute top-5 right-5 text-3xl font-extrabold text-neutral-100">{index + 1}</span>
+              <h3 className="font-bold pr-8">{t}</h3>
+              <p className="text-sm text-neutral-600 mt-2">{d}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* FAQ */}
-      <section className="mx-auto max-w-3xl px-4 mt-14">
-        <h2 className="text-2xl font-extrabold text-center">Common questions</h2>
+      <section className="mx-auto max-w-3xl px-4 mt-14" aria-labelledby="affiliate-faq-heading">
+        <h2 id="affiliate-faq-heading" className="text-2xl font-extrabold text-center">Common questions</h2>
         <div className="mt-6 space-y-3">
-          {faqs.map(([q, a]) => (
-            <details key={q} className="bg-white rounded-2xl border border-neutral-200 px-5 py-4 group">
+          {faqs.map(([question, answer]) => (
+            <details key={question} className="bg-white rounded-2xl border border-neutral-200 px-5 py-4 group">
               <summary className="font-semibold text-sm cursor-pointer list-none flex items-center justify-between">
-                {q} <ChevronRight size={16} className="text-neutral-400 group-open:rotate-90 transition-transform" />
+                {question} <ChevronRight size={16} className="text-neutral-400 group-open:rotate-90 transition-transform" />
               </summary>
-              <p className="text-sm text-neutral-600 mt-2">{a}</p>
+              <p className="text-sm text-neutral-600 mt-2">{answer}</p>
             </details>
           ))}
         </div>
       </section>
 
-      {/* Join form */}
-      <section id="join" className="mx-auto max-w-xl px-4 mt-14 mb-16">
+      <section id="apply" className="mx-auto max-w-xl px-4 mt-14 mb-16" aria-labelledby="pilot-application-heading">
         <div className="bg-white rounded-2xl border border-neutral-200 p-6 sm:p-8">
-          {joined ? (
-            <div className="text-center py-6">
+          {submitted ? (
+            <div className="text-center py-6" role="status">
               <CircleCheckBig size={44} className="mx-auto text-green-600" />
-              <h2 className="font-extrabold text-xl mt-4">You're in!</h2>
-              <p className="text-sm text-neutral-600 mt-2">Your affiliate code is</p>
-              <p className="text-2xl font-extrabold tracking-widest mt-1" style={{ color: ORANGE }}>{code}</p>
-              <p className="text-sm text-neutral-600 mt-2">We'll text your personal link and starter pack to <b>{form.phone}</b> on WhatsApp within 24 hours.</p>
+              <h2 id="pilot-application-heading" className="font-extrabold text-xl mt-4">Application received</h2>
+              <p className="text-sm text-neutral-600 mt-2">
+                Thank you. This records your interest in the pilot; it is not an active affiliate account and no earnings start yet.
+                UGSouq will contact selected applicants after the tracking and payout tools are ready.
+              </p>
             </div>
           ) : (
             <>
-              <h2 className="font-extrabold text-xl">Become a UG Souq affiliate</h2>
-              <p className="text-sm text-neutral-600 mt-1">Free to join. We onboard everyone via WhatsApp.</p>
+              <h2 id="pilot-application-heading" className="font-extrabold text-xl">Apply for the affiliate pilot</h2>
+              <p className="text-sm text-neutral-600 mt-1">There is no application fee and no guaranteed acceptance or earnings.</p>
               <div className="mt-5 space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold mb-1.5">Full name *</label>
-                  <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Your name" className="w-full border border-neutral-300 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-neutral-500" />
+                  <label htmlFor="affiliate-name" className="block text-sm font-semibold mb-1.5">Full name *</label>
+                  <input
+                    id="affiliate-name"
+                    value={form.name}
+                    onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+                    placeholder="Your name"
+                    autoComplete="name"
+                    className="w-full border border-neutral-300 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-neutral-500"
+                  />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-1.5">WhatsApp number *</label>
-                  <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="07XX XXX XXX" className="w-full border border-neutral-300 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-neutral-500" />
+                  <label htmlFor="affiliate-phone" className="block text-sm font-semibold mb-1.5">WhatsApp number *</label>
+                  <input
+                    id="affiliate-phone"
+                    value={form.phone}
+                    onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))}
+                    placeholder="07XX XXX XXX"
+                    autoComplete="tel"
+                    inputMode="tel"
+                    className="w-full border border-neutral-300 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-neutral-500"
+                  />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-1.5">Where will you promote? *</label>
-                  <select value={form.channel} onChange={(e) => setForm({ ...form, channel: e.target.value })} className="w-full border border-neutral-300 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-neutral-500 bg-white">
-                    {['WhatsApp', 'TikTok', 'Instagram', 'YouTube', 'Facebook', 'Blog / website', 'Campus / community'].map((c) => <option key={c}>{c}</option>)}
+                  <label htmlFor="affiliate-channel" className="block text-sm font-semibold mb-1.5">Where would you promote? *</label>
+                  <select
+                    id="affiliate-channel"
+                    value={form.channel}
+                    onChange={(event) => setForm((current) => ({ ...current, channel: event.target.value }))}
+                    className="w-full border border-neutral-300 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-neutral-500 bg-white"
+                  >
+                    {['WhatsApp', 'TikTok', 'Instagram', 'YouTube', 'Facebook', 'Blog / website', 'Campus / community'].map((channel) => <option key={channel}>{channel}</option>)}
                   </select>
                 </div>
+                <label className="flex items-start gap-3 text-sm text-neutral-600">
+                  <input
+                    type="checkbox"
+                    checked={consent}
+                    onChange={(event) => setConsent(event.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-neutral-300"
+                  />
+                  <span>I agree that UGSouq may use these details to review my pilot application and contact me about the program. I understand that applying does not activate earnings.</span>
+                </label>
                 <button
-                  disabled={!form.name || !form.phone || join.isPending}
+                  disabled={!form.name.trim() || !form.phone.trim() || !consent || join.isPending}
                   onClick={async () => {
-                    const res = await join.mutateAsync({ name: form.name, phone: form.phone, channel: form.channel })
-                    setCode(res.code)
+                    await join.mutateAsync({
+                      name: form.name.trim(),
+                      phone: form.phone.trim(),
+                      channel: form.channel,
+                    })
+                    setSubmitted(true)
                   }}
                   className="w-full text-sm font-bold text-white py-3 rounded-full disabled:opacity-40"
-                  style={{ background: ORANGE }}>
-                  {join.isPending ? 'Joining…' : 'Join the program — free'}
+                  style={{ background: ORANGE }}
+                >
+                  {join.isPending ? 'Submitting…' : 'Submit pilot application'}
                 </button>
-                {join.isError && <p className="text-sm text-red-600 text-center">Something went wrong — please try again.</p>}
+                {join.isError ? <p className="text-sm text-red-600 text-center" role="alert">Something went wrong — please try again.</p> : null}
               </div>
             </>
           )}
