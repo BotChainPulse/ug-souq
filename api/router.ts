@@ -5,7 +5,7 @@ import { randomBytes } from "crypto";
 import { createRouter, publicQuery } from "./middleware";
 import { getDb } from "./queries/connection";
 import { sellers, sellerIdentityDocuments, products, restaurants, menuItems, orders, orderItems, affiliates, listings, customers, deliveryPartners, sellerAdBookings, notifications, plusMemberships, plusPayments, marketingSubscribers, sellerSubscriptions } from "../db/schema";
-import { createPlusCheckout, plusPlan } from "./plus";
+import { plusPlan } from "./plus";
 import { adminRouter } from "./admin";
 import { trustRouter } from "./trust";
 import { bootstrapRouter } from "./bootstrap";
@@ -823,19 +823,6 @@ export const appRouter = createRouter({
 
   plus: createRouter({
     plan: publicQuery.query(() => plusPlan),
-    // Creates a hosted Flutterwave payment. No membership is activated here: only verified provider results can do that.
-    startCheckout: publicQuery
-      .input(z.object({ phone: z.string().min(9), email: z.string().email() }))
-      .mutation(async ({ input }) => {
-        const db = getDb();
-        const [customer] = await db.select().from(customers).where(eq(customers.phone, normPhone(input.phone)));
-        if (!customer) throw new Error("Create your UG Souq account before joining Plus.");
-        const [membership] = await db.select().from(plusMemberships).where(eq(plusMemberships.customerId, customer.id));
-        if (membership?.status === "active" && membership.expiresAt && membership.expiresAt > new Date()) {
-          return { alreadyActive: true, expiresAt: membership.expiresAt };
-        }
-        return { alreadyActive: false, ...(await createPlusCheckout({ customer, email: input.email.trim().toLowerCase() })) };
-      }),
     status: publicQuery.input(z.object({ phone: z.string().min(9) })).query(async ({ input }) => {
       const db = getDb();
       const [customer] = await db.select().from(customers).where(eq(customers.phone, normPhone(input.phone)));
@@ -860,4 +847,3 @@ export const appRouter = createRouter({
 });
 
 export type AppRouter = typeof appRouter;
-

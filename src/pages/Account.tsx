@@ -37,7 +37,6 @@ function StatusPill({ status }: { status: string }) {
     </span>
   )
 }
-
 export default function AccountPage() {
   const [account, setAccount] = useState<Account | null>(getAccount())
   const [form, setForm] = useState<Account>(account ?? { name: '', phone: '', location: '' })
@@ -116,7 +115,7 @@ export default function AccountPage() {
 
   const menuItems = [
     { icon: MapPinned, label: 'Addresses', to: '/addresses' },
-    { icon: CreditCard, label: 'Manage Cards', to: '/payment-settings' },
+    { icon: CreditCard, label: 'Payment Methods', to: '/payment-settings' },
     { icon: Truck, label: 'Deliveries', to: '/deliveries' },
     { icon: Undo2, label: 'Returns', to: '/returns' },
     { icon: ShieldCheck, label: 'Warranty Claims', to: '/terms' },
@@ -232,7 +231,7 @@ export default function AccountPage() {
         </div>
         <Link to="/plus">
           <span className="text-xs font-bold bg-white px-3 py-1.5 rounded-full" style={{ color: ORANGE }}>
-            {plusActive ? 'View Plus ›' : 'Join Now ›'}
+            {plusActive ? 'View Plus ›' : 'Learn about Plus ›'}
           </span>
         </Link>
       </div>
