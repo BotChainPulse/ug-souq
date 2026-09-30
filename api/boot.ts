@@ -5,7 +5,6 @@ import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "./router";
 import { createContext } from "./context";
 import { env } from "./lib/env";
-import { isValidFlutterwaveWebhook, verifyPlusPayment } from "./plus";
 import { verifyPesapalPayment } from "./pesapal";
 import { registerMarketingCampaignRoutes, startMarketingCampaignScheduler } from "./marketingCampaigns";
 
@@ -207,7 +206,6 @@ async function ensureStartupSchema() {
     )
   `);
 }
-
 const app = new Hono<{ Bindings: HttpBindings }>();
 
 app.use(bodyLimit({ maxSize: 50 * 1024 * 1024 }));
@@ -373,39 +371,6 @@ app.get("/api/ads/active", async (c) => {
     stock: product.stock,
     targetPath: `/product/${product.slug}`,
   })));
-});
-
-// Flutterwave returns the buyer here after hosted checkout. We always verify with Flutterwave
-// server-to-server before activating a membership; query parameters alone are never trusted.
-app.get("/api/plus/callback", async (c) => {
-  const transactionId = c.req.query("transaction_id");
-  const txRef = c.req.query("tx_ref");
-  const base = (process.env.APP_URL ?? "").replace(/\/$/, "");
-  if (!transactionId || !base) return c.redirect(`${base || ""}/plus?payment=failed`);
-  try {
-    const result = await verifyPlusPayment(transactionId, txRef);
-    return c.redirect(`${base}/plus?payment=${result.ok ? "successful" : "failed"}`);
-  } catch (error) {
-    console.error("[PLUS] callback verification failed", error);
-    return c.redirect(`${base}/plus?payment=failed`);
-  }
-});
-
-// Webhooks make activation resilient if the buyer closes the redirect page. The signing secret is
-// mandatory for this endpoint; unsigned webhooks are rejected.
-app.post("/api/plus/webhook", async (c) => {
-  const signature = c.req.header("verif-hash");
-  if (!isValidFlutterwaveWebhook(signature)) return c.json({ error: "Invalid webhook signature" }, 401);
-  const payload: any = await c.req.json().catch(() => null);
-  const transactionId = payload?.data?.id ?? payload?.data?.transaction_id;
-  if (!transactionId || payload?.event !== "charge.completed") return c.json({ received: true });
-  try {
-    await verifyPlusPayment(String(transactionId), payload?.data?.tx_ref);
-    return c.json({ received: true });
-  } catch (error) {
-    console.error("[PLUS] webhook verification failed", error);
-    return c.json({ received: false }, 400);
-  }
 });
 
 // Pesapal callbacks and IPNs contain references, not a trusted payment result.
