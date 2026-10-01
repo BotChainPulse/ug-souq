@@ -16,7 +16,7 @@ if (!/^[a-zA-Z0-9_]+$/.test(targetDatabase)) {
   throw new Error("TARGET_DATABASE_NAME must contain only letters, numbers, and underscores");
 }
 
-const quoteIdentifier = (value) => `\`${String(value).replaceAll("`", "``")}\``;
+const quoteIdentifier = (value) => `\`${String(value).replaceAll("\`", "\`\`")}\``;
 
 const normalizeCreateTable = (ddl) =>
   ddl
@@ -91,7 +91,9 @@ try {
       await target.beginTransaction();
       try {
         for (const row of rows) {
-          await target.execute(insertSql, columns.map((column) => row[column]));
+          // Use the text protocol for TiDB compatibility. Its prepared-statement
+          // protocol can reject MySQL JSON values with field type 245.
+          await target.query(insertSql, columns.map((column) => row[column]));
         }
         await target.commit();
       } catch (error) {
