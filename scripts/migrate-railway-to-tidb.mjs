@@ -30,6 +30,7 @@ const source = await mysql.createConnection({
   supportBigNumbers: true,
   bigNumberStrings: true,
   dateStrings: true,
+  jsonStrings: true,
 });
 
 const target = await mysql.createConnection({
@@ -93,7 +94,13 @@ try {
         for (const row of rows) {
           // Use the text protocol for TiDB compatibility. Its prepared-statement
           // protocol can reject MySQL JSON values with field type 245.
-          await target.query(insertSql, columns.map((column) => row[column]));
+          const values = fields.map((field) => {
+            const value = row[field.name];
+            return field.type === 245 && value !== null && typeof value !== "string"
+              ? JSON.stringify(value)
+              : value;
+          });
+          await target.query(insertSql, values);
         }
         await target.commit();
       } catch (error) {
