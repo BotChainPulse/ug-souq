@@ -15,5 +15,6 @@ RUN npm install --omit=dev
 COPY --from=build /app/dist ./dist
 COPY drizzle.config.ts ./
 COPY db ./db
+COPY scripts ./scripts
 EXPOSE 3000
 CMD ["npm", "start"]
