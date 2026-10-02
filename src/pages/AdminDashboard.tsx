@@ -140,7 +140,7 @@ export default function AdminDashboard() {
   const modules = [
     ['Orders', 'Payments, fulfillment status and customer order operations.', `${orders.length} loaded`, ShoppingBag],
     ['Payments', 'Flutterwave payment monitoring and reconciliation layer.', paidOrders ? `${paidOrders} paid` : 'Gateway setup', CreditCard],
-    ['UG Souq Plus', 'Memberships, renewals and unlimited-delivery benefits.', 'Integration stage', Crown],
+    ['UG Souq Plus', 'Pilot records and future membership controls; delivery fees remain active.', 'Pilot', Crown],
     ['Customers', 'Customer account, order history and support operations.', 'Operations', Users],
     ['Sellers & Products', 'Seller approvals, listing moderation and catalog health.', `${approvedSellers} approved`, Store],
     ['Delivery Control', 'Delivery partners, dispatch queue and tracking operations.', `${activeDeliveries} active`, Truck],
