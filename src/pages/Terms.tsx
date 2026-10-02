@@ -16,7 +16,7 @@ export default function Terms() {
       <Header />
       <main className="mx-auto max-w-3xl px-4 py-10">
         <h1 className="text-2xl font-extrabold">Terms &amp; Conditions</h1>
-        <p className="mt-1 text-sm text-neutral-500">Last updated: 22 September 2026 · Governed by the laws of Uganda</p>
+        <p className="mt-1 text-sm text-neutral-500">Last updated: 2 October 2026 · Governed by the laws of Uganda</p>
 
         <Section title="1. Who we are">
           <p>UG Souq ("UG Souq", "we", "us") is an online marketplace operated from Kampala, Uganda. We connect buyers with independent sellers and restaurants. By using UG Souq you agree to these Terms. If you do not agree, please do not use the platform.</p>
@@ -36,7 +36,7 @@ export default function Terms() {
         </Section>
 
         <Section title="5. Delivery">
-          <p>Estimated delivery times shown on product and restaurant pages are estimates, not guarantees. Risk in the goods passes to you on delivery. Please inspect items at the doorstep before accepting, and report visible damage immediately to the rider and via our WhatsApp support.</p>
+          <p>Estimated delivery times shown on product and restaurant pages are estimates, not guarantees. Risk in the goods passes to you on delivery. Please inspect items at the doorstep before accepting, report visible damage to the rider, and submit a protected return request through UG Souq.</p>
         </Section>
 
         <Section title="6. Returns and refunds">
@@ -67,7 +67,7 @@ export default function Terms() {
         </Section>
 
         <Section title="12. Changes and contact">
-          <p>We may update these Terms from time to time; the "last updated" date above shows the current version. Continued use after an update means you accept the new Terms. Questions can be sent via our WhatsApp support link in the footer.</p>
+          <p>We may update these Terms from time to time; the "last updated" date above shows the current version. Continued use after an update means you accept the new Terms. Questions and support options are available through the Help Centre linked in the footer.</p>
         </Section>
       </main>
       <Footer />

@@ -15,7 +15,7 @@ type Preferences = {
 type PreferenceKey = keyof Preferences
 
 const DEFAULT_PREFS: Preferences = {
-  emailNotifications: true,
+  emailNotifications: false,
   smsNotifications: false,
   darkMode: false,
   marketingEmails: true,
@@ -59,8 +59,8 @@ export default function PreferencesPage() {
   }
 
   const items: Array<{ key: PreferenceKey; label: string; icon: typeof Bell; desc: string }> = [
-    { key: 'emailNotifications', label: 'Email Notifications', icon: Bell, desc: 'Get order updates via email' },
-    { key: 'smsNotifications', label: 'SMS Notifications', icon: Bell, desc: 'Get order updates via SMS' },
+    { key: 'emailNotifications', label: 'Email Notifications', icon: Bell, desc: 'Coming after verified email delivery is connected' },
+    { key: 'smsNotifications', label: 'SMS Notifications', icon: Bell, desc: 'Coming after a verified SMS provider is connected' },
     { key: 'darkMode', label: 'Dark Mode', icon: Moon, desc: 'Switch to dark theme' },
     { key: 'marketingEmails', label: 'Marketing Emails', icon: ShoppingBag, desc: 'Receive deals and offers' },
   ]
@@ -87,13 +87,14 @@ export default function PreferencesPage() {
             <button
               type="button"
               role="switch"
-              aria-checked={prefs[item.key]}
+              aria-checked={prefs[item.key] && !['emailNotifications', 'smsNotifications'].includes(item.key)}
               aria-label={item.label}
-              onClick={() => toggle(item.key)}
-              className={`relative h-7 w-12 rounded-full transition-colors ${prefs[item.key] ? '' : 'bg-gray-300 dark:bg-neutral-700'}`}
-              style={{ backgroundColor: prefs[item.key] ? ORANGE : undefined }}
+              onClick={() => !['emailNotifications', 'smsNotifications'].includes(item.key) && toggle(item.key)}
+              disabled={['emailNotifications', 'smsNotifications'].includes(item.key)}
+              className={`relative h-7 w-12 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${prefs[item.key] && !['emailNotifications', 'smsNotifications'].includes(item.key) ? '' : 'bg-gray-300 dark:bg-neutral-700'}`}
+              style={{ backgroundColor: prefs[item.key] && !['emailNotifications', 'smsNotifications'].includes(item.key) ? ORANGE : undefined }}
             >
-              <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-all ${prefs[item.key] ? 'left-6' : 'left-1'}`} />
+              <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-all ${prefs[item.key] && !['emailNotifications', 'smsNotifications'].includes(item.key) ? 'left-6' : 'left-1'}`} />
             </button>
           </div>
         ))}

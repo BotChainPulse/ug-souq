@@ -271,8 +271,8 @@ export default function AdminMarketingCampaigns() {
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">Only live items discounted by at least 5% are offered for selection. Audience counts come from UGSouq consent records and unsubscribed customers are excluded.</p>
             </div>
             <div className={`rounded-2xl border p-4 text-sm ${providerConfigured ? 'border-emerald-300/20 bg-emerald-300/10 text-emerald-100' : 'border-amber-300/20 bg-amber-300/10 text-amber-100'}`}>
-              <p className="font-black">Email delivery: {providerConfigured ? 'Connected' : 'Not configured'}</p>
-              <p className="mt-1 leading-5">{providerConfigured ? `${providerName || 'provider'} · ${fromAddress || 'sender configured'}` : 'Add RESEND_API_KEY and MARKETING_FROM_EMAIL in Railway before using Test or Send now.'}</p>
+              <p className="font-black">Email delivery: {providerConfigured ? 'Credentials present' : 'Not configured'}</p>
+              <p className="mt-1 leading-5">{providerConfigured ? `${providerName || 'provider'} · ${fromAddress || 'sender configured'}. Domain delivery is confirmed only by a successful test email.` : 'Add RESEND_API_KEY and MARKETING_FROM_EMAIL in the hosting environment before using Test or Send now.'}</p>
             </div>
           </div>
         </section>

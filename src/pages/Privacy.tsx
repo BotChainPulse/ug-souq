@@ -4,7 +4,7 @@ import {
   FileText,
   Globe2,
   Lock,
-  MessageCircle,
+  CircleHelp,
   ShieldCheck,
   Trash2,
   Users,
@@ -12,7 +12,7 @@ import {
 import { Link } from 'react-router'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
-import { ORANGE, WA_LINK } from '../lib/site'
+import { ORANGE } from '../lib/site'
 
 function Section({
   icon: Icon,
@@ -98,7 +98,7 @@ export default function Privacy() {
           </Section>
 
           <Section icon={Trash2} title="Account and data deletion">
-            <p>Customers can request deletion from the account area and through our public deletion page. We verify the requester before deleting data so that another person cannot erase an account using only a known phone number.</p>
+            <p>The public deletion page provides the current process and will link to the protected request channel after secure intake has passed testing. UG Souq will verify the requester before deleting data so that another person cannot erase an account using only a known phone number.</p>
             <Link
               to="/delete-account"
               className="inline-flex min-h-11 items-center rounded-full px-5 font-bold text-white"
@@ -111,25 +111,19 @@ export default function Privacy() {
 
         <div className="mt-8 rounded-2xl bg-neutral-900 p-6 text-white">
           <h2 className="flex items-center gap-2 font-extrabold">
-            <MessageCircle size={18} style={{ color: ORANGE }} /> Privacy questions or complaints
+            <CircleHelp size={18} style={{ color: ORANGE }} /> Privacy questions or complaints
           </h2>
           <p className="mt-2 text-sm text-neutral-300">
-            Contact UG Souq through the official WhatsApp support channel. Include only the phone
-            number registered to the account and the type of request. Do not send a PIN, password
-            or identity-document image.
+            Use the protected Help Centre and account-deletion guidance. Do not send a PIN,
+            password, OTP or identity-document image through an ordinary chat service.
           </p>
-          <a
-            href={WA_LINK}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full bg-green-600 px-6 text-sm font-bold text-white"
-          >
-            <MessageCircle size={16} /> Contact privacy support
-          </a>
+          <Link to="/support" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full bg-emerald-600 px-6 text-sm font-bold text-white">
+            <CircleHelp size={16} /> Open Help Centre
+          </Link>
         </div>
 
         <p className="mt-6 text-xs text-neutral-400">
-          Updated: 10 September 2026 · UG Souq, Kampala, Uganda
+          Updated: 2 October 2026 · UG Souq, Kampala, Uganda
         </p>
       </main>
       <Footer />

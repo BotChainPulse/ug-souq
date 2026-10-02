@@ -15,6 +15,7 @@ import { getServerDeliveryQuote, validateRequestedItems } from "./orderValidatio
 import { commissionForLine, PRO_MONTHLY_FEE, sellerPlan } from "./sellerPolicy";
 import { encryptIdentity, identityFingerprint, IDENTITY_CONSENT_VERSION, identityStorageReady, parseIdentityDocumentDataUrl } from "./identity";
 import { createPesapalPayment, pesapalConfigured } from "./pesapal";
+import { pilotDeliveryFee } from "./plusPilot";
 
 function orderCode() {
   // Unambiguous alphabet: no O/0, I/1, L — buyers type these codes by hand
@@ -470,16 +471,9 @@ export const appRouter = createRouter({
           const phone = normPhone(input.phone);
           const commissionFee = canonicalItems.reduce((sum, item) => sum + item.commissionFee, 0);
           await upsertCustomer(tx, input.customerName, phone, quotedDelivery.address);
-          const [customer] = await tx.select().from(customers).where(eq(customers.phone, phone));
-          const [membership] = customer
-            ? await tx.select().from(plusMemberships).where(eq(plusMemberships.customerId, customer.id))
-            : [];
-          const plusActive = Boolean(
-            membership?.status === "active" &&
-            membership.expiresAt &&
-            membership.expiresAt > new Date(),
-          );
-          const deliveryFee = plusActive ? 0 : quotedDelivery.deliveryFee;
+          // Plus is still a pilot. Do not waive delivery charges until the benefit,
+          // provider settlement and administrator controls are explicitly launched.
+          const deliveryFee = pilotDeliveryFee(quotedDelivery.deliveryFee);
           const total = subtotal + deliveryFee;
           const [inserted] = await tx.insert(orders).values({
             code: orderCode(),

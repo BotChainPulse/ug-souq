@@ -6,7 +6,7 @@ import Footer from '../components/Footer'
 import { useCart, fmt } from '../lib/cart'
 import { DELIVERY_ZONES, RETURN_POLICY, PICKUP_STATIONS } from '../lib/delivery'
 import { categoryName } from '../lib/categories'
-import { ORANGE, WHATSAPP_INTL } from '../lib/site'
+import { ORANGE } from '../lib/site'
 import {
   BadgeCheck, ShoppingCart, Check, Star, Package, Truck, RotateCcw,
   Flag, Store, ChevronRight, MapPin, Zap,
@@ -121,15 +121,14 @@ export default function ProductDetailPage() {
                   >
                     {added ? <><Check size={18} /> Added to cart</> : <><ShoppingCart size={18} /> Add to Cart</>}
                   </button>
-                  <a
-                    href={`https://wa.me/${WHATSAPP_INTL}?text=${encodeURIComponent(`I want to report or ask about ${p.name} (${window.location.href})`)}`}
-                    target="_blank" rel="noreferrer"
+                  <Link
+                    to="/support"
                     className="w-14 flex items-center justify-center rounded-xl border-2 font-bold"
                     style={{ borderColor: ORANGE, color: ORANGE }}
                     title="Report or ask UGSouq about this item"
                   >
                     <Flag size={20} />
-                  </a>
+                  </Link>
                 </div>
 
                 <div className="mt-6 bg-white rounded-2xl border border-neutral-200 p-4 sm:p-5">
@@ -190,9 +189,9 @@ export default function ProductDetailPage() {
                         {p.sellerVerified ? ' · Verified seller' : ''}
                       </p>
                     </div>
-                    <a href={`https://wa.me/${WHATSAPP_INTL}?text=${encodeURIComponent(`Please help me verify ${p.name} sold by ${p.sellerName}.`)}`} target="_blank" rel="noreferrer" className="text-xs font-bold px-3.5 py-2 rounded-full border-2 shrink-0" style={{ borderColor: ORANGE, color: ORANGE }}>
+                    <Link to="/support" className="text-xs font-bold px-3.5 py-2 rounded-full border-2 shrink-0" style={{ borderColor: ORANGE, color: ORANGE }}>
                       Report item
-                    </a>
+                    </Link>
                   </div>
                 </div>
               </div>

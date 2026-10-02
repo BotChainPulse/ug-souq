@@ -1,5 +1,5 @@
 import { Link } from 'react-router'
-import { ArrowLeft, Check, Truck, ShieldCheck, Clock3 } from 'lucide-react'
+import { ArrowLeft, Check, ShieldCheck, Clock3 } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { ORANGE } from '../lib/site'
@@ -7,9 +7,9 @@ import { trpc } from '@/providers/trpc'
 import { getAccount } from '../lib/account'
 
 const benefits = [
-  'Unlimited free delivery on eligible orders',
-  'Priority delivery options when available',
-  'Member-only offers and promotions',
+  'Pilot membership updates before public launch',
+  'Future member-only offers after activation',
+  'Clear pricing and benefits before any payment',
 ]
 
 export default function PlusPage() {
@@ -36,8 +36,8 @@ export default function PlusPage() {
           style={{ background: `linear-gradient(135deg, ${ORANGE}, #d95d1e)` }}
         >
           <p className="text-sm font-semibold opacity-90">UG Souq</p>
-          <h2 className="text-2xl font-bold mt-1">Unlimited Free Delivery</h2>
-          <p className="text-sm opacity-90 mt-2">Get more from every order with UG Souq Plus.</p>
+          <h2 className="text-2xl font-bold mt-1">Plus pilot — not yet active</h2>
+          <p className="text-sm opacity-90 mt-2">UG Souq Plus is being prepared. Free delivery is not available during the pilot.</p>
         </section>
 
         <section className="bg-white rounded-2xl p-5 mt-4 shadow-sm">
@@ -59,10 +59,10 @@ export default function PlusPage() {
 
         <section className="bg-white rounded-2xl p-5 mt-4 shadow-sm">
           <div className="flex items-center gap-3">
-            <Truck size={22} style={{ color: ORANGE }} />
+            <Clock3 size={22} style={{ color: ORANGE }} />
             <div>
-              <p className="font-bold text-gray-900">Delivery savings</p>
-              <p className="text-xs text-gray-500 mt-0.5">No delivery fee on eligible Plus orders.</p>
+              <p className="font-bold text-gray-900">Delivery fees still apply</p>
+              <p className="text-xs text-gray-500 mt-0.5">Every pilot order uses the normal delivery fee shown at checkout.</p>
             </div>
           </div>
           <div className="flex items-center gap-3 mt-4">
@@ -76,12 +76,12 @@ export default function PlusPage() {
 
         {membership ? (
           <section className="mt-5 rounded-2xl border border-green-200 bg-green-50 p-4">
-            <p className="font-bold text-green-800">Plus is active</p>
+            <p className="font-bold text-green-800">Plus pilot record found</p>
             <p className="mt-1 text-sm text-green-700">
-              Free delivery benefits are available until{' '}
+              This record is saved until{' '}
               {membership.expiresAt
                 ? new Date(membership.expiresAt).toLocaleDateString()
-                : 'your renewal date'}.
+                : 'the pilot review date'}. It does not remove delivery fees during the pilot.
             </p>
           </section>
         ) : !account ? (

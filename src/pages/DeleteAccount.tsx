@@ -1,13 +1,8 @@
-import { AlertTriangle, CheckCircle2, MessageCircle, ShieldCheck, Trash2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, CircleHelp, ShieldCheck, Trash2 } from 'lucide-react'
 import { Link } from 'react-router'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
-import { ORANGE, WHATSAPP_INTL } from '../lib/site'
-
-const deletionMessage = encodeURIComponent(
-  'Hi UG Souq. I want to request deletion of my UG Souq account and associated personal data. My registered phone number is: '
-)
-const deletionLink = `https://wa.me/${WHATSAPP_INTL}?text=${deletionMessage}`
+import { ORANGE } from '../lib/site'
 
 export default function DeleteAccount() {
   return (
@@ -28,19 +23,17 @@ export default function DeleteAccount() {
             <ShieldCheck size={18} style={{ color: ORANGE }} /> How to request deletion
           </h2>
           <ol className="mt-4 list-decimal space-y-3 pl-5 text-sm leading-relaxed text-neutral-600">
-            <li>Open the official UG Souq WhatsApp conversation using the button below.</li>
-            <li>Provide the phone number registered to the account and say whether it is a buyer, seller, affiliate or delivery-partner account.</li>
-            <li>Complete the identity check requested by support. This prevents another person from deleting your account using a phone number they know.</li>
-            <li>We will confirm when the request has been completed or explain any information that must temporarily be retained by law.</li>
+            <li>Open the UG Souq Help Centre using the button below.</li>
+            <li>Use the protected account and privacy guidance shown there. Do not send account details through ordinary chat.</li>
+            <li>The verified deletion-request channel will require the registered phone number and an identity check. This prevents another person from deleting an account using a phone number they know.</li>
+            <li>UG Souq will publish the direct request channel only after secure intake and delivery have passed testing.</li>
           </ol>
-          <a
-            href={deletionLink}
-            target="_blank"
-            rel="noreferrer"
+          <Link
+            to="/support"
             className="mt-6 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-green-600 px-5 text-sm font-bold text-white sm:w-auto"
           >
-            <MessageCircle size={17} /> Start deletion request
-          </a>
+            <CircleHelp size={17} /> Open Help Centre
+          </Link>
         </section>
 
         <section className="mt-6 rounded-2xl border border-neutral-200 bg-white p-6">

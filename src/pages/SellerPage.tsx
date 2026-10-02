@@ -4,8 +4,8 @@ import { trpc } from '@/providers/trpc'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { useCart, fmt } from '../lib/cart'
-import { ORANGE, WHATSAPP_INTL } from '../lib/site'
-import { BadgeCheck, Star, Store, MessageCircle, ShoppingCart, Check, ArrowLeft } from 'lucide-react'
+import { ORANGE } from '../lib/site'
+import { BadgeCheck, Star, Store, CircleHelp, ShoppingCart, Check, ArrowLeft } from 'lucide-react'
 
 export default function SellerPage() {
   const { id = '' } = useParams()
@@ -77,9 +77,9 @@ export default function SellerPage() {
                 {seller.verified && <span className="text-sky-700">· Verified seller</span>}
               </p>
             </div>
-            <a href={`https://wa.me/${WHATSAPP_INTL}?text=${encodeURIComponent(`I need help with ${seller.shopName} on UG Souq.`)}`} target="_blank" rel="noreferrer" className="text-xs font-bold px-3.5 py-2 rounded-full border-2 shrink-0 inline-flex items-center gap-1.5" style={{ borderColor: ORANGE, color: ORANGE }}>
-              <MessageCircle size={14} /> Contact UGSouq
-            </a>
+            <Link to="/support" className="text-xs font-bold px-3.5 py-2 rounded-full border-2 shrink-0 inline-flex items-center gap-1.5" style={{ borderColor: ORANGE, color: ORANGE }}>
+              <CircleHelp size={14} /> Help Centre
+            </Link>
           </div>
         </div>
 

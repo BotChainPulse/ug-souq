@@ -227,11 +227,11 @@ export default function AccountPage() {
       >
         <div>
           <p className="text-xs font-medium opacity-90">UG Souq</p>
-          <p className="text-sm font-bold">{plusActive ? 'Plus membership active' : 'Unlimited Free Delivery'}</p>
+          <p className="text-sm font-bold">{plusActive ? 'Plus pilot record' : 'UG Souq Plus pilot'}</p>
         </div>
         <Link to="/plus">
           <span className="text-xs font-bold bg-white px-3 py-1.5 rounded-full" style={{ color: ORANGE }}>
-            {plusActive ? 'View Plus ›' : 'Learn about Plus ›'}
+            {plusActive ? 'View pilot status ›' : 'Pilot details ›'}
           </span>
         </Link>
       </div>
@@ -426,4 +426,3 @@ export default function AccountPage() {
     </div>
   )
 }
-

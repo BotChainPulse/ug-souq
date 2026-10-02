@@ -62,7 +62,7 @@ export default function TrackOrder() {
             </div>
 
             {order.status === 'cancelled' ? (
-              <p className="mt-5 flex items-center gap-2 text-red-600 font-semibold text-sm"><XCircle size={18} /> This order was cancelled. Contact us on WhatsApp for help.</p>
+              <p className="mt-5 flex items-center gap-2 text-red-600 font-semibold text-sm"><XCircle size={18} /> This order was cancelled. <Link to="/support" className="underline">Open the Help Centre</Link> if you need assistance.</p>
             ) : (
               <div className="mt-6 space-y-4">
                 {STAGES.map((s, i) => {

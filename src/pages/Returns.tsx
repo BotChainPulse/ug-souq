@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { RotateCcw, ShieldCheck, MessageCircle, PackageX } from 'lucide-react'
+import { RotateCcw, ShieldCheck, CircleHelp, PackageX } from 'lucide-react'
+import { Link } from 'react-router'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
-import { ORANGE, WA_LINK } from '../lib/site'
+import { ORANGE } from '../lib/site'
 import { trpc } from '../providers/trpc'
 
 export default function Returns() {
@@ -28,7 +29,7 @@ export default function Returns() {
         <div className="mt-8 space-y-4">
           {[
             { icon: ShieldCheck, t: '7-day return window', d: 'Changed your mind or item not as described? Return it within 7 days of delivery for a full refund to your MoMo/Airtel Money.' },
-            { icon: PackageX, t: 'Damaged or wrong item', d: 'Report within 48 hours with a photo on WhatsApp. We arrange pickup and refund or replace — your choice.' },
+            { icon: PackageX, t: 'Damaged or wrong item', d: 'Submit the protected return form within 48 hours and keep clear photos available for review.' },
             { icon: RotateCcw, t: 'Food orders', d: 'Food can\'t be returned, but if your order arrives wrong, cold or incomplete, message us within 2 hours for a credit or refund.' },
           ].map(({ icon: Icon, t, d }) => (
             <div key={t} className="bg-white rounded-2xl border border-neutral-200 p-5 flex gap-4">
@@ -54,9 +55,9 @@ export default function Returns() {
           </div>}
         </section>
 
-        <a href={WA_LINK} target="_blank" rel="noreferrer" className="mt-8 flex items-center justify-center gap-2 text-sm font-bold text-white py-3.5 rounded-full" style={{ background: '#16a34a' }}>
-          <MessageCircle size={16} /> Need help? Contact WhatsApp support
-        </a>
+        <Link to="/support" className="mt-8 flex items-center justify-center gap-2 rounded-full py-3.5 text-sm font-bold text-white" style={{ background: ORANGE }}>
+          <CircleHelp size={16} /> Open Help Centre
+        </Link>
       </div>
       <Footer />
     </div>

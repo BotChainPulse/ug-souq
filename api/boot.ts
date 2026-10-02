@@ -7,6 +7,7 @@ import { createContext } from "./context";
 import { env } from "./lib/env";
 import { verifyPesapalPayment } from "./pesapal";
 import { registerMarketingCampaignRoutes, startMarketingCampaignScheduler } from "./marketingCampaigns";
+import { registerInboundEmailRoutes } from "./inboundEmail";
 
 async function ensureStartupSchema() {
   const { getDb } = await import("./queries/connection");
@@ -205,6 +206,16 @@ async function ensureStartupSchema() {
       INDEX idx_marketing_whatsapp_opt_in (whatsapp_opt_in)
     )
   `);
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS inbound_email_forwards (
+      email_id VARCHAR(64) PRIMARY KEY,
+      recipient_alias VARCHAR(255) NULL,
+      status ENUM('processing','forwarded') NOT NULL DEFAULT 'processing',
+      forwarded_at TIMESTAMP NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_inbound_forward_status (status)
+    )
+  `);
 }
 const app = new Hono<{ Bindings: HttpBindings }>();
 
@@ -218,6 +229,7 @@ app.use("/api/trpc/*", async (c) => {
   });
 });
 registerMarketingCampaignRoutes(app);
+registerInboundEmailRoutes(app);
 
 // Public sponsored seller campaigns. Only admin-activated bookings are exposed.
 // The creative is taken from the seller's selected approved listing so no unreviewed image can become an ad.
@@ -354,13 +366,14 @@ app.get("/api/ads/active", async (c) => {
     placementType: "launch" as const,
     sellerId: seller.id,
     sellerName: seller.shopName,
-    sellerVerified: seller.verified,
+    // A platform-funded launch feature never implies commercial verification.
+    sellerVerified: false,
     planType: null,
     startsAt: null,
     expiresAt: null,
     listingId: null,
     headline: product.name,
-    message: "Featured by UGSouq to welcome buyers and new sellers.",
+    message: "Platform-funded pilot feature — not a paid seller campaign.",
     objective: "marketplace_launch",
     cta: "view_product",
     ctaLabel: "View product",
