@@ -1,7 +1,8 @@
-import { Wallet, Smartphone, ShieldCheck, Banknote, MessageCircle, CircleCheckBig } from 'lucide-react'
+import { Wallet, Smartphone, ShieldCheck, Banknote, CircleHelp, CircleCheckBig } from 'lucide-react'
+import { Link } from 'react-router'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
-import { ORANGE, WA_LINK } from '../lib/site'
+import { ORANGE } from '../lib/site'
 
 export default function Pay() {
   return (
@@ -53,9 +54,9 @@ export default function Pay() {
         <div className="bg-neutral-900 text-white rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="flex-1">
             <h3 className="font-extrabold">Payment question?</h3>
-            <p className="text-sm text-neutral-300 mt-1">Our support team answers on WhatsApp, 7 days a week.</p>
+            <p className="text-sm text-neutral-300 mt-1">Use the protected Help Centre for payment and order guidance.</p>
           </div>
-          <a href={WA_LINK} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-bold px-5 py-2.5 rounded-full bg-green-500 text-white hover:bg-green-600 whitespace-nowrap"><MessageCircle size={16} /> Chat with support</a>
+          <Link to="/support" className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-emerald-700"><CircleHelp size={16} /> Open Help Centre</Link>
         </div>
       </section>
       <Footer />

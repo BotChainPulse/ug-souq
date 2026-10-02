@@ -45,6 +45,7 @@ import Addresses from './pages/Addresses'
 import Wishlist from './pages/Wishlist'
 import SellerPage from './pages/SellerPage'
 import Plus from './pages/Plus'
+import Support from './pages/Support'
 
 export default function App() {
   const location = useLocation()
@@ -103,6 +104,7 @@ export default function App() {
         <Route path="/addresses" element={<Addresses />} />
         <Route path="/wishlist" element={<Wishlist />} />
         <Route path="/plus" element={<Plus />} />
+        <Route path="/support" element={<Support />} />
       </Routes>
     </CartProvider>
   )

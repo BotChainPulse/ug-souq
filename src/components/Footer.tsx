@@ -1,8 +1,7 @@
 import { Link } from 'react-router'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { ChevronDown, MessageCircle } from 'lucide-react'
-import { WA_LINK } from '../lib/site'
+import { ChevronDown, CircleHelp } from 'lucide-react'
 
 function FooterGroup({ title, children }: { title: string; children: ReactNode }) {
   const [open, setOpen] = useState(false)
@@ -28,7 +27,7 @@ export default function Footer() {
             <span className="font-extrabold text-white text-lg">UG Souq</span>
           </div>
           <p className="mt-2 max-w-xs text-sm leading-relaxed text-neutral-400">Uganda's market, in your pocket. Proudly built in Kampala.</p>
-          <a href={WA_LINK} target="_blank" rel="noreferrer" className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full bg-emerald-500/10 px-3 text-sm font-semibold text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300"><MessageCircle size={15} /> WhatsApp support</a>
+          <Link to="/support" className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full bg-emerald-500/10 px-3 text-sm font-semibold text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300"><CircleHelp size={15} /> Help Centre</Link>
         </div>
         <FooterGroup title="Shop">
             <li><Link to="/mall" className="hover:text-white">Super Mall</Link></li>
@@ -47,7 +46,7 @@ export default function Footer() {
             <li><Link to="/pay" className="hover:text-white">UG Souq Pay</Link></li>
         </FooterGroup>
         <FooterGroup title="Support">
-            <li><a href={WA_LINK} target="_blank" rel="noreferrer" className="hover:text-white">WhatsApp support</a></li>
+            <li><Link to="/support" className="hover:text-white">Help Centre</Link></li>
             <li><Link to="/account" className="hover:text-white">My Account</Link></li>
             <li><Link to="/orders" className="hover:text-white">My Orders</Link></li>
             <li><Link to="/track" className="hover:text-white">Track your order</Link></li>

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { Search, ShoppingCart, ChevronDown, Grid3X3, CircleHelp, MapPin, X, Smartphone, Tv, Shirt, Footprints, Wheat, Home as HomeIcon, RefreshCcw, UtensilsCrossed, Blend, UserRound } from 'lucide-react'
-import { ORANGE, WA_LINK } from '../lib/site'
+import { ORANGE } from '../lib/site'
 import { useCart } from '../lib/cart'
 
 const CATEGORIES = [
@@ -37,7 +37,7 @@ export default function Header() {
             <Link to="/affiliates" className="hover:text-emerald-300">Affiliates</Link>
             <Link to="/account" className="hover:text-emerald-300">My Account</Link>
             <Link to="/track" className="hover:text-emerald-300">Track Order</Link>
-            <a href={WA_LINK} target="_blank" rel="noreferrer" className="hover:text-emerald-300 flex items-center gap-1"><CircleHelp size={12} /> Help</a>
+            <Link to="/support" className="hover:text-emerald-300 flex items-center gap-1"><CircleHelp size={12} /> Help Centre</Link>
           </div>
         </div>
       </div>

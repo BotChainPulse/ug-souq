@@ -1,8 +1,8 @@
 import { Link } from 'react-router'
 import {
-  BadgeCheck, FileText, MapPin, ShieldCheck, Star, ArrowRight, IdCard, MessageCircle,
+  BadgeCheck, FileText, MapPin, ShieldCheck, Star, ArrowRight, IdCard, CircleHelp,
 } from 'lucide-react'
-import { ORANGE, WA_LINK } from '../lib/site'
+import { ORANGE } from '../lib/site'
 
 const checks = [
   { icon: IdCard, t: 'Identity check 🪪', d: 'The seller provides National ID, passport or driving-permit details. An administrator must confirm the owner before awarding the badge.' },
@@ -20,9 +20,9 @@ export default function Verification() {
             <img src="/logo-mark.png" alt="UG Souq logo" className="w-8 h-8 rounded-lg object-cover bg-white" />
             <span className="font-extrabold text-lg">UG Souq</span>
           </Link>
-          <a href={WA_LINK} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm font-semibold text-green-700 bg-green-50 border border-green-200 px-4 py-2 rounded-full hover:bg-green-100">
-            <MessageCircle size={16} /> Help
-          </a>
+          <Link to="/support" className="flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-4 py-2 text-sm font-semibold text-green-700 hover:bg-green-100">
+            <CircleHelp size={16} /> Help Centre
+          </Link>
         </div>
       </header>
 

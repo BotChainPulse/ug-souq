@@ -1,17 +1,17 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useLocation } from 'react-router'
 import { MessageCircle, X, Send } from 'lucide-react'
-import { ORANGE, WA_LINK } from '../lib/site'
+import { ORANGE } from '../lib/site'
 
 type Msg = { from: 'bot' | 'user'; text: string; links?: { label: string; to: string }[] }
 
 const buyerOpts = [
   'Track my order', 'Shop Flash Sale', 'Order food (KFC, chicken & more)',
-  'Payment options', 'Returns & refunds', 'Talk to a human (WhatsApp)',
+  'Payment options', 'Returns & refunds', 'Open Help Centre',
 ]
 const sellerOpts = [
   'Open a shop', 'How verification works', 'Required documents (ID, TIN…)',
-  'Payouts (MoMo/Airtel)', 'Affiliate program', 'Talk to a human (WhatsApp)',
+  'Payouts (MoMo/Airtel)', 'Affiliate program', 'Open Help Centre',
 ]
 
 function answer(q: string): Msg {
@@ -25,10 +25,10 @@ function answer(q: string): Msg {
   if (t.includes('verification')) return { from: 'bot', text: 'Verification means an administrator confirms your identity details and business location. Eligible sellers receive a blue badge and search priority. Review time depends on the evidence available.', links: [{ label: 'How verification works', to: '/verification' }] }
   if (t.includes('document')) return { from: 'bot', text: 'You\'ll need your National ID or passport details, business district and landmark, payout number, and a TIN only for a registered company. The public registration form does not collect ID photographs.', links: [{ label: 'Start registration', to: '/sell' }] }
   if (t.includes('payout')) return { from: 'bot', text: 'Eligible seller payouts are calculated from delivered and paid order lines, after the recorded commission. The approved payout schedule and method are confirmed during seller onboarding.' }
-  if (t.includes('affiliate')) return { from: 'bot', text: 'Affiliates earn up to 8% commission on every sale through their link or coupon — free to join, paid monthly by MoMo.', links: [{ label: 'Join affiliates', to: '/affiliates' }] }
-  if (t.includes('human') || t.includes('whatsapp')) return { from: 'bot', text: 'Sure — tap the button below to chat with our team on WhatsApp.', links: [{ label: 'Open WhatsApp chat', to: WA_LINK }] }
+  if (t.includes('affiliate')) return { from: 'bot', text: 'The affiliate program is accepting pilot applications. Commission and payouts are not active until tracking and written activation are complete.', links: [{ label: 'Affiliate pilot', to: '/affiliates' }] }
+  if (t.includes('help') || t.includes('human') || t.includes('whatsapp')) return { from: 'bot', text: 'Use the UG Souq Help Centre for protected order, return, seller and privacy support.', links: [{ label: 'Open Help Centre', to: '/support' }] }
   if (t.includes('privacy') || t.includes('data')) return { from: 'bot', text: 'We follow Uganda\'s Data Protection and Privacy Act, 2019. You can request access, correction or deletion of your data any time.', links: [{ label: 'Privacy & data protection', to: '/privacy' }] }
-  return { from: 'bot', text: 'I can help with orders, food delivery, payments, selling, verification and affiliates. Pick an option above, or tap "Talk to a human" to reach our team on WhatsApp.' }
+  return { from: 'bot', text: 'I can help with orders, payments, selling, verification and affiliates. Pick an option above or open the Help Centre for protected support tools.', links: [{ label: 'Open Help Centre', to: '/support' }] }
 }
 
 export default function ChatBot() {
