@@ -25,6 +25,8 @@ const normalizeCreateTable = (ddl) =>
     .replace(/STATS_PERSISTENT=\w+\s*/gi, "")
     .replace(/COLLATE[ =]utf8mb4_0900_ai_ci/gi, "COLLATE=utf8mb4_bin");
 
+class ExistingCopyVerified extends Error {}
+
 const source = await mysql.createConnection({
   uri: process.env.SOURCE_DATABASE_URL,
   supportBigNumbers: true,
@@ -68,7 +70,33 @@ try {
     [targetDatabase]
   );
   if (Number(existingTables.count) !== 0) {
-    throw new Error(`Refusing to overwrite non-empty TiDB database ${targetDatabase}`);
+    const [targetTables] = await target.query(
+      "SELECT TABLE_NAME AS name FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME",
+      [targetDatabase]
+    );
+    const sourceTableNames = new Set(sourceTables.map(({ name }) => name));
+    const targetTableNames = new Set(targetTables.map(({ name }) => name));
+    const allTableNames = [...new Set([...sourceTableNames, ...targetTableNames])].sort();
+    const report = [];
+    let countsMatch = sourceTableNames.size === targetTableNames.size;
+
+    for (const name of allTableNames) {
+      const table = quoteIdentifier(name);
+      const sourceRows = sourceTableNames.has(name)
+        ? Number((await source.query(`SELECT COUNT(*) AS count FROM ${table}`))[0][0].count)
+        : null;
+      const targetRows = targetTableNames.has(name)
+        ? Number((await target.query(`SELECT COUNT(*) AS count FROM ${table}`))[0][0].count)
+        : null;
+      const matches = sourceRows !== null && targetRows !== null && sourceRows === targetRows;
+      countsMatch &&= matches;
+      report.push({ table: name, sourceRows, targetRows, matches });
+    }
+
+    const status = countsMatch ? "EXISTING_COPY_COUNTS_OK" : "EXISTING_COPY_INCOMPLETE";
+    console.log(JSON.stringify({ status, database: targetDatabase, tables: report }, null, 2));
+    if (countsMatch) throw new ExistingCopyVerified();
+    throw new Error(`Refusing to overwrite non-empty TiDB database ${targetDatabase}; existing copy is incomplete`);
   }
 
   await target.query("SET SESSION FOREIGN_KEY_CHECKS = 0");
@@ -122,14 +150,18 @@ try {
   await target.query("SET SESSION FOREIGN_KEY_CHECKS = 1");
   console.log(JSON.stringify({ status: "MIGRATION_OK", database: targetDatabase, tables: report }, null, 2));
 } catch (error) {
-  if (createdTargetDatabase) {
-    try {
-      await target.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(targetDatabase)}`);
-    } catch {
-      // Preserve the original migration error; cleanup can be completed manually.
+  if (error instanceof ExistingCopyVerified) {
+    // A previous run already copied every table with matching row counts.
+  } else {
+    if (createdTargetDatabase) {
+      try {
+        await target.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(targetDatabase)}`);
+      } catch {
+        // Preserve the original migration error; cleanup can be completed manually.
+      }
     }
+    throw error;
   }
-  throw error;
 } finally {
   await Promise.allSettled([source.end(), target.end()]);
 }
