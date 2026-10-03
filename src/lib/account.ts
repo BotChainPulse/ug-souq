@@ -1,5 +1,5 @@
 // The buyer's account on this device (like noon's signed-in profile).
-export type Account = { name: string; phone: string; location: string }
+export type Account = { name: string; phone: string; location: string; deletionToken?: string }
 
 const KEY = 'ugsouq_account'
 
@@ -23,4 +23,5 @@ export function saveAccount(a: Account) {
 
 export function clearAccount() {
   localStorage.removeItem(KEY)
+  localStorage.removeItem('ugsouq_myphone')
 }

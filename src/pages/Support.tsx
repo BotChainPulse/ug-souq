@@ -9,7 +9,7 @@ const supportOptions = [
   { to: '/returns', icon: RotateCcw, title: 'Returns and refunds', description: 'Send a protected request directly to the administrator queue.' },
   { to: '/sell', icon: Store, title: 'Seller support', description: 'Review onboarding, verification and listing requirements.' },
   { to: '/privacy', icon: ShieldCheck, title: 'Privacy and data', description: 'Read how personal information is used and protected.' },
-  { to: '/delete-account', icon: Trash2, title: 'Delete an account', description: 'Start from the public account-deletion guidance.' },
+  { to: '/delete-account', icon: Trash2, title: 'Delete an account', description: 'Delete a signed-in customer account immediately.' },
 ]
 
 export default function Support() {

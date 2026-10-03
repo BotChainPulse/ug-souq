@@ -98,7 +98,7 @@ export default function Privacy() {
           </Section>
 
           <Section icon={Trash2} title="Account and data deletion">
-            <p>The public deletion page provides the current process and will link to the protected request channel after secure intake has passed testing. UG Souq will verify the requester before deleting data so that another person cannot erase an account using only a known phone number.</p>
+            <p>A signed-in customer can delete the account immediately from the public deletion page. A device-held credential verifies the request so another person cannot erase an account using only a known phone number. Marketing consent is withdrawn immediately; limited transaction records may be retained only for the purposes described above.</p>
             <Link
               to="/delete-account"
               className="inline-flex min-h-11 items-center rounded-full px-5 font-bold text-white"

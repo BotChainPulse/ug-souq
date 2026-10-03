@@ -120,7 +120,7 @@ const TABLES = [
   `CREATE TABLE IF NOT EXISTS customers (
     \`id\` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
     \`name\` varchar(255) NOT NULL, \`phone\` varchar(32) NOT NULL,
-    \`location\` text,
+    \`location\` text, \`deletion_token_hash\` varchar(64) NULL,
     \`created_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
   `CREATE TABLE IF NOT EXISTS marketing_subscribers (

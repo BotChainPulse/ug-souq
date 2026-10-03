@@ -53,6 +53,7 @@ async function ensureStartupSchema() {
   await addColumn(`ALTER TABLE listings ADD COLUMN is_branded BOOLEAN NOT NULL DEFAULT FALSE`);
   await addColumn(`ALTER TABLE listings ADD COLUMN brand_name VARCHAR(128) NULL`);
   await addColumn(`ALTER TABLE listings ADD COLUMN authenticity_evidence TEXT NULL`);
+  await addColumn(`ALTER TABLE customers ADD COLUMN deletion_token_hash VARCHAR(64) NULL`);
 
   // Repair the existing curated refurbished product, which was originally
   // seeded with the database defaults (`new`, no warranty). The slug targets

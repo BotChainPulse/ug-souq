@@ -42,10 +42,6 @@ export default function AccountPage() {
   const [form, setForm] = useState<Account>(account ?? { name: '', phone: '', location: '' })
   const [editing, setEditing] = useState(!account)
   const register = trpc.customers.register.useMutation()
-  const deleteAccount = trpc.customers.deleteAccount.useMutation()
-  const [confirmDelete, setConfirmDelete] = useState(false)
-  
-
   const { data: profileData } = trpc.customers.me.useQuery(
     { phone: account?.phone ?? '' },
     { enabled: !!account },
@@ -71,25 +67,17 @@ export default function AccountPage() {
 
   const handleSave = () => {
     if (!form.name.trim() || !form.phone.trim()) return
-    saveAccount(form)
-    setAccount(form)
-    setEditing(false)
-    register.mutate({ name: form.name, phone: form.phone, location: form.location })
-  }
-
-  const handleDelete = () => {
-    if (!account) return
-    deleteAccount.mutate(
-      { phone: account.phone },
+    register.mutate(
+      { name: form.name, phone: form.phone, location: form.location, deletionToken: account?.deletionToken },
       {
-        onSuccess: () => {
-          clearAccount()
-          setAccount(null)
-          setForm({ name: '', phone: '', location: '' })
-          setConfirmDelete(false)
-          setEditing(true)
+        onSuccess: ({ customer, deletionToken }) => {
+          const saved = { name: customer.name, phone: customer.phone, location: customer.location ?? '', deletionToken }
+          saveAccount(saved)
+          setAccount(saved)
+          setForm(saved)
+          setEditing(false)
         },
-      }
+      },
     )
   }
 
@@ -398,31 +386,6 @@ export default function AccountPage() {
         </div>
       </div>
 
-      {/* Delete Confirm Modal */}
-      {confirmDelete && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Delete Account?</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              This will permanently remove your account and order history.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfirmDelete(false)}
-                className="flex-1 py-2.5 rounded-lg border border-gray-300 font-semibold text-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDelete}
-                className="flex-1 py-2.5 rounded-lg font-semibold text-white bg-red-500"
-              >
-                {deleteAccount.isPending ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

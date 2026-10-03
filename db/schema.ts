@@ -176,6 +176,7 @@ export const customers = mysqlTable("customers", {
   name: varchar("name", { length: 255 }).notNull(),
   phone: varchar("phone", { length: 32 }).notNull(),
   location: text("location"),
+  deletionTokenHash: varchar("deletion_token_hash", { length: 64 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

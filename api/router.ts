@@ -16,6 +16,7 @@ import { commissionForLine, PRO_MONTHLY_FEE, sellerPlan } from "./sellerPolicy";
 import { encryptIdentity, identityFingerprint, IDENTITY_CONSENT_VERSION, identityStorageReady, parseIdentityDocumentDataUrl } from "./identity";
 import { createPesapalPayment, pesapalConfigured } from "./pesapal";
 import { pilotDeliveryFee } from "./plusPilot";
+import { accountDeletionTokenHash, accountDeletionTokenMatches, newAccountDeletionToken } from "./accountDeletion";
 
 function orderCode() {
   // Unambiguous alphabet: no O/0, I/1, L — buyers type these codes by hand
@@ -496,6 +497,8 @@ export const appRouter = createRouter({
     byPhone: publicQuery.input(z.object({ phone: z.string().min(9) })).query(async ({ input }) => {
       const db = getDb();
       const phone = normPhone(input.phone);
+      const [customer] = await db.select({ id: customers.id }).from(customers).where(eq(customers.phone, phone)).limit(1);
+      if (!customer) return [];
       const myOrders = await db.select().from(orders).where(eq(orders.phone, phone)).orderBy(desc(orders.createdAt)).limit(20);
       const withItems = await Promise.all(
         myOrders.map(async (o) => ({ ...o, items: await db.select().from(orderItems).where(eq(orderItems.orderId, o.id)) })),
@@ -779,39 +782,70 @@ export const appRouter = createRouter({
         name: z.string().min(2),
         phone: z.string().min(9),
         location: z.string().min(3),
+        deletionToken: z.string().min(32).max(128).optional(),
       }))
       .mutation(async ({ input }) => {
         const db = getDb();
-        await upsertCustomer(db, input.name, input.phone, input.location);
-        const [row] = await db.select().from(customers).where(eq(customers.phone, normPhone(input.phone)));
-        return row;
+        const phone = normPhone(input.phone);
+        const [existing] = await db.select().from(customers).where(eq(customers.phone, phone)).limit(1);
+        if (existing?.deletionTokenHash) {
+          if (!input.deletionToken || !accountDeletionTokenMatches(input.deletionToken, existing.deletionTokenHash)) {
+            throw new TRPCError({ code: "UNAUTHORIZED", message: "This account is secured on another device. Use the original device or verified recovery before changing it." });
+          }
+          await db.update(customers).set({ name: input.name.trim(), location: input.location.trim() }).where(eq(customers.id, existing.id));
+          const [customer] = await db.select().from(customers).where(eq(customers.id, existing.id));
+          const { deletionTokenHash: _deletionTokenHash, ...safeCustomer } = customer;
+          return { customer: safeCustomer, deletionToken: input.deletionToken };
+        }
+
+        const deletionToken = newAccountDeletionToken();
+        const deletionTokenHash = accountDeletionTokenHash(deletionToken);
+        if (existing) {
+          await db.update(customers).set({ name: input.name.trim(), location: input.location.trim(), deletionTokenHash }).where(eq(customers.id, existing.id));
+        } else {
+          await db.insert(customers).values({ name: input.name.trim(), phone, location: input.location.trim(), deletionTokenHash });
+        }
+        const [customer] = await db.select().from(customers).where(eq(customers.phone, phone));
+        const { deletionTokenHash: _deletionTokenHash, ...safeCustomer } = customer;
+        return { customer: safeCustomer, deletionToken };
       }),
     // Profile + full order history — the buyer's account home
     me: publicQuery.input(z.object({ phone: z.string().min(9) })).query(async ({ input }) => {
       const db = getDb();
       const phone = normPhone(input.phone);
       const [customer] = await db.select().from(customers).where(eq(customers.phone, phone));
+      if (!customer) return { customer: null, orders: [], membership: null, membershipRecord: null };
       const myOrders = await db.select().from(orders).where(eq(orders.phone, phone)).orderBy(desc(orders.createdAt)).limit(20);
       const withItems = await Promise.all(
         myOrders.map(async (o) => ({ ...o, items: await db.select().from(orderItems).where(eq(orderItems.orderId, o.id)) })),
       );
-      const [membership] = customer
-        ? await db.select().from(plusMemberships).where(eq(plusMemberships.customerId, customer.id))
-        : [];
+      const [membership] = await db.select().from(plusMemberships).where(eq(plusMemberships.customerId, customer.id));
       const activeMembership = membership && membership.status === "active" && membership.expiresAt && membership.expiresAt > new Date()
         ? membership
         : null;
-      return { customer: customer ?? null, orders: withItems, membership: activeMembership, membershipRecord: membership ?? null };
+      const { deletionTokenHash: _deletionTokenHash, ...safeCustomer } = customer;
+      return { customer: safeCustomer, orders: withItems, membership: activeMembership, membershipRecord: membership ?? null };
     }),
-    // Destructive deletion must not be authorised by a phone number alone.
-    // Requests are received through /delete-account and completed after identity verification.
+    // The device-held credential prevents deletion by someone who merely knows a phone number.
     deleteAccount: publicQuery
-      .input(z.object({ phone: z.string().min(9) }))
-      .mutation(() => {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Use the verified account deletion request at /delete-account.",
+      .input(z.object({ phone: z.string().min(9), deletionToken: z.string().min(32).max(128), confirmation: z.literal("DELETE") }))
+      .mutation(async ({ input }) => {
+        const db = getDb();
+        const phone = normPhone(input.phone);
+        const [customer] = await db.select().from(customers).where(eq(customers.phone, phone)).limit(1);
+        if (!customer || !accountDeletionTokenMatches(input.deletionToken, customer.deletionTokenHash)) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "This device is not authorised to delete that account." });
+        }
+
+        await db.transaction(async (tx) => {
+          await tx.delete(marketingSubscribers).where(or(
+            eq(marketingSubscribers.phone, phone),
+            eq(marketingSubscribers.phone, normalizeMarketingPhone(phone)),
+          ));
+          await tx.update(plusMemberships).set({ status: "cancelled", expiresAt: new Date() }).where(eq(plusMemberships.customerId, customer.id));
+          await tx.delete(customers).where(eq(customers.id, customer.id));
         });
+        return { deleted: true, retainedTransactionRecords: true };
       }),
   }),
 
