@@ -16,10 +16,10 @@ export default function DeleteAccount() {
   const secureThisDevice = () => {
     if (!account) return
     secureDevice.mutate(
-      { name: account.name, phone: account.phone, location: account.location, deletionToken: account.deletionToken },
+      { name: account.name, phone: account.phone, email: account.email || undefined, location: account.location, deletionToken: account.deletionToken },
       {
         onSuccess: ({ customer, deletionToken }) => {
-          const secured = { name: customer.name, phone: customer.phone, location: customer.location ?? '', deletionToken }
+          const secured = { name: customer.name, phone: customer.phone, email: customer.email ?? account.email, location: customer.location ?? '', deletionToken }
           saveAccount(secured)
           setAccount(secured)
         },

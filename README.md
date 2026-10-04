@@ -13,6 +13,11 @@ Keep all secrets in Railway Variables; never commit them or expose them through 
 - `PESAPAL_ENV` — `sandbox` until live merchant approval, then `live`.
 - `PESAPAL_CONSUMER_KEY` and `PESAPAL_CONSUMER_SECRET` — server-only Pesapal API 3.0 merchant credentials.
 - `PESAPAL_IPN_ID` — identifier returned after registering `https://www.ugsouq.com/api/pesapal/ipn` as a Pesapal IPN URL.
+- `RESEND_API_KEY` — server-only Resend sending key. Never expose it through a `VITE_` variable.
+- `SYSTEM_FROM_EMAIL` — verified sender for order and system messages, for example `UGSouq <notifications@ugsouq.com>`.
+- `MARKETING_FROM_EMAIL` — verified sender for consented campaigns, for example `UGSouq Deals <deals@ugsouq.com>`.
+
+Outgoing Resend mail covers order confirmations, order/payment/delivery status updates, seller-application messages, and consented marketing campaigns. Incoming mailboxes and forwarding for `info@ugsouq.com`, `support@ugsouq.com`, and `partnerships@ugsouq.com` are a separate later setup and are not required for outgoing delivery.
 
 Seller identity uploads deliberately fail closed if the dedicated encryption key is absent. Pesapal remains hidden from checkout until every Pesapal variable is configured. A callback or IPN never marks an order paid by itself: the server calls Pesapal's transaction-status endpoint and matches provider reference, exact amount, and currency.
 

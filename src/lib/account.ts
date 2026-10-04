@@ -1,5 +1,5 @@
 // The buyer's account on this device (like noon's signed-in profile).
-export type Account = { name: string; phone: string; location: string; deletionToken?: string }
+export type Account = { name: string; phone: string; email: string; location: string; deletionToken?: string }
 
 const KEY = 'ugsouq_account'
 
@@ -8,7 +8,7 @@ export function getAccount(): Account | null {
     const raw = localStorage.getItem(KEY)
     if (!raw) return null
     const a = JSON.parse(raw)
-    if (a && a.name && a.phone) return a as Account
+    if (a && a.name && a.phone) return { ...a, email: typeof a.email === 'string' ? a.email : '' } as Account
     return null
   } catch {
     return null

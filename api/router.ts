@@ -17,6 +17,7 @@ import { encryptIdentity, identityFingerprint, IDENTITY_CONSENT_VERSION, identit
 import { createPesapalPayment, pesapalConfigured } from "./pesapal";
 import { pilotDeliveryFee } from "./plusPilot";
 import { accountDeletionTokenHash, accountDeletionTokenMatches, newAccountDeletionToken } from "./accountDeletion";
+import { reportEmailFailure, sendOrderPlacedEmail, sendSellerApplicationEmail } from "./email";
 
 function orderCode() {
   // Unambiguous alphabet: no O/0, I/1, L — buyers type these codes by hand
@@ -38,13 +39,13 @@ const normalizeMarketingPhone = (value: string) => {
 
 
 // Every orderer owns an account: keep their name + delivery location up to date.
-async function upsertCustomer(db: any, name: string, phone: string, location?: string) {
+async function upsertCustomer(db: any, name: string, phone: string, email?: string, location?: string) {
   const p = normPhone(phone);
   const [existing] = await db.select().from(customers).where(eq(customers.phone, p));
   if (existing) {
-    await db.update(customers).set({ name, location: location ?? existing.location }).where(eq(customers.id, existing.id));
+    await db.update(customers).set({ name, email: email ?? existing.email, location: location ?? existing.location }).where(eq(customers.id, existing.id));
   } else {
-    await db.insert(customers).values({ name, phone: p, location: location ?? null });
+    await db.insert(customers).values({ name, phone: p, email: email ?? null, location: location ?? null });
   }
 }
 
@@ -372,6 +373,7 @@ export const appRouter = createRouter({
       .input(z.object({
         customerName: z.string().min(2),
         phone: z.string().min(9),
+        email: z.string().trim().email().max(255),
         address: z.string().max(500).default(""),
         zoneId: z.string().default("kampala"),
         deliveryMethod: z.enum(["door", "pickup"]).default("door"),
@@ -393,7 +395,7 @@ export const appRouter = createRouter({
         validateRequestedItems(input.items);
         const quotedDelivery = getServerDeliveryQuote(input);
 
-        return db.transaction(async (tx) => {
+        const created = await db.transaction(async (tx) => {
           const canonicalItems: Array<{
             itemType: "product" | "listing" | "menu_item";
             itemId: number;
@@ -471,7 +473,8 @@ export const appRouter = createRouter({
           const subtotal = canonicalItems.reduce((sum, item) => sum + item.price * item.qty, 0);
           const phone = normPhone(input.phone);
           const commissionFee = canonicalItems.reduce((sum, item) => sum + item.commissionFee, 0);
-          await upsertCustomer(tx, input.customerName, phone, quotedDelivery.address);
+          const email = input.email.trim().toLowerCase();
+          await upsertCustomer(tx, input.customerName, phone, email, quotedDelivery.address);
           // Plus is still a pilot. Do not waive delivery charges until the benefit,
           // provider settlement and administrator controls are explicitly launched.
           const deliveryFee = pilotDeliveryFee(quotedDelivery.deliveryFee);
@@ -480,6 +483,7 @@ export const appRouter = createRouter({
             code: orderCode(),
             customerName: input.customerName.trim(),
             phone,
+            customerEmail: email,
             address: quotedDelivery.address,
             paymentMethod: input.paymentMethod,
             subtotal,
@@ -491,8 +495,11 @@ export const appRouter = createRouter({
             canonicalItems.map((item) => ({ orderId: inserted.id, ...item })),
           );
           const [order] = await tx.select().from(orders).where(eq(orders.id, inserted.id));
-          return order;
+          return { order, items: canonicalItems };
         });
+        await sendOrderPlacedEmail(created.order, created.items)
+          .catch((error) => reportEmailFailure(`order ${created.order.code} confirmation`, error));
+        return created.order;
       }),
     byPhone: publicQuery.input(z.object({ phone: z.string().min(9) })).query(async ({ input }) => {
       const db = getDb();
@@ -545,7 +552,7 @@ export const appRouter = createRouter({
         shopName: z.string().min(2),
         ownerName: z.string().min(2),
         phone: z.string().min(9),
-        email: z.string().optional(),
+        email: z.string().trim().email().max(255).optional(),
         idType: z.string(),
         idNumber: z.string().min(3),
         idDocumentName: z.string().trim().min(1).max(255),
@@ -579,7 +586,7 @@ export const appRouter = createRouter({
         const row = await db.transaction(async (tx) => {
           const [created] = await tx.insert(sellers).values({
             shopName: input.shopName, ownerName: input.ownerName, phone,
-            email: input.email || null, idType: input.idType, idNumber: null, idPhotoName: null,
+            email: input.email?.toLowerCase() || null, idType: input.idType, idNumber: null, idPhotoName: null,
             district: input.district, landmark: input.landmark, tin: input.tin || null,
             payoutMethod: input.payoutMethod, payoutNumber: normPhone(input.payoutNumber),
             status: "pending", commissionTermsAccepted: true, sellerContractAccepted: true,
@@ -600,6 +607,8 @@ export const appRouter = createRouter({
           message: `${input.shopName} submitted a protected identity record for administrator review.`,
           entityType: "seller", entityId: String(row.id),
         });
+        await sendSellerApplicationEmail({ id: row.id, email: input.email?.toLowerCase(), ownerName: input.ownerName, shopName: input.shopName })
+          .catch((error) => reportEmailFailure(`seller application ${row.id}`, error));
         return { id: row.id };
       }),
     lookup: publicQuery.input(z.object({ phone: z.string().min(9) })).query(async ({ input }) => {
@@ -781,18 +790,24 @@ export const appRouter = createRouter({
       .input(z.object({
         name: z.string().min(2),
         phone: z.string().min(9),
+        email: z.string().trim().email().max(255).optional(),
         location: z.string().min(3),
         deletionToken: z.string().min(32).max(128).optional(),
       }))
       .mutation(async ({ input }) => {
         const db = getDb();
         const phone = normPhone(input.phone);
+        const email = input.email?.trim().toLowerCase();
         const [existing] = await db.select().from(customers).where(eq(customers.phone, phone)).limit(1);
         if (existing?.deletionTokenHash) {
           if (!input.deletionToken || !accountDeletionTokenMatches(input.deletionToken, existing.deletionTokenHash)) {
             throw new TRPCError({ code: "UNAUTHORIZED", message: "This account is secured on another device. Use the original device or verified recovery before changing it." });
           }
-          await db.update(customers).set({ name: input.name.trim(), location: input.location.trim() }).where(eq(customers.id, existing.id));
+          await db.update(customers).set({
+            name: input.name.trim(),
+            ...(email ? { email } : {}),
+            location: input.location.trim(),
+          }).where(eq(customers.id, existing.id));
           const [customer] = await db.select().from(customers).where(eq(customers.id, existing.id));
           const { deletionTokenHash: _deletionTokenHash, ...safeCustomer } = customer;
           return { customer: safeCustomer, deletionToken: input.deletionToken };
@@ -801,9 +816,14 @@ export const appRouter = createRouter({
         const deletionToken = newAccountDeletionToken();
         const deletionTokenHash = accountDeletionTokenHash(deletionToken);
         if (existing) {
-          await db.update(customers).set({ name: input.name.trim(), location: input.location.trim(), deletionTokenHash }).where(eq(customers.id, existing.id));
+          await db.update(customers).set({
+            name: input.name.trim(),
+            ...(email ? { email } : {}),
+            location: input.location.trim(),
+            deletionTokenHash,
+          }).where(eq(customers.id, existing.id));
         } else {
-          await db.insert(customers).values({ name: input.name.trim(), phone, location: input.location.trim(), deletionTokenHash });
+          await db.insert(customers).values({ name: input.name.trim(), phone, email: email ?? null, location: input.location.trim(), deletionTokenHash });
         }
         const [customer] = await db.select().from(customers).where(eq(customers.phone, phone));
         const { deletionTokenHash: _deletionTokenHash, ...safeCustomer } = customer;
@@ -841,6 +861,7 @@ export const appRouter = createRouter({
           await tx.delete(marketingSubscribers).where(or(
             eq(marketingSubscribers.phone, phone),
             eq(marketingSubscribers.phone, normalizeMarketingPhone(phone)),
+            ...(customer.email ? [eq(marketingSubscribers.email, customer.email)] : []),
           ));
           await tx.update(plusMemberships).set({ status: "cancelled", expiresAt: new Date() }).where(eq(plusMemberships.customerId, customer.id));
           await tx.delete(customers).where(eq(customers.id, customer.id));

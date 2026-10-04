@@ -15,6 +15,7 @@ import { FREE_LISTING_LIMIT, PRO_COMMISSION_RATE, PRO_LISTING_LIMIT, PRO_MONTHLY
 import { sellerApprovalMissingFields } from "./sellerApproval";
 import { decryptIdentity, reviewedDocumentRetentionDate } from "./identity";
 import { canMoveReturnStatus } from "./returnPolicy";
+import { reportEmailFailure, sendOrderStatusEmail, sendSellerStatusEmail } from "./email";
 
 const ADMIN_KEY = process.env.ADMIN_KEY;
 
@@ -359,6 +360,9 @@ export const adminRouter = createRouter({
       if (input.status === "approved") {
         await createNotification({ type: "seller_registered", title: "Seller Approved", message: `${after.shopName} has been approved.`, entityType: "seller", entityId: String(input.id) });
       }
+      if (before.status !== after.status) {
+        await sendSellerStatusEmail(after).catch((error) => reportEmailFailure(`seller ${after.id} status ${after.status}`, error));
+      }
       return { ok: true };
     }),
 
@@ -592,6 +596,9 @@ export const adminRouter = createRouter({
       if (input.status === "delivered" && after.paymentStatus === "paid") {
         await createNotification({ type: "payment_received", title: "Order Ready for Payout", message: `Order ${after.code} is delivered and paid. Ready for seller payout.`, entityType: "order", entityId: after.code });
       }
+      if (before.status !== after.status) {
+        await sendOrderStatusEmail(after, input.status).catch((error) => reportEmailFailure(`order ${after.code} status ${input.status}`, error));
+      }
       return { ok: true };
     }),
 
@@ -607,6 +614,9 @@ export const adminRouter = createRouter({
 
       if (input.status === "paid") {
         await createNotification({ type: "payment_received", title: "Payment Received", message: `Payment confirmed for order ${after.code}.`, entityType: "order", entityId: after.code });
+      }
+      if (before?.paymentStatus !== after.paymentStatus) {
+        await sendOrderStatusEmail(after, `payment_${input.status}`).catch((error) => reportEmailFailure(`order ${after.code} payment ${input.status}`, error));
       }
       return { ok: true };
     }),
@@ -634,6 +644,8 @@ export const adminRouter = createRouter({
 
       await writeAudit({ key: input.key, action: "order.delivery.assigned", entityType: "order", entityId: input.orderId, meta: { partnerId: input.partnerId, partnerName: partner.fullName } });
       await createNotification({ type: "new_order", title: "Delivery Assigned", message: `${partner.fullName} assigned to order ${order.code}.`, entityType: "order", entityId: order.code });
+      const [updatedOrder] = await db.select().from(orders).where(eq(orders.id, input.orderId));
+      await sendOrderStatusEmail(updatedOrder, "on_the_way").catch((error) => reportEmailFailure(`order ${updatedOrder.code} delivery assigned`, error));
       return { ok: true };
     }),
 
@@ -666,6 +678,7 @@ export const adminRouter = createRouter({
       if (after.paymentStatus === "paid") {
         await createNotification({ type: "payment_received", title: "Order Delivered & Paid", message: `Order ${after.code} is ready for seller payout.`, entityType: "order", entityId: after.code });
       }
+      await sendOrderStatusEmail(after, "delivered").catch((error) => reportEmailFailure(`order ${after.code} delivered`, error));
       return { ok: true };
     }),
 

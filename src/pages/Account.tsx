@@ -39,7 +39,7 @@ function StatusPill({ status }: { status: string }) {
 }
 export default function AccountPage() {
   const [account, setAccount] = useState<Account | null>(getAccount())
-  const [form, setForm] = useState<Account>(account ?? { name: '', phone: '', location: '' })
+  const [form, setForm] = useState<Account>(account ?? { name: '', phone: '', email: '', location: '' })
   const [editing, setEditing] = useState(!account)
   const register = trpc.customers.register.useMutation()
   const { data: profileData } = trpc.customers.me.useQuery(
@@ -57,6 +57,7 @@ export default function AccountPage() {
       const updated = {
         ...account,
         name: profileData.customer.name || account.name,
+        email: profileData.customer.email || account.email,
         location: profileData.customer.location || account.location
       }
       setAccount(updated)
@@ -66,12 +67,12 @@ export default function AccountPage() {
   }, [profileData])
 
   const handleSave = () => {
-    if (!form.name.trim() || !form.phone.trim()) return
+    if (!form.name.trim() || !form.phone.trim() || !form.email.trim()) return
     register.mutate(
-      { name: form.name, phone: form.phone, location: form.location, deletionToken: account?.deletionToken },
+      { name: form.name, phone: form.phone, email: form.email, location: form.location, deletionToken: account?.deletionToken },
       {
         onSuccess: ({ customer, deletionToken }) => {
-          const saved = { name: customer.name, phone: customer.phone, location: customer.location ?? '', deletionToken }
+          const saved = { name: customer.name, phone: customer.phone, email: customer.email ?? '', location: customer.location ?? '', deletionToken }
           saveAccount(saved)
           setAccount(saved)
           setForm(saved)
@@ -84,7 +85,7 @@ export default function AccountPage() {
   const handleLogout = () => {
     clearAccount()
     setAccount(null)
-    setForm({ name: '', phone: '', location: '' })
+    setForm({ name: '', phone: '', email: '', location: '' })
     setEditing(true)
     window.location.href = '/'
   }
@@ -143,6 +144,17 @@ export default function AccountPage() {
               />
             </div>
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email for order updates</label>
+              <input
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                type="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+              />
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Location / District</label>
               <input
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
@@ -193,6 +205,9 @@ export default function AccountPage() {
             <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
               <span className="flex items-center gap-1">
                 <Phone size={12} /> {account.phone}
+              </span>
+              <span className="flex items-center gap-1 truncate">
+                <Mail size={12} /> {account.email || 'Add email'}
               </span>
               <span className="flex items-center gap-1">
                 <MapPin size={12} /> {account.location || 'Location not added'}

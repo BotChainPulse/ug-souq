@@ -1,5 +1,6 @@
 import type { Hono } from "hono";
 import { getDb } from "./queries/connection";
+import { outboundEmailConfigured, outboundFromAddress, sendResendEmail } from "./email";
 
 const MAX_PRODUCTS = 6;
 const MAX_RECIPIENTS_PER_RUN = 200;
@@ -13,11 +14,8 @@ const esc = (value: unknown) => String(value ?? "")
 
 const money = (value: unknown) => `UGX ${Number(value ?? 0).toLocaleString("en-UG")}`;
 
-const providerConfigured = () => Boolean(
-  process.env.RESEND_API_KEY && (process.env.MARKETING_FROM_EMAIL || process.env.RESEND_FROM_EMAIL),
-);
-
-const fromAddress = () => process.env.MARKETING_FROM_EMAIL || process.env.RESEND_FROM_EMAIL || "";
+const providerConfigured = outboundEmailConfigured;
+const fromAddress = () => outboundFromAddress("marketing");
 
 function requireAdmin(key: string) {
   if (!process.env.ADMIN_KEY || key !== process.env.ADMIN_KEY) {
@@ -148,17 +146,7 @@ function renderEmail(campaign: ReturnType<typeof normalizeCampaign>, subscriber?
 
 async function sendEmail(to: string, subject: string, html: string) {
   if (!providerConfigured()) throw new Error("Marketing email provider is not configured");
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ from: fromAddress(), to: [to], subject, html }),
-  });
-  const result: any = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(result?.message || `Email provider returned ${response.status}`);
-  return result;
+  return sendResendEmail({ to, subject, html, kind: "marketing" });
 }
 
 async function saveCampaign(campaign: ReturnType<typeof normalizeCampaign>, status: "draft" | "scheduled") {

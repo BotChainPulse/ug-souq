@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { Minus, Plus, Trash2, ShoppingCart, Wallet, Truck, Package, BadgeCheck, LockKeyhole, ShieldCheck, ChevronRight } from 'lucide-react'
+import { Minus, Plus, Trash2, ShoppingCart, Wallet, Truck, Package, BadgeCheck, LockKeyhole, ShieldCheck, ChevronRight, Mail } from 'lucide-react'
 import { DELIVERY_ZONES, PICKUP_POINTS } from '../lib/delivery'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -16,6 +16,7 @@ export default function Cart() {
   const [form, setForm] = useState({
     name: acc?.name ?? '',
     phone: acc?.phone ?? '',
+    email: acc?.email ?? '',
     address: acc?.location ?? '',
     payment: 'mtn_momo' as 'mtn_momo' | 'airtel_money' | 'cash',
   })
@@ -52,12 +53,14 @@ export default function Cart() {
   const valid =
     form.name.length >= 2 &&
     form.phone.length >= 9 &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) &&
     (shipMethod === 'pickup' ? !!station : form.address.length >= 5)
 
   const submit = async () => {
     const order = await createOrder.mutateAsync({
       customerName: form.name,
       phone: form.phone,
+      email: form.email.trim().toLowerCase(),
       address: form.address,
       zoneId,
       deliveryMethod: shipMethod,
@@ -75,6 +78,7 @@ export default function Cart() {
     saveAccount({
       name: form.name.trim(),
       phone: form.phone.replace(/[\s-]+/g, ''),
+      email: form.email.trim().toLowerCase(),
       location: form.address.trim(),
     })
     setPlaced({
@@ -227,6 +231,22 @@ export default function Cart() {
                         className="w-full rounded-xl border border-neutral-300 px-3.5 py-2.5 text-sm outline-none focus:border-neutral-500"
                         placeholder="Your name"
                       />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="mb-1.5 block text-sm font-semibold">Email for order updates *</label>
+                      <div className="relative">
+                        <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+                        <input
+                          value={form.email}
+                          onChange={(e) => setForm({ ...form, email: e.target.value })}
+                          type="email"
+                          autoComplete="email"
+                          className="w-full rounded-xl border border-neutral-300 py-2.5 pl-10 pr-3.5 text-sm outline-none focus:border-neutral-500"
+                          placeholder="you@example.com"
+                        />
+                      </div>
+                      <p className="mt-1 text-xs text-neutral-500">Receipts and delivery updates only. Deals require separate marketing consent.</p>
                     </div>
 
                     <div>

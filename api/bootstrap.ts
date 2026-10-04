@@ -79,7 +79,7 @@ const TABLES = [
   )`,
   `CREATE TABLE IF NOT EXISTS orders (
     \`id\` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    \`code\` varchar(16) NOT NULL, \`customer_name\` varchar(255) NOT NULL, \`phone\` varchar(32) NOT NULL,
+    \`code\` varchar(16) NOT NULL, \`customer_name\` varchar(255) NOT NULL, \`phone\` varchar(32) NOT NULL, \`customer_email\` varchar(255) NULL,
     \`address\` text NOT NULL, \`payment_method\` enum('mtn_momo','airtel_money','cash') NOT NULL,
     \`subtotal\` int NOT NULL, \`delivery_fee\` int NOT NULL DEFAULT 0, \`total\` int NOT NULL,
     \`status\` enum('placed','confirmed','pending_delivery','on_the_way','delivered','cancelled') NOT NULL DEFAULT 'placed',
@@ -119,7 +119,7 @@ const TABLES = [
   )`,
   `CREATE TABLE IF NOT EXISTS customers (
     \`id\` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    \`name\` varchar(255) NOT NULL, \`phone\` varchar(32) NOT NULL,
+    \`name\` varchar(255) NOT NULL, \`phone\` varchar(32) NOT NULL, \`email\` varchar(255) NULL,
     \`location\` text, \`deletion_token_hash\` varchar(64) NULL,
     \`created_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,

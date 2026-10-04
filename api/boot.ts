@@ -8,6 +8,7 @@ import { env } from "./lib/env";
 import { verifyPesapalPayment } from "./pesapal";
 import { registerMarketingCampaignRoutes, startMarketingCampaignScheduler } from "./marketingCampaigns";
 import { registerInboundEmailRoutes } from "./inboundEmail";
+import { registerOutboundEmailRoutes } from "./email";
 
 async function ensureStartupSchema() {
   const { getDb } = await import("./queries/connection");
@@ -54,6 +55,8 @@ async function ensureStartupSchema() {
   await addColumn(`ALTER TABLE listings ADD COLUMN brand_name VARCHAR(128) NULL`);
   await addColumn(`ALTER TABLE listings ADD COLUMN authenticity_evidence TEXT NULL`);
   await addColumn(`ALTER TABLE customers ADD COLUMN deletion_token_hash VARCHAR(64) NULL`);
+  await addColumn(`ALTER TABLE customers ADD COLUMN email VARCHAR(255) NULL`);
+  await addColumn(`ALTER TABLE orders ADD COLUMN customer_email VARCHAR(255) NULL`);
 
   // Repair the existing curated refurbished product, which was originally
   // seeded with the database defaults (`new`, no warranty). The slug targets
@@ -231,6 +234,7 @@ app.use("/api/trpc/*", async (c) => {
 });
 registerMarketingCampaignRoutes(app);
 registerInboundEmailRoutes(app);
+registerOutboundEmailRoutes(app);
 
 // Public sponsored seller campaigns. Only admin-activated bookings are exposed.
 // The creative is taken from the seller's selected approved listing so no unreviewed image can become an ad.
