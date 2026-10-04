@@ -94,7 +94,34 @@ try {
     }
 
     const status = countsMatch ? "EXISTING_COPY_COUNTS_OK" : "EXISTING_COPY_INCOMPLETE";
-    console.log(JSON.stringify({ status, database: targetDatabase, mismatches: report.filter(({ matches }) => !matches) }));
+    const mismatches = report.filter(({ matches }) => !matches);
+
+    const missingEmptyTables = mismatches.filter(
+      ({ table, sourceRows, targetRows }) =>
+        sourceTableNames.has(table) && sourceRows === 0 && targetRows === null
+    );
+    if (mismatches.length > 0 && mismatches.length === missingEmptyTables.length) {
+      await target.query("SET SESSION FOREIGN_KEY_CHECKS = 0");
+      try {
+        for (const { table: name } of missingEmptyTables) {
+          const table = quoteIdentifier(name);
+          const [[createRow]] = await source.query(`SHOW CREATE TABLE ${table}`);
+          const rawCreate = createRow["Create Table"];
+          if (!rawCreate) throw new Error(`Could not read the schema for ${name}`);
+          await target.query(normalizeCreateTable(rawCreate));
+        }
+      } finally {
+        await target.query("SET SESSION FOREIGN_KEY_CHECKS = 1");
+      }
+      console.log(JSON.stringify({
+        status: "MISSING_EMPTY_TABLES_CREATED",
+        database: targetDatabase,
+        tables: missingEmptyTables.map(({ table }) => table),
+      }));
+      throw new ExistingCopyVerified();
+    }
+
+    console.log(JSON.stringify({ status, database: targetDatabase, mismatches }));
     if (countsMatch) throw new ExistingCopyVerified();
     throw new Error(`Refusing to overwrite non-empty TiDB database ${targetDatabase}; existing copy is incomplete`);
   }
