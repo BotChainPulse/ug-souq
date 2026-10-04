@@ -94,7 +94,7 @@ try {
     }
 
     const status = countsMatch ? "EXISTING_COPY_COUNTS_OK" : "EXISTING_COPY_INCOMPLETE";
-    console.log(JSON.stringify({ status, database: targetDatabase, tables: report }, null, 2));
+    console.log(JSON.stringify({ status, database: targetDatabase, mismatches: report.filter(({ matches }) => !matches) }));
     if (countsMatch) throw new ExistingCopyVerified();
     throw new Error(`Refusing to overwrite non-empty TiDB database ${targetDatabase}; existing copy is incomplete`);
   }
