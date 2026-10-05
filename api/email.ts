@@ -119,7 +119,7 @@ export async function sendOrderPlacedEmail(order: EmailOrder, items: EmailOrderI
     <div style="margin:18px 0;padding:16px;border-radius:14px;background:#f8fafc"><div style="font-size:12px;color:#64748b">Order code</div><div style="font-size:22px;font-weight:900">${esc(order.code)}</div></div>
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="font-size:14px">${itemRows}<tr><td style="padding-top:12px;border-top:1px solid #e2e8f0;font-weight:900">Total</td><td align="right" style="padding-top:12px;border-top:1px solid #e2e8f0;font-weight:900">${esc(money(order.total))}</td></tr></table>
     <p style="font-size:13px;line-height:21px;color:#475569">Delivery: ${esc(order.address)}<br>Payment: ${esc(order.paymentMethod.replaceAll("_", " "))}</p>
-    <a href="${base}/order/${encodeURIComponent(order.code)}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;padding:12px 18px;border-radius:11px;font-weight:800">View order</a>`;
+    <a href="${base}/orders/${encodeURIComponent(order.code)}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;padding:12px 18px;border-radius:11px;font-weight:800">View order</a>`;
   return sendResendEmail({
     to: order.customerEmail,
     subject: `Order ${order.code} received — UGSouq`,
@@ -135,7 +135,7 @@ export async function sendOrderStatusEmail(order: EmailOrder, event: string) {
   const body = `<p style="font-size:15px;line-height:24px">Hi ${esc(order.customerName)},</p>
     <div style="margin:18px 0;padding:16px;border-radius:14px;background:#ecfdf5"><div style="font-size:12px;color:#047857">Order ${esc(order.code)}</div><div style="margin-top:4px;font-size:21px;font-weight:900;color:#065f46">${esc(label)}</div></div>
     <p style="font-size:14px;line-height:22px;color:#475569">Current order status: ${esc(statusLabel(order.status))}<br>Payment status: ${esc(statusLabel(`payment_${order.paymentStatus}`))}</p>
-    <a href="${base}/order/${encodeURIComponent(order.code)}" style="display:inline-block;background:#047857;color:#fff;text-decoration:none;padding:12px 18px;border-radius:11px;font-weight:800">Track order</a>`;
+    <a href="${base}/orders/${encodeURIComponent(order.code)}" style="display:inline-block;background:#047857;color:#fff;text-decoration:none;padding:12px 18px;border-radius:11px;font-weight:800">Track order</a>`;
   return sendResendEmail({
     to: order.customerEmail,
     subject: `${label}: ${order.code} — UGSouq`,

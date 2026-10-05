@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { matchRoutes } from "react-router";
 import {
   outboundEmailConfigured,
   outboundFromAddress,
   sendOrderPlacedEmail,
+  sendOrderStatusEmail,
   sendResendEmail,
   sendSellerStatusEmail,
 } from "./email";
@@ -14,6 +17,39 @@ afterEach(() => {
 });
 
 describe("outgoing Resend email", () => {
+  it.each(["placed", "status"] as const)("links the %s email to a registered protected order route", async (kind) => {
+    vi.stubEnv("RESEND_API_KEY", "re_test");
+    vi.stubEnv("SYSTEM_FROM_EMAIL", "UGSouq <notifications@ugsouq.com>");
+    vi.stubEnv("APP_URL", "https://pilot.example.com/");
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: "email_route" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const order = {
+      code: "US-ABC 123",
+      customerName: "Customer",
+      customerEmail: "customer@example.com",
+      status: "confirmed",
+      paymentStatus: "unpaid",
+      paymentMethod: "cash",
+      address: "Kampala",
+      subtotal: 1000,
+      deliveryFee: 500,
+      total: 1500,
+    };
+
+    if (kind === "placed") await sendOrderPlacedEmail(order, []);
+    else await sendOrderStatusEmail(order, "confirmed");
+
+    const payload = JSON.parse(String(fetchMock.mock.calls[0][1].body));
+    const href = payload.html.match(/href="([^"]+)"[^>]*>(?:View|Track) order<\/a>/)?.[1];
+    expect(href).toBe("https://pilot.example.com/orders/US-ABC%20123");
+    // Check the email destination against the application's real route declarations.
+    const appSource = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+    const routes = [...appSource.matchAll(/<Route path="([^"]+)"/g)].map((match) => ({ path: match[1] }));
+    const matched = matchRoutes(routes, new URL(href).pathname);
+    expect(matched?.at(-1)?.route.path).toBe("/orders/:code");
+    expect(matched?.at(-1)?.params.code).toBe(order.code);
+  });
+
   it("keeps transactional and marketing senders separate", () => {
     vi.stubEnv("RESEND_API_KEY", "re_test");
     vi.stubEnv("SYSTEM_FROM_EMAIL", "UGSouq <notifications@ugsouq.com>");
