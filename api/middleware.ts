@@ -1,3 +1,4 @@
+import { requireCustomerOwnership } from "./customerOwnership";
 import { initTRPC, TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { desc, eq, sql } from "drizzle-orm";
@@ -95,7 +96,8 @@ const buyerOrdersRouter = t.router({
       reason: z.string().trim().min(3).max(180),
       details: z.string().trim().max(500).optional(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      await requireCustomerOwnership(ctx.req, input.phone);
       const db = getDb();
       const code = input.code.trim().toUpperCase();
       const phone = normPhone(input.phone);
@@ -144,7 +146,8 @@ const buyerOrdersRouter = t.router({
       code: z.string().trim().min(4).max(32),
       phone: z.string().trim().min(9).max(32),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
+      await requireCustomerOwnership(ctx.req, input.phone);
       const db = getDb();
       const code = input.code.trim().toUpperCase();
       const phone = normPhone(input.phone);
@@ -176,7 +179,8 @@ const buyerOrdersRouter = t.router({
       phone: z.string().trim().min(9).max(32),
       codes: z.array(z.string().trim().min(4).max(32)).max(20),
     }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
+      await requireCustomerOwnership(ctx.req, input.phone);
       const db = getDb();
       const phone = normPhone(input.phone);
       const result: Record<string, boolean> = {};
@@ -200,7 +204,8 @@ const buyerOrdersRouter = t.router({
       phone: z.string().trim().min(9).max(32),
       reason: z.string().trim().min(3).max(180),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      await requireCustomerOwnership(ctx.req, input.phone);
       const db = getDb();
       const code = input.code.trim().toUpperCase();
       const phone = normPhone(input.phone);
@@ -237,25 +242,12 @@ const buyerOrdersRouter = t.router({
       };
     }),
 
+  // Retired endpoint fails closed for older cached clients as well. Expiry
+  // must be a deliberate server operation, never a side effect of viewing.
   expireStale: t.procedure
     .input(z.object({ phone: z.string().trim().min(9).max(32) }))
-    .mutation(async ({ input }) => {
-      const db = getDb();
-      const phone = normPhone(input.phone);
-      const cutoff = Date.now() - 30 * 60 * 1000;
-      const candidates = await db.select().from(orders)
-        .where(eq(orders.phone, phone))
-        .orderBy(desc(orders.createdAt))
-        .limit(50);
-
-      let cancelled = 0;
-      for (const order of candidates) {
-        if (order.status !== "placed" || order.paymentStatus !== "unpaid" || order.paymentMethod === "cash") continue;
-        const createdAt = new Date(order.createdAt).getTime();
-        if (!Number.isFinite(createdAt) || createdAt > cutoff) continue;
-        if (await cancelPlacedUnpaidOrder(Number(order.id))) cancelled += 1;
-      }
-      return { cancelled };
+    .mutation(() => {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Automatic cancellation from My Orders is disabled. Open a specific order to request cancellation." });
     }),
 });
 

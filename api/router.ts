@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { requireCustomerOwnership, customerOrderSummary } from "./customerOwnership";
 import { TRPCError } from "@trpc/server";
 import { eq, desc, asc, like, or, and, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
@@ -38,13 +39,11 @@ const normalizeMarketingPhone = (value: string) => {
 
 
 
-// Every orderer owns an account: keep their name + delivery location up to date.
+// Create guest records as needed; checkout must never rewrite an existing profile.
 async function upsertCustomer(db: any, name: string, phone: string, email?: string, location?: string) {
   const p = normPhone(phone);
   const [existing] = await db.select().from(customers).where(eq(customers.phone, p));
-  if (existing) {
-    await db.update(customers).set({ name, email: email ?? existing.email, location: location ?? existing.location }).where(eq(customers.id, existing.id));
-  } else {
+  if (!existing) {
     await db.insert(customers).values({ name, phone: p, email: email ?? null, location: location ?? null });
   }
 }
@@ -501,14 +500,15 @@ export const appRouter = createRouter({
           .catch((error) => reportEmailFailure(`order ${created.order.code} confirmation`, error));
         return created.order;
       }),
-    byPhone: publicQuery.input(z.object({ phone: z.string().min(9) })).query(async ({ input }) => {
+    byPhone: publicQuery.input(z.object({ phone: z.string().min(9) })).query(async ({ input, ctx }) => {
+      await requireCustomerOwnership(ctx.req, input.phone);
       const db = getDb();
       const phone = normPhone(input.phone);
       const [customer] = await db.select({ id: customers.id }).from(customers).where(eq(customers.phone, phone)).limit(1);
       if (!customer) return [];
       const myOrders = await db.select().from(orders).where(eq(orders.phone, phone)).orderBy(desc(orders.createdAt)).limit(20);
       const withItems = await Promise.all(
-        myOrders.map(async (o) => ({ ...o, items: await db.select().from(orderItems).where(eq(orderItems.orderId, o.id)) })),
+        myOrders.map(async (o) => ({ ...customerOrderSummary(o), items: await db.select({ id: orderItems.id, name: orderItems.name, qty: orderItems.qty, price: orderItems.price, itemType: orderItems.itemType, itemId: orderItems.itemId }).from(orderItems).where(eq(orderItems.orderId, o.id)) })),
       );
       return withItems;
     }),
@@ -541,7 +541,7 @@ export const appRouter = createRouter({
       const [order] = await db.select().from(orders).where(eq(orders.code, input.code.trim().toUpperCase()));
       if (!order || normPhone(order.phone) !== normPhone(input.phone)) return null;
       const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
-      return { ...order, items };
+      return { ...customerOrderSummary(order), items };
     }),
   }),
 
@@ -813,31 +813,27 @@ export const appRouter = createRouter({
           return { customer: safeCustomer, deletionToken: input.deletionToken };
         }
 
+        const [retainedOrder] = await db.select({ id: orders.id }).from(orders).where(eq(orders.phone, phone)).limit(1);
+        if (existing || retainedOrder) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "An existing account or order history requires verified recovery. Creating a profile cannot claim it." });
+        }
         const deletionToken = newAccountDeletionToken();
         const deletionTokenHash = accountDeletionTokenHash(deletionToken);
-        if (existing) {
-          await db.update(customers).set({
-            name: input.name.trim(),
-            ...(email ? { email } : {}),
-            location: input.location.trim(),
-            deletionTokenHash,
-          }).where(eq(customers.id, existing.id));
-        } else {
-          await db.insert(customers).values({ name: input.name.trim(), phone, email: email ?? null, location: input.location.trim(), deletionTokenHash });
-        }
+        await db.insert(customers).values({ name: input.name.trim(), phone, email: email ?? null, location: input.location.trim(), deletionTokenHash });
         const [customer] = await db.select().from(customers).where(eq(customers.phone, phone));
         const { deletionTokenHash: _deletionTokenHash, ...safeCustomer } = customer;
         return { customer: safeCustomer, deletionToken };
       }),
     // Profile + full order history — the buyer's account home
-    me: publicQuery.input(z.object({ phone: z.string().min(9) })).query(async ({ input }) => {
+    me: publicQuery.input(z.object({ phone: z.string().min(9) })).query(async ({ input, ctx }) => {
+      await requireCustomerOwnership(ctx.req, input.phone);
       const db = getDb();
       const phone = normPhone(input.phone);
       const [customer] = await db.select().from(customers).where(eq(customers.phone, phone));
       if (!customer) return { customer: null, orders: [], membership: null, membershipRecord: null };
       const myOrders = await db.select().from(orders).where(eq(orders.phone, phone)).orderBy(desc(orders.createdAt)).limit(20);
       const withItems = await Promise.all(
-        myOrders.map(async (o) => ({ ...o, items: await db.select().from(orderItems).where(eq(orderItems.orderId, o.id)) })),
+        myOrders.map(async (o) => ({ ...customerOrderSummary(o), items: await db.select({ id: orderItems.id, name: orderItems.name, qty: orderItems.qty, price: orderItems.price, itemType: orderItems.itemType, itemId: orderItems.itemId }).from(orderItems).where(eq(orderItems.orderId, o.id)) })),
       );
       const [membership] = await db.select().from(plusMemberships).where(eq(plusMemberships.customerId, customer.id));
       const activeMembership = membership && membership.status === "active" && membership.expiresAt && membership.expiresAt > new Date()
@@ -872,7 +868,8 @@ export const appRouter = createRouter({
 
   plus: createRouter({
     plan: publicQuery.query(() => plusPlan),
-    status: publicQuery.input(z.object({ phone: z.string().min(9) })).query(async ({ input }) => {
+    status: publicQuery.input(z.object({ phone: z.string().min(9) })).query(async ({ input, ctx }) => {
+      await requireCustomerOwnership(ctx.req, input.phone);
       const db = getDb();
       const [customer] = await db.select().from(customers).where(eq(customers.phone, normPhone(input.phone)));
       if (!customer) return { membership: null, latestPayment: null };

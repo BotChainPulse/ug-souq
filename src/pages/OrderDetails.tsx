@@ -97,7 +97,8 @@ class OrderDetailsBoundary extends Component<{ children: ReactNode }, { failed: 
 
 function OrderDetailsPage() {
   const { code = '' } = useParams()
-  const savedPhone = (localStorage.getItem(SAVED_PHONE_KEY) ?? getAccount()?.phone ?? '').trim()
+  const account = getAccount()
+  const savedPhone = (account?.phone ?? localStorage.getItem(SAVED_PHONE_KEY) ?? '').trim()
   const [phone, setPhone] = useState(savedPhone)
   const [lookupPhone, setLookupPhone] = useState(savedPhone)
   const [showCancel, setShowCancel] = useState(false)
@@ -109,9 +110,10 @@ function OrderDetailsPage() {
     { code: code.trim().toUpperCase(), phone: lookupPhone.trim() },
     { enabled: canLoad, retry: false },
   )
+  const canManage = Boolean(account?.deletionToken && account.phone.replace(/[\s-]+/g, '') === lookupPhone.replace(/[\s-]+/g, ''))
   const cancellationStatusQuery = trpc.buyerOrders.cancellationStatus.useQuery(
     { code: code.trim().toUpperCase(), phone: lookupPhone.trim() },
-    { enabled: canLoad, retry: false },
+    { enabled: canLoad && canManage, retry: false },
   )
   const cancelOrder = trpc.buyerOrders.cancel.useMutation({
     onSuccess: async (result) => {
@@ -124,7 +126,7 @@ function OrderDetailsPage() {
   const items = order && Array.isArray(order.items) ? order.items : []
   const stageIndex = order ? STAGES.findIndex(({ key }) => key === order.status) : -1
   const cancellationPending = cancellationStatusQuery.data?.pending === true
-  const cancellationAvailable = order ? ['placed', 'confirmed', 'pending_delivery'].includes(order.status) && !cancellationPending : false
+  const cancellationAvailable = order && canManage ? ['placed', 'confirmed', 'pending_delivery'].includes(order.status) && !cancellationPending : false
   const cancellationLabel = order?.status === 'placed' ? 'Cancel order' : 'Request cancellation'
   const payBadge = order && order.status !== 'cancelled'
     ? paymentLabel({ paymentMethod: order.paymentMethod ?? '', paymentStatus: order.paymentStatus ?? 'unpaid' })
@@ -213,6 +215,7 @@ function OrderDetailsPage() {
                 <p className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">{cancelNotice}</p>
               )}
 
+              {!canManage && <p className="mt-4 text-sm text-neutral-600">To request cancellation or a return, use your original secured account device or <Link to="/support" className="font-bold underline">verified recovery guidance</Link>.</p>}
               {cancellationAvailable && !showCancel && (
                 <div className="mt-5 border-t border-neutral-100 pt-4">
                   <button onClick={() => { setCancelNotice(''); setShowCancel(true) }} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-red-300 bg-white px-4 text-sm font-bold text-red-700 hover:bg-red-50">
@@ -276,7 +279,6 @@ function OrderDetailsPage() {
                   <>
                     <p className="mt-2 text-sm text-neutral-600">{paymentMethodLabel(order.paymentMethod ?? '')}</p>
                     {payBadge && <p className="mt-1 text-xs font-semibold text-neutral-500">Payment status: {payBadge.text}</p>}
-                    {order.paymentRef && <p className="mt-1 break-all text-xs text-neutral-500">Reference: {order.paymentRef}</p>}
                   </>
                 )}
               </div>
