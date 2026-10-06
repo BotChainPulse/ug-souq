@@ -204,7 +204,7 @@ export default function SellerListings() {
               </div>
               {plan && (
                 <div className="mt-3 flex flex-col gap-2 border-t border-neutral-200 pt-3 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-xs text-neutral-600"><b>{plan.tier === 'pro' ? 'Seller Pro' : 'Free plan'}</b> · {plan.listingsUsed}/{plan.listingLimit} listing slots · {Math.round(plan.commissionRate * 100)}% commission</p>
+                  <p className="text-xs text-neutral-600"><b>{plan.tier === 'partner' ? 'Signed pilot' : plan.tier === 'pro' ? 'Seller Pro' : 'Free plan'}</b> · {plan.listingsUsed}/{plan.listingLimit} listing slots · {Number((plan.commissionRate * 100).toFixed(2))}% commission</p>
                   {plan.tier === 'free' && (
                     <a href={`https://wa.me/${WHATSAPP_INTL}?text=${encodeURIComponent(`Hi UG Souq, I want to upgrade ${seller.shopName} to Seller Pro for UGX ${plan.monthlyFee.toLocaleString()} per month.`)}`} target="_blank" rel="noreferrer" className="text-xs font-bold text-violet-700 underline">Upgrade to Seller Pro</a>
                   )}
@@ -227,7 +227,7 @@ export default function SellerListings() {
 
             {!hasListingSlot && (
               <div className="mt-4 rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-900">
-                <b>Your {plan?.tier === 'pro' ? 'Seller Pro' : 'free'} listing slots are full.</b>{' '}
+                <b>Your {plan?.tier === 'partner' ? 'pilot' : plan?.tier === 'pro' ? 'Seller Pro' : 'free'} listing slots are full.</b>{' '}
                 {plan?.tier === 'free' ? 'Seller Pro allows up to 50 active listings and reduces marketplace commission from 7% to 5%.' : 'Contact seller support for a larger business arrangement.'}
               </div>
             )}

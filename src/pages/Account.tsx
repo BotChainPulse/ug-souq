@@ -38,18 +38,18 @@ function StatusPill({ status }: { status: string }) {
   )
 }
 export default function AccountPage() {
-  const [account, setAccount] = useState<Account | null>(getAccount())
+  const [account, setAccount] = useState<Account | null>(getAccount)
   const [form, setForm] = useState<Account>(account ?? { name: '', phone: '', email: '', location: '' })
   const [editing, setEditing] = useState(!account)
   const register = trpc.customers.register.useMutation()
-  const { data: profileData } = trpc.customers.me.useQuery(
+  const { data: profileData, error: profileError } = trpc.customers.me.useQuery(
     { phone: account?.phone ?? '' },
-    { enabled: !!account },
+    { enabled: !!account?.deletionToken, retry: false },
   )
 
   const { data: ordersData } = trpc.orders.byPhone.useQuery(
     { phone: account?.phone ?? '' },
-    { enabled: !!account },
+    { enabled: !!account?.deletionToken, retry: false },
   )
 
   useEffect(() => {
@@ -115,6 +115,10 @@ export default function AccountPage() {
     { icon: Lock, label: 'Account Security', to: '/account-security' },
     { icon: Trash2, label: 'Delete account & data', to: '/delete-account' },
   ]
+
+  if (account && (!account.deletionToken || profileError) && !editing) {
+    return <div className="min-h-screen bg-gray-50"><Header /><main className="mx-auto max-w-md px-4 py-8"><h1 className="text-2xl font-bold">Account recovery required</h1><p className="mt-4">This device cannot verify your account. Use the original secured device or contact support for verified recovery. Your phone number alone cannot unlock your orders.</p><Link to="/support" className="mt-4 inline-block font-bold text-emerald-700">Open Help Centre</Link><button onClick={handleLogout} className="ml-4 font-bold">Sign out</button></main><Footer /></div>
+  }
 
   if (!account || editing) {
     return (

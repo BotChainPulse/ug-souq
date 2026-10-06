@@ -64,7 +64,7 @@ async function ensureCampaignSchema() {
   `);
 }
 
-function normalizeCampaign(input: any) {
+export function normalizeCampaign(input: any) {
   const products = Array.isArray(input?.products) ? input.products.slice(0, MAX_PRODUCTS).map((product: any) => ({
     slug: String(product?.slug ?? "").slice(0, 180),
     name: String(product?.name ?? "").slice(0, 180),
@@ -91,17 +91,35 @@ function normalizeCampaign(input: any) {
   };
 }
 
-function renderEmail(campaign: ReturnType<typeof normalizeCampaign>, subscriber?: { name?: string | null; unsubscribeToken?: string | null }) {
+function emailUrl(value: string, base: string) {
+  try {
+    const url = new URL(value, `${base}/`);
+    if (!["https:", "http:"].includes(url.protocol)) return "";
+    if (url.hostname === "ug-souq-production.up.railway.app") {
+      return new URL(`${url.pathname}${url.search}${url.hash}`, `${base}/`).href;
+    }
+    return url.href;
+  } catch {
+    return "";
+  }
+}
+
+export function renderEmail(campaign: ReturnType<typeof normalizeCampaign>, subscriber?: { name?: string | null; unsubscribeToken?: string | null }) {
   const base = (process.env.APP_URL || "https://www.ugsouq.com").replace(/\/$/, "");
   const unsubscribe = subscriber?.unsubscribeToken
     ? `${base}/unsubscribe?token=${encodeURIComponent(subscriber.unsubscribeToken)}&channel=email`
     : `${base}/preferences`;
   const greeting = subscriber?.name ? `Hi ${esc(subscriber.name)},` : "Hello,";
-  const cards = campaign.products.map((product: any) => `
+  const cards = campaign.products.map((product: any) => {
+    const productUrl = product.slug
+      ? `${base}/product/${encodeURIComponent(product.slug)}`
+      : emailUrl(product.url, base);
+    const imageUrl = product.image ? emailUrl(product.image, base) : "";
+    return `
     <td style="width:50%;padding:6px;vertical-align:top">
-      <a href="${esc(product.url || `${base}/product/${product.slug}`)}" style="text-decoration:none;color:#0f172a">
+      <a href="${esc(productUrl)}" style="text-decoration:none;color:#0f172a">
         <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden">
-          <img src="${esc(product.image)}" alt="" style="width:100%;aspect-ratio:1/1;object-fit:cover;display:block;background:#f1f5f9" />
+          ${imageUrl ? `<img src="${esc(imageUrl)}" alt="${esc(product.name)}" width="280" style="width:100%;height:auto;object-fit:cover;display:block;background:#f1f5f9" />` : ""}
           <div style="padding:12px">
             <div style="font-size:13px;line-height:18px;font-weight:800;min-height:36px">${esc(product.name)}</div>
             <div style="margin-top:6px;color:#047857;font-weight:900;font-size:13px">${esc(money(product.price))}</div>
@@ -110,7 +128,8 @@ function renderEmail(campaign: ReturnType<typeof normalizeCampaign>, subscriber?
           </div>
         </div>
       </a>
-    </td>`).join("");
+    </td>`;
+  }).join("");
 
   const rows: string[] = [];
   for (let index = 0; index < campaign.products.length; index += 2) {
@@ -131,7 +150,7 @@ function renderEmail(campaign: ReturnType<typeof normalizeCampaign>, subscriber?
         <div style="margin-top:10px;font-size:14px;color:#cbd5e1">${greeting}</div>
         <h1 style="margin:8px 0 0;font-size:34px;line-height:38px">${esc(campaign.headline)}</h1>
         <p style="font-size:15px;line-height:24px;color:#cbd5e1">${esc(campaign.intro)}</p>
-        <a href="${esc(campaign.ctaUrl)}" style="display:inline-block;margin-top:8px;background:#f97316;color:#ffffff;text-decoration:none;padding:13px 20px;border-radius:12px;font-weight:900">${esc(campaign.ctaText)}</a>
+        <a href="${esc(emailUrl(campaign.ctaUrl, base) || `${base}/catalog?deals=1`)}" style="display:inline-block;margin-top:8px;background:#f97316;color:#ffffff;text-decoration:none;padding:13px 20px;border-radius:12px;font-weight:900">${esc(campaign.ctaText)}</a>
       </td></tr>
       <tr><td>${productRows}</td></tr>
       <tr><td style="padding:24px;text-align:center">

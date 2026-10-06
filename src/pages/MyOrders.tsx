@@ -1,35 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router'
-import { Package, Smartphone, Truck, CircleCheckBig, Clock, XCircle, ShoppingCart, ChevronRight } from 'lucide-react'
+import { Package, Truck, CircleCheckBig, Clock, XCircle, ShoppingCart, ChevronRight } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { trpc } from '@/providers/trpc'
 import { fmt } from '../lib/cart'
 import { ORANGE } from '../lib/site'
 import { getAccount } from '../lib/account'
-
-const SAVED_PHONE_KEY = 'ugsouq_myphone'
-
-function cleanDeliveryAddress(value: unknown) {
-  const text = String(value ?? '').trim()
-  if (!text) return 'Address unavailable'
-  const parts = text.split(/\s+—\s+/).map((part) => part.trim()).filter(Boolean)
-  const isPickup = /^pickup:/i.test(parts[0] ?? '')
-  const unique = new Map<string, string>()
-
-  for (const part of parts) {
-    const base = part.replace(/,\s*door delivery$/i, '').trim()
-    const key = base.toLowerCase()
-    if (!key) continue
-    if (!unique.has(key)) {
-      unique.set(key, isPickup ? base : part)
-    } else if (!isPickup && /,\s*door delivery$/i.test(part)) {
-      unique.set(key, part)
-    }
-  }
-
-  return [...unique.values()].join(' — ')
-}
 
 function StatusPill({ status, cancellationPending = false }: { status: string; cancellationPending?: boolean }) {
   if (cancellationPending && status !== 'cancelled') {
@@ -57,42 +34,17 @@ function StatusPill({ status, cancellationPending = false }: { status: string; c
 }
 
 export default function MyOrders() {
-  const savedPhone = localStorage.getItem(SAVED_PHONE_KEY) ?? getAccount()?.phone ?? ''
-  const [phone, setPhone] = useState(savedPhone)
-  const [searched, setSearched] = useState(savedPhone)
-  const [maintainedPhone, setMaintainedPhone] = useState('')
+  const [account] = useState(getAccount);
+  const searched = account?.deletionToken ? account.phone : '';
   const orders = trpc.orders.byPhone.useQuery(
     { phone: searched },
-    { enabled: searched.trim().length >= 9, retry: false },
-  )
-  const orderCodes = orders.data?.map((order) => order.code) ?? []
+    { enabled: !!searched, retry: false },
+  );
+  const orderCodes = orders.data?.map((order) => order.code) ?? [];
   const cancellationStatuses = trpc.buyerOrders.cancellationStatuses.useQuery(
     { phone: searched, codes: orderCodes },
-    { enabled: searched.trim().length >= 9 && orderCodes.length > 0, retry: false },
-  )
-  const expireStale = trpc.buyerOrders.expireStale.useMutation({
-    onSuccess: async (result) => {
-      if (result.cancelled > 0) {
-        await Promise.all([orders.refetch(), cancellationStatuses.refetch()])
-      }
-    },
-  })
-
-  useEffect(() => {
-    const p = searched.trim()
-    if (p.length < 9 || p === maintainedPhone) return
-    setMaintainedPhone(p)
-    expireStale.mutate({ phone: p })
-  }, [searched, maintainedPhone])
-
-  const search = () => {
-    const p = phone.trim()
-    setSearched(p)
-    if (p.length >= 9) {
-      localStorage.setItem(SAVED_PHONE_KEY, p)
-      if (p !== searched) setMaintainedPhone('')
-    }
-  }
+    { enabled: !!searched && orderCodes.length > 0, retry: false },
+  );
 
   return (
     <div className="min-h-screen bg-[#faf9f7] text-neutral-900 antialiased">
@@ -101,27 +53,15 @@ export default function MyOrders() {
         <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2">
           <Package size={26} style={{ color: ORANGE }} /> My Orders
         </h1>
-        <p className="mt-2 text-neutral-600">
-          Enter the phone number you order with — we'll remember it on this device and show all your orders here.
-        </p>
-
-        <div className="mt-6 flex gap-2">
-          <input
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && search()}
-            placeholder="07XX XXX XXX"
-            className="flex-1 h-12 rounded-xl border border-neutral-300 px-4 text-sm outline-none focus:border-orange-500 bg-white"
-          />
-          <button
-            onClick={search}
-            disabled={phone.trim().length < 9}
-            className="h-12 px-6 rounded-xl text-sm font-bold text-white disabled:opacity-40 inline-flex items-center gap-2"
-            style={{ background: ORANGE }}
-          >
-            <Smartphone size={16} /> View my orders
-          </button>
-        </div>
+        <p className="mt-2 text-neutral-600">Your order history is private to your secured account. Viewing it never cancels an order.</p>
+        {!searched && (
+          <div className="mt-6 rounded-xl border border-neutral-200 bg-white p-5">
+            <p>Open My Account on the original secured device. Older profiles and new devices require verified account recovery.</p>
+            <Link to="/account" className="mt-3 inline-block font-bold text-emerald-700">Open My Account</Link>
+            <Link to="/support" className="ml-4 font-bold text-emerald-700">Recovery guidance</Link>
+          </div>
+        )}
+        {orders.error && <p role="alert" className="mt-6 text-sm text-red-700">{orders.error.message}</p>}
 
         {searched && orders.isLoading && <p className="mt-6 text-sm text-neutral-500">Loading your orders…</p>}
 
@@ -163,7 +103,7 @@ export default function MyOrders() {
                     <span className="text-neutral-500">Delivery: {fmt(o.deliveryFee)} · {o.paymentMethod === 'mtn_momo' ? 'MTN MoMo' : o.paymentMethod === 'airtel_money' ? 'Airtel Money' : 'Cash on delivery'}</span>
                     <span className="font-extrabold">{fmt(o.total)}</span>
                   </div>
-                  <p className="mt-2 text-xs text-neutral-500">Deliver to: {cleanDeliveryAddress(o.address)}</p>
+                  <p className="mt-2 text-xs text-neutral-500">Deliver to: {o.address || 'Address unavailable'}</p>
                   {cancellationPending ? (
                     <p className="mt-2 text-xs font-semibold text-amber-800">Cancellation request pending review. No further cancellation request is needed.</p>
                   ) : o.status === 'placed' ? (
