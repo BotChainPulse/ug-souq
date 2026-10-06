@@ -1,3 +1,4 @@
+import { PARTNERSHIP_TABLE_SQL } from "./partnershipPolicy";
 // One-time database bootstrap: creates tables and loads starter data.
 // Called once after pointing DATABASE_URL at a fresh database; safe to re-run.
 import { z } from "zod";
@@ -10,6 +11,7 @@ import { syncDemoGroceries } from "./demoGroceries";
 const BOOTSTRAP_KEY = "ugsouq-setup-2026";
 
 const TABLES = [
+  PARTNERSHIP_TABLE_SQL,
   `CREATE TABLE IF NOT EXISTS sellers (
     \`id\` bigint unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
     \`shop_name\` varchar(255) NOT NULL, \`owner_name\` varchar(255) NOT NULL, \`phone\` varchar(32) NOT NULL,

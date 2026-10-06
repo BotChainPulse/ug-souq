@@ -509,3 +509,27 @@ export const sellerPlanPayments = mysqlTable("seller_plan_payments", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+
+// Signed commercial pilot records are separate from generic signup consent.
+export const sellerPartnerships = mysqlTable("seller_partnerships", {
+  id: serial("id").primaryKey(),
+  sellerId: bigint("seller_id", { mode: "number", unsigned: true }).notNull(),
+  reference: varchar("reference", { length: 100 }).notNull(),
+  version: varchar("version", { length: 32 }).notNull(),
+  status: mysqlEnum("status", ["draft", "active", "ended"]).notNull().default("draft"),
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 4 }).notNull(),
+  listingLimit: int("listing_limit").notNull(),
+  startsAt: timestamp("starts_at").notNull(),
+  endsAt: timestamp("ends_at").notNull(),
+  promotionEndsAt: timestamp("promotion_ends_at"),
+  sellerSignatory: varchar("seller_signatory", { length: 180 }).notNull(),
+  platformSignatory: varchar("platform_signatory", { length: 180 }).notNull(),
+  signedAt: timestamp("signed_at"),
+  termsText: text("terms_text").notNull(),
+  documentName: varchar("document_name", { length: 255 }),
+  documentHash: varchar("document_hash", { length: 64 }),
+  documentCiphertext: mediumtext("document_ciphertext"),
+  documentIv: varchar("document_iv", { length: 32 }),
+  documentTag: varchar("document_tag", { length: 32 }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});

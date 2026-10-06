@@ -1,3 +1,5 @@
+import { sellerPartnerships } from "../db/schema";
+import { activePartnership } from "./partnershipPolicy";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, desc, asc, like, or, and, sql } from "drizzle-orm";
@@ -413,7 +415,8 @@ export const appRouter = createRouter({
               .select()
               .from(sellerSubscriptions)
               .where(eq(sellerSubscriptions.sellerId, sellerId));
-            return sellerPlan(subscription);
+            const partnershipRows = await tx.select().from(sellerPartnerships).where(eq(sellerPartnerships.sellerId, sellerId));
+            return sellerPlan(subscription, new Date(), partnershipRows.find(row => activePartnership(row)));
           };
 
           for (const requested of input.items) {
@@ -618,8 +621,10 @@ export const appRouter = createRouter({
       if (!row) return null;
       const myListings = await db.select().from(listings).where(eq(listings.sellerId, row.id)).orderBy(desc(listings.createdAt));
       const [subscription] = await db.select().from(sellerSubscriptions).where(eq(sellerSubscriptions.sellerId, row.id));
-      const plan = sellerPlan(subscription);
-      const listingsUsed = myListings.filter((listing) => !["rejected", "terminated"].includes(listing.status)).length;
+      const partnershipRows = await db.select().from(sellerPartnerships).where(eq(sellerPartnerships.sellerId, row.id));
+      const plan = sellerPlan(subscription, new Date(), partnershipRows.find(record => activePartnership(record)));
+      const catalogueProducts = plan.tier === "partner" ? await db.select({ id: products.id }).from(products).where(eq(products.sellerId, row.id)) : [];
+      const listingsUsed = myListings.filter((listing) => !["rejected", "terminated"].includes(listing.status)).length + catalogueProducts.length;
       return {
         id: row.id,
         shopName: row.shopName,
@@ -656,15 +661,17 @@ export const appRouter = createRouter({
           throw new TRPCError({ code: "BAD_REQUEST", message: "Branded goods require a brand name and supplier, invoice, serial-number or authorization evidence." });
         }
         const [subscription] = await db.select().from(sellerSubscriptions).where(eq(sellerSubscriptions.sellerId, seller.id));
-        const plan = sellerPlan(subscription);
+        const partnershipRows = await db.select().from(sellerPartnerships).where(eq(sellerPartnerships.sellerId, seller.id));
+        const plan = sellerPlan(subscription, new Date(), partnershipRows.find(record => activePartnership(record)));
         const sellerListings = await db.select().from(listings).where(eq(listings.sellerId, seller.id));
-        const listingsUsed = sellerListings.filter((listing) => !["rejected", "terminated"].includes(listing.status)).length;
+        const catalogueProducts = plan.tier === "partner" ? await db.select({ id: products.id }).from(products).where(eq(products.sellerId, seller.id)) : [];
+        const listingsUsed = sellerListings.filter((listing) => !["rejected", "terminated"].includes(listing.status)).length + catalogueProducts.length;
         if (listingsUsed >= plan.listingLimit) {
           throw new TRPCError({
             code: "FORBIDDEN",
             message: plan.tier === "free"
               ? `Your five free listing slots are in use. Upgrade to Seller Pro for up to 50 active listings.`
-              : `Your Seller Pro limit of ${plan.listingLimit} active listings is in use. Contact support for a larger business plan.`,
+              : `Your ${plan.tier === "partner" ? "pilot" : "Seller Pro"} limit of ${plan.listingLimit} active listings is in use. Contact support for a larger business plan.`,
           });
         }
         const [row] = await db.insert(listings).values({

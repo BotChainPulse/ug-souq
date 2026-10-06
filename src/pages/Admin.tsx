@@ -1,3 +1,4 @@
+import PartnershipPanel from "../components/admin/PartnershipPanel"
 import { useEffect, useState } from 'react'
 import React from 'react'
 import { useLocation, useNavigate } from 'react-router'
@@ -200,7 +201,7 @@ function Sellers({ adminKey }: { adminKey: string }) {
               )}
               <p className="text-xs text-neutral-400 mt-1">{s?.totalListings ?? 0} listings · {s?.totalOrders ?? 0} orders · Joined {s?.createdAt ? new Date(s.createdAt).toLocaleDateString() : "-"}</p>
               <div className="mt-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-700">
-                <b>{s?.plan?.tier === 'pro' ? 'Seller Pro' : 'Free seller'}</b> · {s?.plan?.listingsUsed ?? 0}/{s?.plan?.listingLimit ?? 5} listing slots · {Math.round(Number(s?.plan?.commissionRate ?? 0.07) * 100)}% commission
+                <b>{s?.plan?.tier === 'partner' ? 'Signed pilot' : s?.plan?.tier === 'pro' ? 'Seller Pro' : 'Free seller'}</b> · {s?.plan?.listingsUsed ?? 0}/{s?.plan?.listingLimit ?? 5} listing slots · {Number((Number(s?.plan?.commissionRate ?? 0.07) * 100).toFixed(2))}% commission
                 {s?.plan?.expiresAt && <span> · expires {new Date(s.plan.expiresAt).toLocaleDateString()}</span>}
               </div>
               <details className="mt-3 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-700">
@@ -221,6 +222,7 @@ function Sellers({ adminKey }: { adminKey: string }) {
                   </div>
                 )}
               </details>
+              <PartnershipPanel adminKey={adminKey} sellerId={sid} onChanged={() => refetch()} />
               {status === "pending" && (
                 <div className="mt-3 flex gap-2">
                   <button onClick={() => {

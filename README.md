@@ -4,7 +4,7 @@ Ugandan multi-seller marketplace. The Vite storefront and administrator interfac
 
 ## Production variables
 
-Keep all secrets in Railway Variables; never commit them or expose them through Vite client variables.
+Keep all secrets in the production host’s environment variables; never commit them or expose them through Vite client variables.
 
 - `DATABASE_URL` — MySQL connection string.
 - `ADMIN_KEY` — administrator access secret.
@@ -106,3 +106,7 @@ export default defineConfig([
 <!-- Build trigger: 2026-08-08T22:16:25.805506 -->
 
 <!-- Deploy trigger: Aug 11 2026 -->
+
+## Seller partnership agreements
+
+Signed pilot agreements can be recorded in Administrator → Sellers. Effective signed terms override standard seller commission and catalogue limits; draft proposals do not. See [the partnership workflow](docs/SELLER_PARTNERSHIP_WORKFLOW.md) for activation, expiry, encryption and deployment requirements. Preserve `SELLER_DOCUMENT_ENCRYPTION_KEY` when moving between hosts.

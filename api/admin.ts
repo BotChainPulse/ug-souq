@@ -1,3 +1,6 @@
+import { partnershipRouter } from "./partnerships";
+import { sellerPartnerships } from "../db/schema";
+import { activePartnership } from "./partnershipPolicy";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, desc, and, gte, sql } from "drizzle-orm";
@@ -154,6 +157,7 @@ async function createNotification(params: {
 }
 
 export const adminRouter = createRouter({
+  partnerships: partnershipRouter(requireAdmin),
   login: publicQuery.input(z.object({ key: z.string() })).mutation(({ input }) => {
     requireAdmin(input.key);
     return { ok: true };
@@ -269,6 +273,10 @@ export const adminRouter = createRouter({
 
     // Get contract status for each seller
     const contractRows = await db.select().from(sellerContracts);
+    const [partnershipRows, productRows] = await Promise.all([
+      db.select().from(sellerPartnerships),
+      db.select({ sellerId: products.sellerId }).from(products),
+    ]);
     const subscriptionRows = await db.select().from(sellerSubscriptions);
     const listingRows = await db.select().from(listings);
     const identityRows = await db.select({
@@ -293,9 +301,13 @@ export const adminRouter = createRouter({
 
     const subscriptionMap = new Map(subscriptionRows.map((subscription) => [Number(subscription.sellerId), subscription]));
     const identityMap = new Map(identityRows.map((identity) => [Number(identity.sellerId), identity]));
+    const planTime = new Date();
+    const partnershipMap = new Map(partnershipRows.filter(row => activePartnership(row, planTime)).map(row => [Number(row.sellerId), row]));
+    const productCounts = new Map<number, number>();
+    for (const product of productRows) productCounts.set(Number(product.sellerId), (productCounts.get(Number(product.sellerId)) ?? 0) + 1);
     return filtered.map((s) => {
-      const plan = sellerPlan(subscriptionMap.get(Number(s.id)));
-      const listingsUsed = listingRows.filter((listing) => Number(listing.sellerId) === Number(s.id) && !["rejected", "terminated"].includes(listing.status)).length;
+      const plan = sellerPlan(subscriptionMap.get(Number(s.id)), planTime, partnershipMap.get(Number(s.id)));
+      const listingsUsed = listingRows.filter((listing) => Number(listing.sellerId) === Number(s.id) && !["rejected", "terminated"].includes(listing.status)).length + (plan.tier === "partner" ? (productCounts.get(Number(s.id)) ?? 0) : 0);
       return {
         ...s,
         // Never return legacy raw identity fields in a general dashboard list.
@@ -964,7 +976,7 @@ export const adminRouter = createRouter({
         awaitingBuyerPayment: active.filter((o) => o.paymentStatus !== "paid").reduce((s, o) => s + o.total, 0),
       },
       incomeStreams: [
-        { stream: "Marketplace commission", booked: commissionBooked, realized: commissionRealized, rule: "7% Free / 5% Seller Pro, recorded per seller line" },
+        { stream: "Marketplace commission", booked: commissionBooked, realized: commissionRealized, rule: "7% Free / 5% Seller Pro or signed pilot rate, recorded per seller line" },
         { stream: "Delivery income", booked: deliveryIncomeBooked, realized: deliveryIncomeRealized, rule: "10% of delivery fee" },
         { stream: "Seller ad revenue", booked: adBooked, realized: adRealized, rule: "Weekly UGX 25,000 / Monthly UGX 50,000" },
         { stream: "Seller Pro", booked: sellerPlanRevenue, realized: sellerPlanRevenue, rule: "UGX 30,000 per 30 days" },
@@ -1109,7 +1121,7 @@ export const adminRouter = createRouter({
         riders: Array.from(riderMap.values()).filter((r) => r.orders > 0 || r.status === "approved"),
         affiliates: affiliateList,
         streams: [
-          { stream: "Marketplace commission (sellers)", booked: commissionBooked, realized: commissionRealized, rule: "7% Free / 5% Seller Pro, calculated per seller line" },
+          { stream: "Marketplace commission (sellers)", booked: commissionBooked, realized: commissionRealized, rule: "7% Free / 5% Seller Pro or signed pilot rate, calculated per seller line" },
           { stream: "Delivery platform fee (riders)", booked: deliveryIncomeBooked, realized: deliveryIncomeRealized, rule: "10% of delivery fee" },
           { stream: "Seller ad revenue", booked: adBooked, realized: adRealized, rule: "Weekly UGX 25,000 / Monthly UGX 50,000" },
           { stream: "Seller Pro", booked: sellerPlanRevenue, realized: sellerPlanRevenue, rule: "UGX 30,000 per 30 days" },
