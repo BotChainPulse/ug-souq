@@ -1,3 +1,4 @@
+import { PARTNERSHIP_TABLE_SQL } from "./partnershipPolicy";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { HttpBindings } from "@hono/node-server";
@@ -15,6 +16,7 @@ async function ensureStartupSchema() {
   const db = getDb();
   const raw: any = (db as any).$client;
   const client: any = typeof raw.promise === "function" ? raw.promise() : raw;
+  await client.query(PARTNERSHIP_TABLE_SQL);
 
   const addColumn = async (sql: string) => {
     try {
