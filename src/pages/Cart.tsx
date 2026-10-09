@@ -7,7 +7,7 @@ import Footer from '../components/Footer'
 import { fmt, useCart } from '../lib/cart'
 import { trpc } from '@/providers/trpc'
 import { ORANGE } from '../lib/site'
-import { getAccount, saveAccount } from '../lib/account'
+import { getAccount, saveAccount, accountAfterCheckout } from '../lib/account'
 import OrderConfirmation from '../components/OrderConfirmation'
 
 export default function Cart() {
@@ -75,12 +75,12 @@ export default function Cart() {
       })),
     })
 
-    saveAccount({
+    saveAccount(accountAfterCheckout(getAccount(), {
       name: form.name.trim(),
       phone: form.phone.replace(/[\s-]+/g, ''),
       email: form.email.trim().toLowerCase(),
       location: form.address.trim(),
-    })
+    }))
     setPlaced({
       code: order.code,
       total: order.total,

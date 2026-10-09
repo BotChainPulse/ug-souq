@@ -1,3 +1,4 @@
+import { getAccount } from "../lib/account";
 import { createTRPCReact } from "@trpc/react-query";
 import { httpLink } from "@trpc/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -13,6 +14,11 @@ const trpcClient = trpc.createClient({
     httpLink({
       url: "/api/trpc",
       transformer: superjson,
+      methodOverride: "POST",
+      headers() {
+        const token = getAccount()?.deletionToken;
+        return token ? { "x-ugsouq-customer-credential": token } : {};
+      },
       fetch(input, init) {
         return globalThis.fetch(input, {
           ...(init ?? {}),

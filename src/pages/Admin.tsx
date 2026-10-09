@@ -1,3 +1,4 @@
+import PartnershipPanel from "../components/admin/PartnershipPanel"
 import { useEffect, useState } from 'react'
 import React from 'react'
 import { useLocation, useNavigate } from 'react-router'
@@ -200,7 +201,7 @@ function Sellers({ adminKey }: { adminKey: string }) {
               )}
               <p className="text-xs text-neutral-400 mt-1">{s?.totalListings ?? 0} listings · {s?.totalOrders ?? 0} orders · Joined {s?.createdAt ? new Date(s.createdAt).toLocaleDateString() : "-"}</p>
               <div className="mt-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-700">
-                <b>{s?.plan?.tier === 'pro' ? 'Seller Pro' : 'Free seller'}</b> · {s?.plan?.listingsUsed ?? 0}/{s?.plan?.listingLimit ?? 5} listing slots · {Math.round(Number(s?.plan?.commissionRate ?? 0.07) * 100)}% commission
+                <b>{s?.plan?.tier === 'partner' ? 'Signed pilot' : s?.plan?.tier === 'pro' ? 'Seller Pro' : 'Free seller'}</b> · {s?.plan?.listingsUsed ?? 0}/{s?.plan?.listingLimit ?? 5} listing slots · {Number((Number(s?.plan?.commissionRate ?? 0.07) * 100).toFixed(2))}% commission
                 {s?.plan?.expiresAt && <span> · expires {new Date(s.plan.expiresAt).toLocaleDateString()}</span>}
               </div>
               <details className="mt-3 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs text-neutral-700">
@@ -221,6 +222,7 @@ function Sellers({ adminKey }: { adminKey: string }) {
                   </div>
                 )}
               </details>
+              <PartnershipPanel adminKey={adminKey} sellerId={sid} onChanged={() => refetch()} />
               {status === "pending" && (
                 <div className="mt-3 flex gap-2">
                   <button onClick={() => {
@@ -387,14 +389,15 @@ class OrderErrorBoundary extends React.Component<{ children: React.ReactNode }, 
 function Orders({ adminKey }: { adminKey: string }) {
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [search, setSearch] = useState("")
-  const { data, isLoading, refetch } = trpc.admin.orders.useQuery(
-    { key: adminKey, status: statusFilter === "all" ? undefined : statusFilter, search: search || undefined },
+  const { data, isLoading, error, refetch } = trpc.admin.orders.useQuery(
+    { key: adminKey, status: statusFilter === "all" ? undefined : statusFilter as typeof ORDER_STATUSES[number], search: search || undefined },
     { enabled: !!adminKey, retry: false }
   )
   const setStatus = trpc.admin.setOrderStatus.useMutation({ onSuccess: () => refetch() })
   const setPaymentStatus = trpc.admin.setPaymentStatus.useMutation({ onSuccess: () => refetch() })
   const list = (data as any)?.orders ?? (data as any[]) ?? []
   if (isLoading) return <Loading />
+  if (error) return <QueryError title="Orders could not load" error={error.message} onRetry={() => refetch()} />
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row gap-3">
@@ -458,7 +461,7 @@ function Orders({ adminKey }: { adminKey: string }) {
                   <select value={o?.paymentStatus ?? 'unpaid'} onChange={(event) => setPaymentStatus.mutate({ key: adminKey, id: oid, status: event.target.value as 'unpaid' | 'pending_confirmation' | 'paid' })} disabled={setPaymentStatus.isPending} className="rounded-lg border border-neutral-300 px-3 py-1.5 text-sm">
                     <option value="unpaid">Unpaid</option><option value="pending_confirmation">Confirming</option><option value="paid">Paid</option>
                   </select>
-                  {canCancel && <button onClick={() => { if (!oid) return; if (window.confirm('Cancel this order?')) setStatus.mutate({ key: adminKey, id: oid, status: 'cancelled' }) }} disabled={setStatus.isLoading}
+                  {canCancel && <button onClick={() => { if (!oid) return; if (window.confirm('Cancel this order?')) setStatus.mutate({ key: adminKey, id: oid, status: 'cancelled' }) }} disabled={setStatus.isPending}
                     className="text-sm px-3 py-1.5 bg-red-600 text-white rounded-lg disabled:opacity-50">Cancel order</button>
                   }
               </div>
@@ -477,6 +480,7 @@ function Accounts({ adminKey }: { adminKey: string }) {
   const { data: accountsData, isLoading, error, refetch } = trpc.admin.accounts.useQuery({ key: adminKey }, { enabled: !!adminKey })
   const { data: commissionData, isLoading: cLoading, error: cError } = trpc.admin.commissionBreakdown.useQuery({ key: adminKey }, { enabled: !!adminKey })
   if (isLoading || cLoading) return <Loading />
+  if (cError) return <QueryError title="Commission data could not load" error={cError.message} onRetry={() => refetch()} />
   if (error) return <QueryError title="Failed to load accounts" error={error.message} onRetry={() => refetch()} />
   const a = (accountsData as any) ?? {}
   const c = (commissionData as any) ?? {}
@@ -518,7 +522,6 @@ function Payouts({ adminKey }: { adminKey: string }) {
   const [subTab, setSubTab] = useState<"pending" | "history">("pending")
   const { data: pData, isLoading: pLoading, error: pError, refetch: pRefetch } = trpc.admin.pendingPayouts.useQuery({ key: adminKey }, { enabled: !!adminKey })
   const { data: hData, isLoading: hLoading, error: hError, refetch: hRefetch } = trpc.admin.payoutHistory.useQuery({ key: adminKey, limit: 100 }, { enabled: !!adminKey })
-  const processPayout = trpc.admin.processPayout.useMutation({ onSuccess: () => { pRefetch(); hRefetch(); } })
   if (pLoading || hLoading) return <Loading />
   if (subTab === "pending" && pError) return <QueryError title="Failed to load pending payouts" error={pError.message} onRetry={() => pRefetch()} />
   if (subTab === "history" && hError) return <QueryError title="Failed to load history" error={hError.message} onRetry={() => hRefetch()} />
@@ -536,12 +539,11 @@ function Payouts({ adminKey }: { adminKey: string }) {
           <div key={i} className="bg-white rounded-xl border border-neutral-200 p-4">
             <div className="flex justify-between items-start">
               <div>
-                <p className="font-bold text-sm">{p?.sellerName ?? "Unknown"}</p>
-                <p className="text-sm text-neutral-600">UGX {(p?.amount ?? 0).toLocaleString()} · {p?.phone ?? "-"}</p>
-                <p className="text-xs text-neutral-400 mt-1">{p?.ordersCount ?? 0} orders</p>
+                <p className="font-bold text-sm">{p?.seller_name ?? "Unknown"}</p>
+                <p className="text-sm text-neutral-600">UGX {Number(p?.total_owed ?? 0).toLocaleString()} · {p?.payout_method ?? "Not configured"}</p>
+                <p className="text-xs text-neutral-400 mt-1">{p?.order_count ?? 0} orders</p>
               </div>
-              <button onClick={() => { if (window.confirm(`Process payout of UGX ${(p?.amount ?? 0).toLocaleString()}?`)) processPayout.mutate({ key: adminKey, sellerId: Number(p?.sellerId), amount: Number(p?.amount), payoutNumber: `PAY-${Date.now()}`, sellerName: String(p?.sellerName) }) }} disabled={processPayout.isLoading}
-                className="text-sm px-3 py-1.5 bg-emerald-600 text-white rounded-lg disabled:opacity-50">Pay Now</button>
+              <p className="max-w-48 text-xs text-amber-800">Review settlement evidence and provider configuration before payment. Automatic transfers are not enabled from this view.</p>
             </div>
           </div>
         ))}
@@ -589,7 +591,7 @@ function Deliveries({ adminKey }: { adminKey: string }) {
               <span className="font-bold text-sm">{p?.fullName ?? p?.name ?? "Unknown"}</span>
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${SELLER_STATUS_COLORS[p?.status] || SELLER_STATUS_COLORS.pending}`}>{p?.status ?? "pending"}</span>
             </div>
-            <p className="text-sm text-neutral-600">{p?.phone ?? "-"} · {p?.vehicleType ?? "-"} · {p?.area ?? p?.zone ?? "-"}</p>
+            <p className="text-sm text-neutral-600">{p?.payout_method ?? "Not configured"} · {p?.vehicleType ?? "-"} · {p?.area ?? p?.zone ?? "-"}</p>
             {p?.status === "pending" && (
               <div className="mt-3 flex gap-2">
                 <button onClick={() => { if (window.confirm(`Approve ${p?.fullName ?? p?.name}?`)) setStatus.mutate({ key: adminKey, id: Number(p?.id), status: "approved" }) }} disabled={setStatus.isPending}
@@ -679,18 +681,18 @@ function SellerAds({ adminKey }: { adminKey: string }) {
             <span className="font-bold text-sm">{a?.sellerName ?? "Unknown"}</span>
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${adColors[a?.status] || adColors.booked}`}>{a?.status ?? "booked"}</span>
           </div>
-          <p className="text-sm text-neutral-600">{a?.adType ?? "-"} · UGX {(a?.amount ?? 0).toLocaleString()}</p>
+          <p className="text-sm text-neutral-600">{a?.planType ?? "-"} · UGX {(a?.amount ?? 0).toLocaleString()}</p>
           <p className="text-xs text-neutral-400 mt-1">{a?.startDate ? new Date(a.startDate).toLocaleDateString() : "-"} → {a?.endDate ? new Date(a.endDate).toLocaleDateString() : "-"}</p>
           {a?.status === "booked" && (
             <div className="mt-3 flex gap-2">
-              <button onClick={() => { if (window.confirm("Mark as paid?")) setAdStatus.mutate({ key: adminKey, id: Number(a?.id), status: "paid" }) }} disabled={setAdStatus.isLoading}
+              <button onClick={() => { if (window.confirm("Mark as paid?")) setAdStatus.mutate({ key: adminKey, id: Number(a?.id), status: "paid" }) }} disabled={setAdStatus.isPending}
                 className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded-lg disabled:opacity-50">Mark Paid</button>
-              <button onClick={() => { if (window.confirm("Cancel ad?")) setAdStatus.mutate({ key: adminKey, id: Number(a?.id), status: "cancelled" }) }} disabled={setAdStatus.isLoading}
+              <button onClick={() => { if (window.confirm("Cancel ad?")) setAdStatus.mutate({ key: adminKey, id: Number(a?.id), status: "cancelled" }) }} disabled={setAdStatus.isPending}
                 className="text-sm px-3 py-1.5 bg-red-600 text-white rounded-lg disabled:opacity-50">Cancel</button>
             </div>
           )}
           {a?.status === "paid" && (
-            <button onClick={() => { if (window.confirm("Activate ad?")) setAdStatus.mutate({ key: adminKey, id: Number(a?.id), status: "active" }) }} disabled={setAdStatus.isLoading}
+            <button onClick={() => { if (window.confirm("Activate ad?")) setAdStatus.mutate({ key: adminKey, id: Number(a?.id), status: "active" }) }} disabled={setAdStatus.isPending}
               className="mt-3 text-sm px-3 py-1.5 bg-emerald-600 text-white rounded-lg disabled:opacity-50">Activate</button>
           )}
         </div>
@@ -743,7 +745,7 @@ function MarketingSubscribers({ adminKey }: { adminKey: string }) {
         <Card title="WhatsApp opt-ins" value={String(totals.whatsapp)} icon={MessageCircle} color="green" />
       </div>
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-        Sending is not connected yet. These are consented contacts ready for Brevo and Africa’s Talking after provider credentials are added.
+        This is the channel consent register. Check email configuration and delivery history in Notifications; send approved email campaigns through Marketing Deals. WhatsApp consent alone does not activate a messaging provider.
       </div>
       <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white">
         <div className="border-b border-neutral-200 p-4"><h3 className="font-semibold">Subscriber consent register</h3><p className="mt-1 text-xs text-neutral-500">Only active channel opt-ins should receive promotional campaigns.</p></div>
@@ -834,9 +836,9 @@ function AdminSettings({ adminKey }: { adminKey: string }) {
               className="w-full px-3 py-2 rounded-lg border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
           </div>
         ))}
-        <button onClick={handleSave} disabled={updateSettings.isLoading}
+        <button onClick={handleSave} disabled={updateSettings.isPending}
           className="w-full py-2.5 bg-orange-500 text-white rounded-lg font-medium text-sm hover:bg-orange-600 transition disabled:opacity-50 flex items-center justify-center gap-2">
-          <Save size={16} /> {updateSettings.isLoading ? "Saving..." : "Save Settings"}
+          <Save size={16} /> {updateSettings.isPending ? "Saving..." : "Save Settings"}
         </button>
       </div>
     </div>
@@ -854,8 +856,14 @@ export default function Admin() {
   const [adminKey, setAdminKey] = useState(getAdminSessionKey)
   const [keyInput, setKeyInput] = useState("")
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [loginError, setLoginError] = useState('')
+  const utils = trpc.useUtils()
+  const verifyLogin = trpc.admin.login.useMutation({
+    onSuccess: (_result, input) => { setAdminSessionKey(input.key); setAdminKey(input.key); setKeyInput(''); setLoginError('') },
+    onError: () => setLoginError('Sign-in failed. Check your administrator key and try again.'),
+  })
 
-  const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = trpc.admin.stats.useQuery(
+  const { data: stats, error: statsError, refetch: refetchStats } = trpc.admin.stats.useQuery(
     { key: adminKey }, { enabled: !!adminKey, retry: false }
   )
 
@@ -865,13 +873,14 @@ export default function Admin() {
 
   const login = () => {
     if (keyInput.trim()) {
-      setAdminSessionKey(keyInput.trim())
-      setAdminKey(keyInput.trim())
+      setLoginError('')
+      verifyLogin.mutate({ key: keyInput.trim() })
     }
   }
 
   const logout = () => {
     clearAdminSessionKey()
+    utils.invalidate()
     setAdminKey("")
     setKeyInput("")
   }
@@ -893,7 +902,8 @@ export default function Admin() {
           <p className="text-sm text-neutral-600 mb-4">Enter your admin key to continue.</p>
           <input type="password" value={keyInput} onChange={(e) => setKeyInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && login()}
             placeholder="Admin key" className="w-full px-3 py-2 rounded-lg border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 mb-3" />
-          <button onClick={login} className="w-full py-2 bg-orange-500 text-white rounded-lg font-medium text-sm hover:bg-orange-600 transition">Login</button>
+          <p role="alert" className="mb-2 text-sm text-red-700">{loginError}</p>
+          <button onClick={login} disabled={!keyInput.trim() || verifyLogin.isPending} className="disabled:opacity-50 w-full py-2 bg-orange-500 text-white rounded-lg font-medium text-sm hover:bg-orange-600 transition">{verifyLogin.isPending ? 'Checking…' : 'Login'}</button>
           <button onClick={() => navigate("/")} className="w-full mt-2 py-2 text-neutral-600 text-sm hover:text-neutral-900">← Back to site</button>
         </div>
       </div>

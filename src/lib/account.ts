@@ -25,3 +25,9 @@ export function clearAccount() {
   localStorage.removeItem(KEY)
   localStorage.removeItem('ugsouq_myphone')
 }
+
+// A checkout for another phone must never inherit the signed-in buyer credential.
+export function accountAfterCheckout(current: Account | null, details: Account): Account {
+  const normalise = (phone: string) => phone.replace(/[\s-]+/g, '').trim()
+  return { ...details, deletionToken: current && normalise(current.phone) === normalise(details.phone) ? current.deletionToken : undefined }
+}

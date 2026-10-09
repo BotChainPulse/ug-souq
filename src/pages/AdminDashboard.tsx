@@ -76,6 +76,12 @@ export default function AdminDashboard() {
   const [keyInput, setKeyInput] = useState('')
   const [mobileMenu, setMobileMenu] = useState(false)
   const [orderSearch, setOrderSearch] = useState('')
+  const [loginError, setLoginError] = useState('')
+  const utils = trpc.useUtils()
+  const verifyLogin = trpc.admin.login.useMutation({
+    onSuccess: (_result, input) => { setAdminSessionKey(input.key); setAdminKey(input.key); setKeyInput(''); setLoginError('') },
+    onError: () => setLoginError('Sign-in failed. Check your administrator key and try again.'),
+  })
 
   const statsQuery = trpc.admin.stats.useQuery({ key: adminKey }, { enabled: !!adminKey, retry: false })
   const ordersQuery = trpc.admin.orders.useQuery({ key: adminKey, search: orderSearch || undefined }, { enabled: !!adminKey, retry: false })
@@ -95,17 +101,18 @@ export default function AdminDashboard() {
   const approvedSellers = useMemo(() => sellers.filter((seller) => seller?.status === 'approved').length, [sellers])
   const marketingOptIns = Number(marketingData?.totals?.subscribers ?? marketingSubscribers.filter((subscriber: any) => subscriber?.emailOptIn || subscriber?.whatsappOptIn).length)
   const loading = statsQuery.isLoading || ordersQuery.isLoading
-  const hasError = Boolean(statsQuery.error || ordersQuery.error || marketingQuery.error)
+  const hasError = Boolean(statsQuery.error || ordersQuery.error || sellersQuery.error || payoutsQuery.error || marketingQuery.error)
 
   const login = () => {
     const key = keyInput.trim()
     if (!key) return
-    setAdminSessionKey(key)
-    setAdminKey(key)
+    setLoginError('')
+    verifyLogin.mutate({ key })
   }
 
   const logout = () => {
     clearAdminSessionKey()
+    utils.invalidate()
     setAdminKey('')
     setKeyInput('')
   }
@@ -128,8 +135,9 @@ export default function AdminDashboard() {
               <div><p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700">UG Souq</p><h1 className="text-xl font-black">Administrator Console</h1></div>
             </div>
             <p className="mt-5 text-sm leading-6 text-slate-500">Private marketplace control for orders, sellers, payments, deliveries and business operations.</p>
-            <input type="password" value={keyInput} onChange={(e) => setKeyInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && login()} placeholder="Administrator key" className="mt-6 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-500" />
-            <button onClick={login} className="mt-3 w-full rounded-xl py-3 text-sm font-bold text-white" style={{ backgroundColor: BRAND }}>Open Dashboard</button>
+            <label className="sr-only" htmlFor="dashboard-admin-key">Administrator key</label><input id="dashboard-admin-key" autoComplete="off" type="password" value={keyInput} onChange={(e) => setKeyInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && login()} placeholder="Administrator key" className="mt-6 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-emerald-500" />
+            <p role="alert" className="mt-2 text-sm text-red-700">{loginError}</p>
+            <button onClick={login} disabled={!keyInput.trim() || verifyLogin.isPending} className="disabled:opacity-50 mt-3 w-full rounded-xl py-3 text-sm font-bold text-white" style={{ backgroundColor: BRAND }}>{verifyLogin.isPending ? 'Checking…' : 'Open Dashboard'}</button>
             <button onClick={() => navigate('/')} className="mt-2 w-full py-2 text-sm font-semibold text-slate-500">Back to UG Souq</button>
           </div>
         </div>
@@ -139,9 +147,11 @@ export default function AdminDashboard() {
 
   const modules = [
     ['Orders', 'Payments, fulfillment status and customer order operations.', `${orders.length} loaded`, ShoppingBag],
-    ['Payments', 'Flutterwave payment monitoring and reconciliation layer.', paidOrders ? `${paidOrders} paid` : 'Gateway setup', CreditCard],
+    ['Payments', 'Recorded payment attempts and reconciliation; provider activation remains separate.', paidOrders ? `${paidOrders} paid` : 'Gateway setup', CreditCard],
     ['UG Souq Plus', 'Pilot records and future membership controls; delivery fees remain active.', 'Pilot', Crown],
     ['Customers', 'Customer account, order history and support operations.', 'Operations', Users],
+    ['Seller Ads', 'Review bookings, payment evidence and the sponsored campaign queue.', 'Priority', Megaphone],
+    ['Company Partnerships', 'Signed brand and distributor pilot terms, evidence and expiry.', 'Private records', Store],
     ['Sellers & Products', 'Seller approvals, listing moderation and catalog health.', `${approvedSellers} approved`, Store],
     ['Delivery Control', 'Delivery partners, dispatch queue and tracking operations.', `${activeDeliveries} active`, Truck],
     ['Marketing Deals', 'Select genuine discounted products and send them to opted-in customers.', `${marketingOptIns} opt-ins`, Megaphone],
@@ -155,6 +165,8 @@ export default function AdminDashboard() {
 
   const moduleDestinations: Record<string, string> = {
     Orders: '/admin/operations?tab=orders',
+    'Seller Ads': '/admin/ads',
+    'Company Partnerships': '/admin/operations?tab=sellers',
     Payments: '/admin/operations?tab=payments',
     'UG Souq Plus': '/admin/operations?tab=plus',
     Customers: '/admin/operations?tab=customers',
@@ -183,7 +195,7 @@ export default function AdminDashboard() {
           <button className="flex w-full items-center gap-3 rounded-xl bg-white/10 px-3 py-3 font-bold"><Activity size={18} /> Dashboard</button>
           <button onClick={() => navigate('/admin/operations')} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 font-semibold text-slate-300 hover:bg-white/5"><Boxes size={18} /> Operations</button>
           <button onClick={() => navigate('/admin/marketing')} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 font-semibold text-slate-300 hover:bg-white/5"><Megaphone size={18} /> Marketing Deals</button>
-          <button onClick={() => navigate('/plus')} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 font-semibold text-slate-300 hover:bg-white/5"><Crown size={18} /> Plus Membership</button>
+          <button onClick={() => navigate('/admin/operations?tab=plus')} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 font-semibold text-slate-300 hover:bg-white/5"><Crown size={18} /> Plus Membership</button>
         </nav>
         <div className="absolute inset-x-0 bottom-0 border-t border-white/10 p-4"><button onClick={logout} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-rose-300"><LogOut size={18} /> Sign out</button></div>
       </aside>
@@ -206,7 +218,7 @@ export default function AdminDashboard() {
 
           <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
             <Metric label="Total Orders" value={String(stats?.orderCount ?? orders.length)} icon={ShoppingBag} note={`${paidOrders} paid in loaded orders`} />
-            <Metric label="Revenue" value={`UGX ${Number(stats?.revenue ?? 0).toLocaleString()}`} icon={CircleDollarSign} note="Marketplace revenue" />
+            <Metric label="Active order value" value={`UGX ${Number(stats?.revenue ?? 0).toLocaleString()}`} icon={CircleDollarSign} note="Non-cancelled orders; includes unpaid amounts" />
             <Metric label="Sellers" value={String(stats?.sellerCount ?? sellers.length)} icon={Store} note={`${approvedSellers} approved`} />
             <Metric label="Products" value={String(stats?.productCount ?? 0)} icon={PackageCheck} note="Marketplace catalog" />
             <Metric label="Active Delivery" value={String(activeDeliveries)} icon={Truck} note="Preparing or on the way" />
@@ -226,7 +238,7 @@ export default function AdminDashboard() {
 
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Integration status</p><h2 className="mt-1 font-black">Payments & messaging</h2>
-              <div className="mt-4 space-y-3"><div className="rounded-xl bg-slate-50 p-3"><div className="flex items-center gap-3"><CreditCard size={18} className="text-emerald-700" /><div><p className="text-sm font-bold">Flutterwave</p><p className="text-xs text-slate-500">Payments + Plus membership</p></div></div><p className="mt-2 text-xs font-semibold text-amber-700">Backend transaction controls still need to be connected.</p></div><div className="rounded-xl bg-slate-50 p-3"><div className="flex items-center gap-3"><MessageSquareText size={18} className="text-emerald-700" /><div><p className="text-sm font-bold">Africa’s Talking</p><p className="text-xs text-slate-500">SMS confirmations + tracking alerts</p></div></div><p className="mt-2 text-xs font-semibold text-slate-600">Provider connection not added yet.</p></div></div>
+              <div className="mt-4 space-y-3"><div className="rounded-xl bg-slate-50 p-3"><div className="flex items-center gap-3"><CreditCard size={18} className="text-emerald-700" /><div><p className="text-sm font-bold">Payment providers</p><p className="text-xs text-slate-500">Orders and provider transaction records</p></div></div><p className="mt-2 text-xs font-semibold text-amber-700">Records alone do not confirm a live gateway. Check provider mode and verified transactions in Payments.</p></div><div className="rounded-xl bg-slate-50 p-3"><div className="flex items-center gap-3"><MessageSquareText size={18} className="text-emerald-700" /><div><p className="text-sm font-bold">Africa’s Talking</p><p className="text-xs text-slate-500">SMS confirmations + tracking alerts</p></div></div><p className="mt-2 text-xs font-semibold text-slate-600">Provider connection not added yet.</p></div></div>
             </div>
           </section>
 

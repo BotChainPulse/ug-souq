@@ -1,3 +1,4 @@
+import { activePartnership, type PartnershipSnapshot } from "./partnershipPolicy";
 export const FREE_LISTING_LIMIT = 5;
 export const PRO_LISTING_LIMIT = 50;
 export const PRO_MONTHLY_FEE = 30_000;
@@ -21,7 +22,10 @@ export function isActiveSellerPro(
   );
 }
 
-export function sellerPlan(subscription: SellerSubscriptionSnapshot | null | undefined, now = new Date()) {
+export function sellerPlan(subscription: SellerSubscriptionSnapshot | null | undefined, now = new Date(), partnership?: PartnershipSnapshot | null) {
+  if (activePartnership(partnership, now)) {
+    return { tier: "partner" as const, listingLimit: partnership!.listingLimit, commissionRate: Number(partnership!.commissionRate), monthlyFee: 0, expiresAt: partnership!.endsAt };
+  }
   const pro = isActiveSellerPro(subscription, now);
   return {
     tier: pro ? "pro" as const : "free" as const,

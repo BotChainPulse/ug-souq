@@ -127,10 +127,10 @@ export default function AdminLaunch() {
           {loginError && <p className="mt-2 text-sm text-red-600">{loginError}</p>}
           <button
             onClick={() => login.mutate({ key: keyInput.trim() })}
-            disabled={!keyInput.trim() || login.isLoading}
+            disabled={!keyInput.trim() || login.isPending}
             className="mt-3 w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"
           >
-            {login.isLoading ? 'Checking…' : 'Open Launch Control'}
+            {login.isPending ? 'Checking…' : 'Open Launch Control'}
           </button>
           <button onClick={() => navigate('/')} className="mt-3 w-full text-sm text-slate-500">Back to marketplace</button>
         </div>
@@ -139,9 +139,9 @@ export default function AdminLaunch() {
   }
 
   const allOrders = (orders.data as any[]) ?? []
-  const approvedPartners = ((partners.data as any[]) ?? []).filter((partner: any) => partner?.status === 'approved')
+  const approvedPartners = (partners.data?.partners ?? []).filter((partner: any) => partner?.status === 'approved')
   const s = (stats.data as any) ?? {}
-  const busy = setOrderStatus.isLoading || setPaymentStatus.isLoading || assignDeliveryPartner.isLoading
+  const busy = setOrderStatus.isPending || setPaymentStatus.isPending || assignDeliveryPartner.isPending
 
   if (stats.error || orders.error || partners.error) {
     const error = stats.error || orders.error || partners.error
