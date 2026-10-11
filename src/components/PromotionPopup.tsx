@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router'
-import { ArrowRight, Megaphone } from 'lucide-react'
+import { ArrowRight, Megaphone, Store } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from './ui/dialog'
-import { POPUP_ROTATION_KEY, POPUP_SESSION_KEY, promotionPage, usablePromotions, type Promotion } from '../lib/promotionPopup'
+import { POPUP_ROTATION_KEY, POPUP_SESSION_KEY, promotionPage, promotionChoices, type PopupPromotion } from '../lib/promotionPopup'
 
 export default function PromotionPopup() {
   const { pathname } = useLocation()
-  const [promotion, setPromotion] = useState<Promotion | null>(null)
+  const [promotion, setPromotion] = useState<PopupPromotion | null>(null)
   const [open, setOpen] = useState(false)
   const [shownPath, setShownPath] = useState('')
   const shown = useRef(false)
@@ -16,7 +16,7 @@ export default function PromotionPopup() {
     if (!eligible || shown.current) return
     try { if (sessionStorage.getItem(POPUP_SESSION_KEY)) return } catch { /* In-memory cap still applies. */ }
     const controller = new AbortController()
-    let ads: Promotion[] = []
+    let ads = promotionChoices([])
     let waited = false
     let scrolled = false
     let finished = false
@@ -24,7 +24,7 @@ export default function PromotionPopup() {
       if (finished || !waited || !scrolled || !ads.length || document.visibilityState !== 'visible') return
       // Do not interrupt another dialog, typing, or a seller booking form.
       if (document.querySelector('[role="dialog"]') || document.activeElement?.matches('input, textarea, select, [contenteditable="true"]')) return
-      ads = usablePromotions(ads)
+      ads = promotionChoices(ads)
       if (!ads.length) return
       let next = 0
       try {
@@ -47,8 +47,8 @@ export default function PromotionPopup() {
     }
     fetch('/api/ads/active', { signal: controller.signal })
       .then(response => response.ok ? response.json() : [])
-      .then(data => { ads = usablePromotions(data); maybeShow() })
-      .catch(() => { /* No campaign feed means no popup. */ })
+      .then(data => { ads = promotionChoices(data); maybeShow() })
+      .catch(() => { /* The UGSouq seller invitation does not require a campaign feed. */ })
     const timer = window.setTimeout(() => { waited = true; maybeShow() }, 20000)
     window.addEventListener('scroll', onScroll, { passive: true })
     document.addEventListener('visibilitychange', maybeShow)
@@ -65,16 +65,17 @@ export default function PromotionPopup() {
       {promotion && <DialogContent className="max-h-[85dvh] w-[calc(100%-2rem)] max-w-md gap-0 overflow-y-auto rounded-3xl border-emerald-200 bg-white p-0 text-neutral-900 sm:max-w-md [&>button]:flex [&>button]:h-11 [&>button]:w-11 [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full [&>button]:bg-white [&>button]:opacity-100">
         <div className="bg-gradient-to-br from-emerald-800 to-emerald-600 px-6 pb-6 pt-6 pr-16 text-white">
           <div className="mb-4 flex items-center gap-2"><img src="/logo-mark.png" alt="" className="h-9 w-9 rounded-lg bg-white object-contain" /><span className="text-lg font-black">UGSouq</span></div>
-          <DialogTitle className="text-2xl font-extrabold leading-tight text-white">Discover deals on UGSouq</DialogTitle>
-          <DialogDescription className="mt-2 text-sm text-emerald-50">{promotion.placementType === 'paid' ? 'Explore a seller’s sponsored offer.' : 'Explore a UGSouq featured product.'}</DialogDescription>
+          <DialogTitle className="text-2xl font-extrabold leading-tight text-white">{promotion.placementType === 'seller_signup' ? 'Sell on UGSouq' : 'Discover deals on UGSouq'}</DialogTitle>
+          <DialogDescription className="mt-2 text-sm text-emerald-50">{promotion.placementType === 'seller_signup' ? 'Your products. Your shop. A place to grow.' : promotion.placementType === 'paid' ? 'Explore a seller’s sponsored offer.' : 'Explore a UGSouq featured product.'}</DialogDescription>
         </div>
         <div className="p-5 sm:p-6">
-          <div className="mb-3 flex items-center gap-2 text-xs font-bold text-emerald-800"><Megaphone size={15} />{promotion.placementType === 'paid' ? 'Sponsored · paid seller campaign' : 'UGSouq featured · platform-funded pilot'}</div>
-          <img src={promotion.image || '/images/product-default.png'} alt={promotion.headline} onError={event => { if (!event.currentTarget.src.endsWith('/images/product-default.png')) event.currentTarget.src = '/images/product-default.png' }} className="h-40 w-full rounded-2xl bg-neutral-50 object-contain p-3 sm:h-48" />
+          <div className="mb-3 flex items-center gap-2 text-xs font-bold text-emerald-800"><Megaphone size={15} />{promotion.placementType === 'seller_signup' ? 'Seller registration · UGSouq invitation' : promotion.placementType === 'paid' ? 'Sponsored · paid seller campaign' : 'UGSouq featured · platform-funded pilot'}</div>
+          {promotion.placementType === 'seller_signup' ? <div className="flex h-40 flex-col items-center justify-center gap-3 rounded-2xl bg-emerald-50 text-emerald-800 sm:h-48"><Store size={64} strokeWidth={1.5} /><span className="font-extrabold">Made for Ugandan sellers</span></div> : <img src={promotion.image || '/images/product-default.png'} alt={promotion.headline} onError={event => { if (!event.currentTarget.src.endsWith('/images/product-default.png')) event.currentTarget.src = '/images/product-default.png' }} className="h-40 w-full rounded-2xl bg-neutral-50 object-contain p-3 sm:h-48" />}
           <h3 className="mt-4 break-words text-lg font-extrabold">{promotion.headline}</h3>
           <p className="mt-1 text-sm text-neutral-600">{promotion.sellerName}</p>
           {promotion.message && <p className="mt-2 break-words text-sm leading-relaxed text-neutral-600">{promotion.message}</p>}
-          <Link to={promotion.targetPath} onClick={() => setOpen(false)} className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 font-extrabold text-white hover:bg-orange-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">View offer <ArrowRight size={18} /></Link>
+          <Link to={promotion.targetPath} onClick={() => setOpen(false)} className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 py-3 font-extrabold text-white hover:bg-orange-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">{promotion.placementType === 'seller_signup' ? 'Start selling' : 'View offer'} <ArrowRight size={18} /></Link>
+          {promotion.placementType !== 'seller_signup' && <Link to="/sell" onClick={() => setOpen(false)} className="mt-2 flex min-h-11 items-center justify-center rounded-xl text-sm font-bold text-emerald-800 hover:bg-emerald-50">Have products to sell? Join UGSouq</Link>}
           <button type="button" onClick={() => setOpen(false)} className="mt-2 min-h-11 w-full rounded-xl text-sm font-semibold text-neutral-600 hover:bg-neutral-100">Continue browsing</button>
         </div>
       </DialogContent>}

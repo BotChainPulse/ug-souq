@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { promotionPage, usablePromotions } from './promotionPopup'
+import { promotionChoices, promotionPage, usablePromotions } from '../src/lib/promotionPopup'
 
 describe('promotion placement boundaries', () => {
+  it('keeps a truthful seller invitation available and distinct from paid campaigns', () => {
+    const choices = promotionChoices([])
+    expect(choices).toHaveLength(1)
+    expect(choices[0]).toMatchObject({ placementType: 'seller_signup', targetPath: '/sell' })
+    expect(promotionChoices(choices)).toHaveLength(1)
+    const ad = { id: 1, placementType: 'paid', sellerName: 'Shop', headline: 'Offer', targetPath: '/product/listing-1' }
+    expect(promotionChoices([ad]).map(choice => choice.placementType)).toEqual(['seller_signup', 'paid'])
+  })
   it('allows shopping pages but excludes checkout, identity, legal and administrator flows', () => {
     for (const path of ['/', '/catalog', '/mall', '/search', '/promotions', '/food', '/product/samsung-a15', '/seller/2']) expect(promotionPage(path)).toBe(true)
     for (const path of ['/cart', '/checkout', '/pay', '/account', '/orders', '/orders/ABC', '/track', '/admin', '/admin/ads', '/payment-settings', '/privacy', '/delete-account', '/sell/listings']) expect(promotionPage(path)).toBe(false)
