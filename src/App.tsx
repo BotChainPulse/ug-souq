@@ -3,6 +3,8 @@ import { useEffect } from 'react'
 import { CartProvider } from './lib/cart'
 import ChatBot from './components/ChatBot'
 import SponsoredBanner from './components/SponsoredBanner'
+import PromotionPopup from './components/PromotionPopup'
+import { promotionPage } from './lib/promotionPopup'
 import AdminNavigationBridge from './components/AdminNavigationBridge'
 import Home from './pages/Home'
 import Sell from './pages/Sell'
@@ -58,7 +60,8 @@ export default function App() {
   return (
     <CartProvider>
       {!isAdminRoute && <ChatBot />}
-      {!isAdminRoute && location.pathname !== '/' && <SponsoredBanner />}
+      {!isAdminRoute && <PromotionPopup />}
+      {!isAdminRoute && !promotionPage(location.pathname) && !/^\/(cart|pay|account|orders|track|payment-settings|addresses)(\/|$)/.test(location.pathname) && <SponsoredBanner />}
       {isAdminRoute && <AdminNavigationBridge />}
       <Routes>
         <Route path="/" element={<Home />} />
