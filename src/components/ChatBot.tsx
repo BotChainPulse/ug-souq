@@ -6,7 +6,7 @@ import { ORANGE } from '../lib/site'
 type Msg = { from: 'bot' | 'user'; text: string; links?: { label: string; to: string }[] }
 
 const buyerOpts = [
-  'Track my order', 'Shop Flash Sale', 'Order food (KFC, chicken & more)',
+  'Track my order', 'Shop deals', 'Order food (KFC, chicken & more)',
   'Payment options', 'Returns & refunds', 'Open Help Centre',
 ]
 const sellerOpts = [
@@ -17,7 +17,7 @@ const sellerOpts = [
 function answer(q: string): Msg {
   const t = q.toLowerCase()
   if (t.includes('track')) return { from: 'bot', text: 'You can track any order with your order code (e.g. US-XXXXX) and the phone number you ordered with.', links: [{ label: 'Track my order', to: '/track' }] }
-  if (t.includes('flash')) return { from: 'bot', text: 'The Flash Sale has verified sellers first, with discounts up to 35%. Deals refresh daily!', links: [{ label: 'Shop Flash Sale', to: '/' }] }
+  if ((t.includes('flash') || t.includes('deal'))) return { from: 'bot', text: 'Browse current discounted prices from marketplace sellers. Offers depend on stock availability.', links: [{ label: 'Shop deals', to: '/catalog?deals=1' }] }
   if (t.includes('food') || t.includes('kfc') || t.includes('chicken')) return { from: 'bot', text: 'UG Souq Food delivers from KFC Kampala, Chicken Tonight, Chips & Chicken Express, Cafe Javas, local kitchens and more — in under 45 minutes.', links: [{ label: 'Order food', to: '/food' }] }
   if (t.includes('payment')) return { from: 'bot', text: 'We accept MTN MoMo, Airtel Money, and cash on delivery. No card needed. Your MoMo PIN is never seen or stored by us.' }
   if (t.includes('return') || t.includes('refund')) return { from: 'bot', text: 'Every order has Buyer Protection: 7-day returns on products, and food issues reported within 2 hours get a refund or credit.', links: [{ label: 'Returns & refunds', to: '/returns' }] }

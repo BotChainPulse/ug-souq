@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router'
 import { Heart, Store, BadgePercent, Grid3X3, UtensilsCrossed, Timer, Send, Leaf, Recycle, Wallet, Zap, Star, Truck, ShieldCheck, Home as HomeIcon, BadgeCheck, ShoppingCart, Check, UserRound } from 'lucide-react'
 import Header from '../components/Header'
@@ -39,30 +39,20 @@ const categoryImages: Record<string, string> = {
 
 const homeTiles = ['phones', 'electronics', 'appliances', 'home', 'womens-fashion', 'mens-fashion', 'beauty', 'grocery', 'agriculture', 'solar', 'sports', 'baby']
 
-function useCountdown() {
-  const [t, setT] = useState(16 * 3600 + 23 * 60 + 49)
-  useEffect(() => {
-    const id = setInterval(() => setT((s) => (s > 0 ? s - 1 : 16 * 3600 + 23 * 60 + 49)), 1000)
-    return () => clearInterval(id)
-  }, [])
-  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60
-  return [h, m, s].map((n) => String(n).padStart(2, '0'))
-}
-
 export default function HomePage() {
-  const [hh, mm, ss] = useCountdown()
-  const { data: products, isLoading } = trpc.products.flashSale.useQuery()
+  const { data: offers, isLoading } = trpc.products.browse.useQuery({ deals: true })
+  const products = offers?.filter(product => product.stock > 0).slice(0, 8)
   const { data: groceryProducts, isLoading: groceriesLoading } = trpc.products.homepageGroceries.useQuery()
   const { add } = useCart()
   const [wishlist, setWishlist] = useState<string[]>(loadWishlist)
-  const [added, setAdded] = useState<number | null>(null)
-  const toggleWish = (id: string | number) => {
-    const next = toggleWishlist(wishlist, wishlistKey('product', id))
+  const [added, setAdded] = useState<string | null>(null)
+  const toggleWish = (id: string | number, kind: 'product' | 'listing' = 'product') => {
+    const next = toggleWishlist(wishlist, wishlistKey(kind, id))
     setWishlist(next); saveWishlist(next)
   }
-  const isWished = (id: string | number) => wishlist.includes(wishlistKey('product', id))
-  const onAdd = (id: number, name: string, price: number) => {
-    add({ itemType: 'product', itemId: id, name, price }); setAdded(id); setTimeout(() => setAdded(null), 1200)
+  const isWished = (id: string | number, kind: 'product' | 'listing' = 'product') => wishlist.includes(wishlistKey(kind, id))
+  const onAdd = (id: number, name: string, price: number, kind: 'product' | 'listing' = 'product') => {
+    add({ itemType: kind, itemId: id, name, price }); setAdded(`${kind}:${id}`); setTimeout(() => setAdded(null), 1200)
   }
 
   return (
@@ -118,22 +108,23 @@ export default function HomePage() {
 
       <section className="mx-auto max-w-7xl px-3 pt-6 sm:px-4">
         <div className="mb-3 flex items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2"><h2 className="flex shrink-0 items-center gap-1.5 text-xl font-extrabold sm:text-2xl"><Zap size={21} className="text-emerald-700" /> Flash Sale</h2><div className="flex items-center gap-0.5 text-xs font-bold">{[hh, mm, ss].map((v, i) => <span key={i} className="flex items-center gap-0.5"><span className="rounded bg-neutral-900 px-1.5 py-1 text-white tabular-nums">{v}</span>{i < 2 && <span className="text-neutral-400">:</span>}</span>)}</div></div>
+          <div><h2 className="flex items-center gap-1.5 text-xl font-extrabold sm:text-2xl"><Zap size={21} className="text-emerald-700" /> Seller deals</h2><p className="mt-1 text-xs text-neutral-500">Current discounted prices · subject to stock availability</p></div>
           <Link to="/catalog?deals=1" className="shrink-0 text-xs font-bold text-emerald-700">View all →</Link>
         </div>
         {isLoading ? <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">{[...Array(8)].map((_, i) => <div key={i} className="h-64 animate-pulse rounded-xl bg-white" />)}</div> : (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4">
+            {products?.length === 0 && <p className="col-span-full rounded-xl bg-white p-5 text-sm text-neutral-600">No current discounted items are available. Browse the catalogue for more products.</p>}
             {products?.map((p) => (
-              <article key={p.id} className="group overflow-hidden rounded-xl border border-neutral-200 bg-white transition hover:shadow-md">
+              <article key={p.slug} className="group overflow-hidden rounded-xl border border-neutral-200 bg-white transition hover:shadow-md">
                 <div className="relative bg-neutral-50"><Link to={`/product/${p.slug}`}><img src={p.image} alt={p.name} className="product-image-standard" loading="lazy" /></Link>
                   {p.discount > 0 && <span className="absolute left-2 top-2 rounded-md bg-emerald-700 px-1.5 py-1 text-[10px] font-extrabold text-white">−{p.discount}%</span>}
-                  <button onClick={(e) => { e.preventDefault(); toggleWish(p.id) }} className="absolute right-2 top-2 rounded-full bg-white p-1.5 shadow" aria-label={isWished(p.id) ? `Remove ${p.name} from wishlist` : `Add ${p.name} to wishlist`} aria-pressed={isWished(p.id)}><Heart size={15} className={isWished(p.id) ? 'fill-red-500 text-red-500' : 'text-neutral-500'} /></button>
+                  <button onClick={(e) => { e.preventDefault(); toggleWish(p.id, p.kind) }} className="absolute right-2 top-2 rounded-full bg-white p-1.5 shadow" aria-label={isWished(p.id, p.kind) ? `Remove ${p.name} from wishlist` : `Add ${p.name} to wishlist`} aria-pressed={isWished(p.id, p.kind)}><Heart size={15} className={isWished(p.id, p.kind) ? 'fill-red-500 text-red-500' : 'text-neutral-500'} /></button>
                 </div>
                 <div className="p-2.5 sm:p-3">
                   <span className="block truncate text-[10px] font-semibold text-emerald-700">{p.sellerVerified && <BadgeCheck size={11} className="mr-1 inline" />}{p.sellerName}</span>
                   <Link to={`/product/${p.slug}`}><h3 className="mt-1 line-clamp-2 min-h-[2.4em] text-xs font-semibold leading-snug sm:text-sm">{p.name}</h3></Link>
                   <div className="mt-1.5 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5"><span className="whitespace-nowrap text-sm font-extrabold sm:text-base">{fmt(p.price)}</span>{p.oldPrice && <span className="whitespace-nowrap text-[10px] text-neutral-400 line-through">{fmt(p.oldPrice)}</span>}</div>
-                  <div className="mt-1 flex items-center justify-between"><span className="flex items-center gap-1 text-[10px] text-neutral-500"><Star size={11} className="fill-amber-400 text-amber-400" />{p.sellerRating.toFixed(1)}</span><button onClick={() => onAdd(p.id, p.name, p.price)} aria-label="Add to cart" className="grid h-8 w-8 place-items-center rounded-lg text-white active:scale-95" style={{ background: ORANGE }}>{added === p.id ? <Check size={15} /> : <ShoppingCart size={15} />}</button></div>
+                  <div className="mt-1 flex items-center justify-between"><span className="flex items-center gap-1 text-[10px] text-neutral-500"><Star size={11} className="fill-amber-400 text-amber-400" />{p.sellerRating.toFixed(1)}</span><button onClick={() => onAdd(p.id, p.name, p.price, p.kind)} aria-label="Add to cart" className="grid h-8 w-8 place-items-center rounded-lg text-white active:scale-95" style={{ background: ORANGE }}>{added === `${p.kind}:${p.id}` ? <Check size={15} /> : <ShoppingCart size={15} />}</button></div>
                 </div>
               </article>
             ))}
@@ -149,7 +140,7 @@ export default function HomePage() {
         {groceriesLoading ? <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">{[...Array(6)].map((_, i) => <div key={i} className="h-64 animate-pulse rounded-xl bg-white" />)}</div> : (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-6">
             {groceryProducts?.map((p) => (
-              <article key={p.id} className="group overflow-hidden rounded-xl border border-neutral-200 bg-white transition hover:shadow-md">
+              <article key={p.slug} className="group overflow-hidden rounded-xl border border-neutral-200 bg-white transition hover:shadow-md">
                 <div className="relative bg-neutral-50"><Link to={`/product/${p.slug}`}><img src={p.image} alt={p.name} className="product-image-standard" loading="lazy" /></Link>
                   {p.discount > 0 && <span className="absolute left-2 top-2 rounded-md bg-emerald-700 px-1.5 py-1 text-[10px] font-extrabold text-white">−{p.discount}%</span>}
                   <button onClick={(e) => { e.preventDefault(); toggleWish(p.id) }} className="absolute right-2 top-2 rounded-full bg-white p-1.5 shadow" aria-label={isWished(p.id) ? `Remove ${p.name} from wishlist` : `Add ${p.name} to wishlist`} aria-pressed={isWished(p.id)}><Heart size={15} className={isWished(p.id) ? 'fill-red-500 text-red-500' : 'text-neutral-500'} /></button>
@@ -159,7 +150,7 @@ export default function HomePage() {
                   <span className="block truncate text-[10px] font-semibold text-emerald-700">{p.sellerVerified && <BadgeCheck size={11} className="mr-1 inline" />}{p.sellerName}</span>
                   <Link to={`/product/${p.slug}`}><h3 className="mt-1 line-clamp-2 min-h-[2.4em] text-xs font-semibold leading-snug sm:text-sm">{p.name}</h3></Link>
                   <div className="mt-1.5 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5"><span className="whitespace-nowrap text-sm font-extrabold sm:text-base">{fmt(p.price)}</span>{p.oldPrice && <span className="whitespace-nowrap text-[10px] text-neutral-400 line-through">{fmt(p.oldPrice)}</span>}</div>
-                  <div className="mt-1 flex items-center justify-between"><span className="flex items-center gap-1 text-[10px] text-neutral-500"><Star size={11} className="fill-amber-400 text-amber-400" />{p.sellerRating.toFixed(1)}</span><button onClick={() => onAdd(p.id, p.name, p.price)} aria-label={`Add ${p.name} to cart`} className="grid h-8 w-8 place-items-center rounded-lg text-white active:scale-95" style={{ background: ORANGE }}>{added === p.id ? <Check size={15} /> : <ShoppingCart size={15} />}</button></div>
+                  <div className="mt-1 flex items-center justify-between"><span className="flex items-center gap-1 text-[10px] text-neutral-500"><Star size={11} className="fill-amber-400 text-amber-400" />{p.sellerRating.toFixed(1)}</span><button onClick={() => onAdd(p.id, p.name, p.price)} aria-label={`Add ${p.name} to cart`} className="grid h-8 w-8 place-items-center rounded-lg text-white active:scale-95" style={{ background: ORANGE }}>{added === `product:${p.id}` ? <Check size={15} /> : <ShoppingCart size={15} />}</button></div>
                 </div>
               </article>
             ))}

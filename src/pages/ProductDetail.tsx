@@ -100,7 +100,7 @@ export default function ProductDetailPage() {
                   {p.oldPrice && <span className="text-sm text-neutral-400 line-through">{fmt(p.oldPrice)}</span>}
                   {p.flashSale && (
                     <span className="inline-flex items-center gap-1 text-xs font-bold text-white px-2 py-1 rounded-full bg-red-500">
-                      <Zap size={12} /> Flash sale
+                      <Zap size={12} /> Discounted price
                     </span>
                   )}
                 </div>

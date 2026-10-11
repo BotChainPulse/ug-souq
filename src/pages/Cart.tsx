@@ -110,7 +110,7 @@ export default function Cart() {
                 className="rounded-full px-6 py-3 text-sm font-bold text-white"
                 style={{ background: ORANGE }}
               >
-                Shop Flash Sale
+                Shop deals
               </Link>
               <Link
                 to="/food"
