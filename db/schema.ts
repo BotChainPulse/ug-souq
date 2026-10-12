@@ -1,3 +1,4 @@
+export { healthcareProfessionals, prescriptionPhotos } from './healthcareSchema';
 export { serviceProviders, serviceRequests } from './serviceSchema';
 import {
   mysqlTable,

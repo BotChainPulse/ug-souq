@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { Search, ShoppingCart, ChevronDown, Grid3X3, CircleHelp, MapPin, X, Smartphone, Tv, Shirt, Footprints, Wheat, Home as HomeIcon, RefreshCcw, UtensilsCrossed, Blend, UserRound } from 'lucide-react'
+import { Search, ShoppingCart, ChevronDown, Grid3X3, CircleHelp, MapPin, X, Smartphone, Tv, Shirt, Footprints, Wheat, Home as HomeIcon, RefreshCcw, UtensilsCrossed, Blend, UserRound, Stethoscope } from 'lucide-react'
 import { ORANGE } from '../lib/site'
 import { useCart } from '../lib/cart'
 
 const CATEGORIES = [
+  { name: 'Doctors & Pharmacists', q: '', to: '/healthcare', icon: Stethoscope },
   { name: 'Services & Service Providers', q: '', to: '/services', icon: HomeIcon },
   { name: 'Phones', q: 'phone', icon: Smartphone },
   { name: 'Electronics & TVs', q: 'electronics', icon: Tv },

@@ -1,3 +1,5 @@
+import { healthcareRouter } from './healthcare';
+import { deleteCustomerHealthcareData } from './healthcarePrivacy';
 import { deleteCustomerServiceData } from './servicePrivacy';
 import { servicesRouter } from './services';
 import { listingPrice, validateListingOffer } from "../src/lib/listingOffer";
@@ -55,6 +57,7 @@ async function upsertCustomer(db: any, name: string, phone: string, email?: stri
 
 export const appRouter = createRouter({
   services: servicesRouter,
+  healthcare: healthcareRouter,
   ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),
   admin: adminRouter,
   trust: trustRouter,
@@ -885,6 +888,7 @@ export const appRouter = createRouter({
         }
 
         await db.transaction(async (tx) => {
+          await deleteCustomerHealthcareData(tx, customer.id);
           await deleteCustomerServiceData(tx, customer.id);
           await tx.delete(marketingSubscribers).where(or(
             eq(marketingSubscribers.phone, phone),

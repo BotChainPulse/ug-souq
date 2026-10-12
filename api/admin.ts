@@ -1,3 +1,5 @@
+import { healthcareAdminRouter } from './healthcare';
+import { customerMatchesSearch } from '../src/lib/customerSearch';
 import { serviceAdminRouter } from './services';
 import { partnershipRouter } from "./partnerships";
 import { sellerPartnerships } from "../db/schema";
@@ -159,6 +161,7 @@ async function createNotification(params: {
 
 export const adminRouter = createRouter({
   services: serviceAdminRouter(requireAdmin),
+  healthcare: healthcareAdminRouter(requireAdmin),
   partnerships: partnershipRouter(requireAdmin),
   login: publicQuery.input(z.object({ key: z.string() })).mutation(({ input }) => {
     requireAdmin(input.key);
@@ -753,8 +756,7 @@ export const adminRouter = createRouter({
     const rows = await db.select().from(customers).orderBy(desc(customers.createdAt));
     let filtered = rows;
     if (input.search) {
-      const q = input.search.toLowerCase();
-      filtered = filtered.filter((c) => c.name.toLowerCase().includes(q) || c.phone.includes(q));
+      filtered = filtered.filter((c) => customerMatchesSearch(c, input.search!));
     }
 
     // Get order counts per customer

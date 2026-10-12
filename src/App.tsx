@@ -1,3 +1,5 @@
+import Healthcare from './pages/Healthcare'
+import HealthcareRegister from './pages/HealthcareRegister'
 import Services from './pages/Services'
 import ServiceRegister from './pages/ServiceRegister'
 import ServiceTerms from './pages/ServiceTerms'
@@ -62,12 +64,14 @@ export default function App() {
 
   return (
     <CartProvider>
-      {!isAdminRoute && <ChatBot />}
-      {!isAdminRoute && <PromotionPopup />}
-      {!isAdminRoute && !promotionPage(location.pathname) && !/^\/(cart|pay|account|orders|track|payment-settings|addresses|services)(\/|$)/.test(location.pathname) && <SponsoredBanner />}
+      {!isAdminRoute && !location.pathname.startsWith('/healthcare') && <ChatBot />}
+      {!isAdminRoute && !location.pathname.startsWith('/healthcare') && <PromotionPopup />}
+      {!isAdminRoute && !promotionPage(location.pathname) && !/^\/(cart|pay|account|orders|track|payment-settings|addresses|services|healthcare)(\/|$)/.test(location.pathname) && <SponsoredBanner />}
       {isAdminRoute && <AdminNavigationBridge />}
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/healthcare" element={<Healthcare />} />
+        <Route path="/healthcare/register" element={<HealthcareRegister />} />
         <Route path="/services" element={<Services />} />
         <Route path="/services/register" element={<ServiceRegister />} />
         <Route path="/services/terms" element={<ServiceTerms />} />
