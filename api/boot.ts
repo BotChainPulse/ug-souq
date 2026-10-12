@@ -1,3 +1,4 @@
+import { listingPrice } from "../src/lib/listingOffer";
 import { PARTNERSHIP_TABLE_SQL } from "./partnershipPolicy";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -53,6 +54,9 @@ async function ensureStartupSchema() {
   await addColumn(`ALTER TABLE seller_ad_bookings ADD COLUMN objective ENUM('product_sales','product_views','shop_visits') NULL`);
   await addColumn(`ALTER TABLE seller_ad_bookings ADD COLUMN cta ENUM('shop_now','view_product','visit_shop') NULL`);
   await addColumn(`ALTER TABLE seller_ad_bookings ADD COLUMN requested_start_date VARCHAR(10) NULL`);
+  await addColumn(`ALTER TABLE listings ADD COLUMN offer_percent INT NULL`);
+  await addColumn(`ALTER TABLE listings ADD COLUMN offer_starts_at TIMESTAMP NULL`);
+  await addColumn(`ALTER TABLE listings ADD COLUMN offer_ends_at TIMESTAMP NULL`);
   await addColumn(`ALTER TABLE listings ADD COLUMN is_branded BOOLEAN NOT NULL DEFAULT FALSE`);
   await addColumn(`ALTER TABLE listings ADD COLUMN brand_name VARCHAR(128) NULL`);
   await addColumn(`ALTER TABLE listings ADD COLUMN authenticity_evidence TEXT NULL`);
@@ -341,8 +345,7 @@ app.get("/api/ads/active", async (c) => {
       ctaLabel,
       requestedStartDate: booking.requestedStartDate,
       image: listing.imageData ?? "/images/product-default.png",
-      price: listing.price,
-      oldPrice: listing.oldPrice,
+      ...listingPrice(listing),
       stock: listing.stock,
       targetPath,
     };

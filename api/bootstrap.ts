@@ -216,6 +216,9 @@ const TABLES = [
 
 // Column upgrades for existing tables (ignored when the column already exists)
 const ALTERS = [
+  "ALTER TABLE listings ADD COLUMN `offer_percent` INT NULL",
+  "ALTER TABLE listings ADD COLUMN `offer_starts_at` TIMESTAMP NULL",
+  "ALTER TABLE listings ADD COLUMN `offer_ends_at` TIMESTAMP NULL",
   "ALTER TABLE orders ADD COLUMN \`payment_status\` enum('unpaid','pending_confirmation','paid') NOT NULL DEFAULT 'unpaid'",
   "ALTER TABLE orders ADD COLUMN \`payment_ref\` varchar(64) NULL",
   "ALTER TABLE orders ADD COLUMN \`commission_fee\` int NOT NULL DEFAULT 0",

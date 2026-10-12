@@ -14,7 +14,7 @@ import {
 
 export default function ProductDetailPage() {
   const { slug = '' } = useParams()
-  const { data: p, isLoading } = trpc.products.bySlug.useQuery({ slug })
+  const { data: p, isLoading } = trpc.products.bySlug.useQuery({ slug }, { refetchInterval: 60_000 })
   const { add } = useCart()
   const [added, setAdded] = useState(false)
   const [zoneId, setZoneId] = useState('kampala')
@@ -104,6 +104,7 @@ export default function ProductDetailPage() {
                     </span>
                   )}
                 </div>
+                {p.kind === 'listing' && p.offerEndsAt && <p className="mt-2 text-xs text-green-800">Seller offer ends {new Date(p.offerEndsAt).toLocaleString()}. Subject to available stock.</p>}
                 {p.stock <= 10 && p.stock > 0 && <p className="mt-1 text-xs font-semibold text-amber-700">Few units left — order soon</p>}
                 {p.stock === 0 && <p className="mt-1 text-xs font-semibold text-red-600">Out of stock</p>}
                 {p.condition !== 'new' && (

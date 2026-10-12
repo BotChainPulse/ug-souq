@@ -1,3 +1,4 @@
+import { listingPrice, validateListingOffer } from "../src/lib/listingOffer";
 import { sellerPartnerships } from "../db/schema";
 import { activePartnership } from "./partnershipPolicy";
 import { z } from "zod";
@@ -176,7 +177,7 @@ export const appRouter = createRouter({
           .from(listings)
           .innerJoin(sellers, eq(listings.sellerId, sellers.id))
           .where(eq(listings.id, listingId));
-        if (!listingRow || listingRow.listing.status !== "approved") return null;
+        if (!listingRow || listingRow.listing.status !== "approved" || listingRow.seller.status !== "approved") return null;
         const { listing, seller } = listingRow;
         return {
           kind: "listing" as const,
@@ -185,8 +186,7 @@ export const appRouter = createRouter({
           name: listing.name,
           slug: input.slug,
           category: listing.category,
-          price: listing.price,
-          oldPrice: listing.oldPrice,
+          ...listingPrice(listing),
           image: listing.imageData ?? "/images/product-default.png",
           stock: listing.stock,
           condition: listing.condition,
@@ -197,7 +197,6 @@ export const appRouter = createRouter({
           sellerVerified: seller.verified,
           sellerRating: seller.rating / 10,
           sellerDistrict: seller.district,
-          discount: listing.oldPrice ? Math.round((1 - listing.price / listing.oldPrice) * 100) : 0,
         };
       }
       const [row] = await db
@@ -205,7 +204,7 @@ export const appRouter = createRouter({
         .from(products)
         .innerJoin(sellers, eq(products.sellerId, sellers.id))
         .where(eq(products.slug, input.slug));
-      if (!row) return null;
+      if (!row || row.seller.status !== "approved") return null;
       return {
         kind: "product" as const,
         ...row.product,
@@ -219,7 +218,7 @@ export const appRouter = createRouter({
     bySeller: publicQuery.input(z.object({ sellerId: z.number() })).query(async ({ input }) => {
       const db = getDb();
       const [seller] = await db.select().from(sellers).where(eq(sellers.id, input.sellerId));
-      if (!seller) return null;
+      if (!seller || seller.status !== "approved") return null;
       const rows = await db
         .select({ product: products, seller: sellers })
         .from(products)
@@ -247,8 +246,7 @@ export const appRouter = createRouter({
           name: listing.name,
           slug: 'listing-' + listing.id,
           category: listing.category,
-          price: listing.price,
-          oldPrice: listing.oldPrice,
+          ...listingPrice(listing),
           image: listing.imageData ?? "/images/product-default.png",
           stock: listing.stock,
           condition: listing.condition,
@@ -258,7 +256,6 @@ export const appRouter = createRouter({
           sellerName: seller.shopName,
           sellerVerified: seller.verified,
           sellerRating: seller.rating / 10,
-          discount: listing.oldPrice ? Math.round((1 - listing.price / listing.oldPrice) * 100) : 0,
         }));
       return {
         seller: {
@@ -285,6 +282,7 @@ export const appRouter = createRouter({
           .innerJoin(sellers, eq(products.sellerId, sellers.id));
         const cat = input.category?.trim().toLowerCase();
         const items = rows
+          .filter(({ seller }) => seller.status === "approved")
           .map(({ product, seller }) => ({
             kind: "product" as const,
             ...product,
@@ -295,13 +293,13 @@ export const appRouter = createRouter({
           }))
           .filter((p) => (cat ? p.category.toLowerCase() === cat : true))
           .filter((p) => (input.condition ? p.condition === input.condition : true))
-          .filter((p) => (input.deals ? p.discount >= 5 : true));
+          .filter((p) => (input.deals ? p.discount > 0 && p.stock > 0 : true));
         // Approved seller listings appear on the market too, with their uploaded photos
         const lrows = await db
           .select({ listing: listings, seller: sellers })
           .from(listings)
           .innerJoin(sellers, eq(listings.sellerId, sellers.id))
-          .where(eq(listings.status, "approved"));
+          .where(and(eq(listings.status, "approved"), eq(sellers.status, "approved")));
         const litems = lrows
           .map(({ listing, seller }) => ({
             kind: "listing" as const,
@@ -310,8 +308,7 @@ export const appRouter = createRouter({
             name: listing.name,
             slug: `listing-${listing.id}`,
             category: listing.category,
-            price: listing.price,
-            oldPrice: listing.oldPrice,
+            ...listingPrice(listing),
             image: listing.imageData ?? "/images/product-default.png",
             stock: listing.stock,
             condition: listing.condition,
@@ -321,11 +318,10 @@ export const appRouter = createRouter({
             sellerName: seller.shopName,
             sellerVerified: seller.verified,
             sellerRating: seller.rating / 10,
-            discount: listing.oldPrice ? Math.round((1 - listing.price / listing.oldPrice) * 100) : 0,
-          }))
+            }))
           .filter((p) => (cat ? p.category.toLowerCase() === cat : true))
           .filter((p) => (input.condition ? p.condition === input.condition : true))
-          .filter((p) => (input.deals ? p.discount >= 5 : true));
+          .filter((p) => (input.deals ? p.discount > 0 && p.stock > 0 : true));
         return [...items, ...litems].sort((a, b) => Number(b.sellerVerified) - Number(a.sellerVerified));
       }),
     search: publicQuery.input(z.object({ q: z.string().min(1) })).query(async ({ input }) => {
@@ -335,15 +331,27 @@ export const appRouter = createRouter({
         .select({ product: products, seller: sellers })
         .from(products)
         .innerJoin(sellers, eq(products.sellerId, sellers.id))
-        .where(or(like(products.name, q), like(products.category, q)));
-      return rows
+        .where(and(eq(sellers.status, "approved"), or(like(products.name, q), like(products.category, q))));
+      const productResults = rows
         .map(({ product, seller }) => ({
+          kind: "product" as const,
           ...product,
           sellerName: seller.shopName,
           sellerVerified: seller.verified,
           discount: product.oldPrice ? Math.round((1 - product.price / product.oldPrice) * 100) : 0,
         }))
-        .sort((a, b) => Number(b.sellerVerified) - Number(a.sellerVerified));
+        ;
+      const listingRows = await db.select({ listing: listings, seller: sellers }).from(listings)
+        .innerJoin(sellers, eq(listings.sellerId, sellers.id))
+        .where(and(eq(listings.status, "approved"), eq(sellers.status, "approved"), or(like(listings.name, q), like(listings.category, q))));
+      const listingResults = listingRows.map(({ listing, seller }) => ({
+        kind: "listing" as const, id: listing.id, sellerId: listing.sellerId,
+        name: listing.name, slug: `listing-${listing.id}`, category: listing.category,
+        ...listingPrice(listing), image: listing.imageData ?? "/images/product-default.png",
+        stock: listing.stock, condition: listing.condition, warrantyMonths: listing.warrantyMonths,
+        sellerName: seller.shopName, sellerVerified: seller.verified,
+      }));
+      return [...productResults, ...listingResults].sort((a, b) => Number(b.sellerVerified) - Number(a.sellerVerified));
     }),
   }),
 
@@ -454,12 +462,16 @@ export const appRouter = createRouter({
               if (row.item.stock < requested.qty) {
                 throw new TRPCError({ code: "CONFLICT", message: `${row.item.name} has only ${row.item.stock} left in stock.` });
               }
+              const pricing = listingPrice(row.item);
+              if (requested.price == null || requested.price !== pricing.price) {
+                throw new TRPCError({ code: "CONFLICT", message: `${row.item.name} has a new price. Refresh the product and update your cart before ordering.` });
+              }
               await tx.update(listings)
                 .set({ stock: sql`${listings.stock} - ${requested.qty}` })
                 .where(eq(listings.id, requested.itemId));
               const terms = await commercialTerms(row.item.sellerId);
-              const fee = commissionForLine(row.item.price, requested.qty, terms.commissionRate);
-              canonicalItems.push({ itemType: "listing", itemId: row.item.id, name: row.item.name, price: row.item.price, qty: requested.qty, sellerId: row.item.sellerId, commissionRate: terms.commissionRate.toFixed(4), commissionFee: fee, sellerNet: row.item.price * requested.qty - fee });
+              const fee = commissionForLine(pricing.price, requested.qty, terms.commissionRate);
+              canonicalItems.push({ itemType: "listing", itemId: row.item.id, name: row.item.name, price: pricing.price, qty: requested.qty, sellerId: row.item.sellerId, commissionRate: terms.commissionRate.toFixed(4), commissionFee: fee, sellerNet: pricing.price * requested.qty - fee });
               continue;
             }
 
@@ -641,9 +653,12 @@ export const appRouter = createRouter({
         phone: z.string().min(9),
         name: z.string().min(3),
         category: z.string().min(2),
-        price: z.number().min(100),
+        price: z.number().int().min(100).max(2_000_000_000),
         oldPrice: z.number().optional(),
-        stock: z.number().min(1).max(10000),
+        offerPercent: z.number().int().min(1).max(99).optional(),
+        offerStartsAt: z.string().datetime().optional(),
+        offerEndsAt: z.string().datetime().optional(),
+        stock: z.number().int().min(1).max(10000),
         condition: z.enum(["new", "refurbished", "used"]),
         warrantyMonths: z.number().min(0).max(60),
         isBranded: z.boolean().default(false),
@@ -653,6 +668,11 @@ export const appRouter = createRouter({
         imageData: z.string().min(100, "A real photo of the item is required").max(2_000_000, "Photo is too large to save"),
       }))
       .mutation(async ({ input }) => {
+        if (input.oldPrice != null) throw new TRPCError({ code: "BAD_REQUEST", message: "Use the regular price, discount percentage and offer dates. Refresh the seller listing form." });
+        let offer;
+        try { offer = validateListingOffer(input); } catch (error) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Invalid offer." });
+        }
         const db = getDb();
         const [seller] = await db.select().from(sellers).where(eq(sellers.phone, input.phone.trim()));
         if (!seller) throw new Error("No shop registered with this phone number. Register your shop first.");
@@ -679,7 +699,8 @@ export const appRouter = createRouter({
           name: input.name,
           category: input.category,
           price: input.price,
-          oldPrice: input.oldPrice ?? null,
+          oldPrice: null,
+          ...offer,
           stock: input.stock,
           condition: input.condition,
           warrantyMonths: input.condition === "new" ? 0 : input.warrantyMonths,

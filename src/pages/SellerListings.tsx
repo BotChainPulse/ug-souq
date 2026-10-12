@@ -1,3 +1,4 @@
+import { discountedPrice, listingPrice } from '../lib/listingOffer'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import {
@@ -89,7 +90,7 @@ export default function SellerListings() {
   })
 
   const [form, setForm] = useState({
-    name: '', category: 'phones', price: '', oldPrice: '', stock: '1',
+    name: '', category: 'phones', price: '', offerPercent: '', offerStartsAt: '', offerEndsAt: '', stock: '1',
     condition: 'new' as 'new' | 'refurbished' | 'used', warrantyMonths: '6', imageNote: '',
     isBranded: false, brandName: '', authenticityEvidence: '',
   })
@@ -104,23 +105,31 @@ export default function SellerListings() {
   const plan = seller?.plan
   const hasListingSlot = !plan || plan.listingsUsed < plan.listingLimit
 
+  const percent = Number(form.offerPercent)
+  const hasOffer = form.offerPercent !== ''
+  const offerValid = !hasOffer || (Number.isInteger(percent) && percent >= 1 && percent <= 99 &&
+    discountedPrice(Number(form.price), percent) >= 100 && !!form.offerStartsAt && !!form.offerEndsAt &&
+    new Date(form.offerEndsAt) > new Date(form.offerStartsAt) && new Date(form.offerEndsAt) > new Date())
+
   const canSubmit =
     approved &&
     hasListingSlot &&
     form.name.trim().length >= 3 &&
-    Number(form.price) >= 100 &&
-    Number(form.stock) >= 1 &&
+    Number.isInteger(Number(form.price)) && Number(form.price) >= 100 && Number(form.price) <= 2_000_000_000 && offerValid &&
+    Number.isInteger(Number(form.stock)) && Number(form.stock) >= 1 && Number(form.stock) <= 10000 &&
     photo !== null && !photoBusy &&
     (!form.isBranded || (form.brandName.trim().length >= 2 && form.authenticityEvidence.trim().length >= 10)) &&
     (form.condition === 'new' || Number(form.warrantyMonths) >= 1)
 
   const submit = async () => {
-    await addListing.mutateAsync({
+    try { await addListing.mutateAsync({
       phone: searched,
       name: form.name.trim(),
       category: form.category,
       price: Number(form.price),
-      oldPrice: form.oldPrice ? Number(form.oldPrice) : undefined,
+      offerPercent: hasOffer ? percent : undefined,
+      offerStartsAt: hasOffer ? new Date(form.offerStartsAt).toISOString() : undefined,
+      offerEndsAt: hasOffer ? new Date(form.offerEndsAt).toISOString() : undefined,
       stock: Number(form.stock),
       condition: form.condition,
       warrantyMonths: form.condition === 'new' ? 0 : Number(form.warrantyMonths),
@@ -130,9 +139,10 @@ export default function SellerListings() {
       imageNote: form.imageNote.trim() || undefined,
       imageData: photo!,
     })
-    setForm({ name: '', category: 'phones', price: '', oldPrice: '', stock: '1', condition: 'new', warrantyMonths: '6', imageNote: '', isBranded: false, brandName: '', authenticityEvidence: '' })
+    setForm({ name: '', category: 'phones', price: '', offerPercent: '', offerStartsAt: '', offerEndsAt: '', stock: '1', condition: 'new', warrantyMonths: '6', imageNote: '', isBranded: false, brandName: '', authenticityEvidence: '' })
     setPhoto(null)
     setJustAdded(true)
+    } catch { /* The mutation error is displayed beside the submit button. */ }
   }
 
   return (
@@ -154,6 +164,12 @@ export default function SellerListings() {
         <p className="mt-2 text-neutral-600 max-w-xl">
           New, refurbished or second-hand — submit your item here. Our team reviews every listing before it goes live on the market.
         </p>
+
+        <div className="mt-5 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-900">
+          <b>Your price, your offer.</b> Set a regular price and an optional discount from 1–99% with start and end dates.
+          Our team reviews the price and offer before publication. Approved, in-stock offers appear in Deals during their offer window.
+          The regular price returns when the offer ends. Featured advertising is booked separately.
+        </div>
 
         {/* Step 1: identify shop */}
         <div className="mt-8 bg-white rounded-2xl border border-neutral-200 p-6">
@@ -272,7 +288,7 @@ export default function SellerListings() {
 
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-bold text-neutral-600 uppercase tracking-wide">Price (UGX) *</label>
+                  <label className="text-xs font-bold text-neutral-600 uppercase tracking-wide">Regular price (UGX) *</label>
                   <input
                     type="number" min={100} value={form.price}
                     onChange={(e) => set('price', e.target.value)}
@@ -281,15 +297,21 @@ export default function SellerListings() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-neutral-600 uppercase tracking-wide">Old price (UGX) — optional</label>
-                  <input
-                    type="number" min={0} value={form.oldPrice}
-                    onChange={(e) => set('oldPrice', e.target.value)}
-                    placeholder="Shows as a discount"
-                    className="mt-1 w-full h-11 rounded-xl border border-neutral-300 px-4 text-sm outline-none focus:border-orange-500"
-                  />
+                  <label htmlFor="offer-percent" className="text-xs font-bold text-neutral-600 uppercase tracking-wide">Discount % — optional</label>
+                  <input id="offer-percent" type="number" min={1} max={99} step={1} value={form.offerPercent}
+                    onChange={(e) => set('offerPercent', e.target.value)} placeholder="e.g. 10"
+                    className="mt-1 w-full h-11 rounded-xl border border-neutral-300 px-4 text-sm outline-none focus:border-orange-500" />
                 </div>
               </div>
+              {hasOffer && <div className="rounded-xl border border-green-200 bg-green-50 p-4 space-y-3">
+                <p className="font-bold text-green-800">Offer price: {fmt(discountedPrice(Number(form.price), percent))}</p>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div><label htmlFor="offer-start" className="text-sm font-semibold">Offer starts</label><input id="offer-start" type="datetime-local" value={form.offerStartsAt} onChange={(e) => set('offerStartsAt', e.target.value)} className="mt-1 w-full min-w-0 rounded-lg border p-2 bg-white" /></div>
+                  <div><label htmlFor="offer-end" className="text-sm font-semibold">Offer ends</label><input id="offer-end" type="datetime-local" value={form.offerEndsAt} onChange={(e) => set('offerEndsAt', e.target.value)} className="mt-1 w-full min-w-0 rounded-lg border p-2 bg-white" /></div>
+                </div>
+                <p className="text-xs text-green-900">Dates use your device’s local time zone ({Intl.DateTimeFormat().resolvedOptions().timeZone}). Approval is required; an offer may expire while awaiting review.</p>
+                {!offerValid && <p role="alert" className="text-sm text-red-700">Enter a whole discount from 1–99%, a final price of at least UGX 100, and valid start/end dates.</p>}
+              </div>}
 
               <div>
                 <label className="text-xs font-bold text-neutral-600 uppercase tracking-wide">Condition *</label>
@@ -425,11 +447,11 @@ export default function SellerListings() {
                     <div className="min-w-0">
                       <p className="font-semibold text-sm truncate">{l.name}</p>
                       <p className="text-xs text-neutral-500">
-                        {fmt(l.price)} · {l.condition}{l.condition !== 'new' ? `, ${l.warrantyMonths}mo warranty` : ''} · stock {l.stock}
+                        {fmt(listingPrice(l).price)} · {l.condition}{l.condition !== 'new' ? `, ${l.warrantyMonths}mo warranty` : ''} · stock {l.stock}
                       </p>
                     </div>
                   </div>
-                  <StatusPill status={l.status} />
+                  <div className="text-right shrink-0"><StatusPill status={l.status} />{l.offerPercent && <p className="mt-1 text-xs text-neutral-600">{l.offerPercent}% offer · {listingPrice(l).offerActive ? 'within offer window' : 'outside offer window'}</p>}</div>
                 </div>
               ))}
             </div>
