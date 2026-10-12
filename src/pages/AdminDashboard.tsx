@@ -146,6 +146,7 @@ export default function AdminDashboard() {
   }
 
   const modules = [
+    ['Service Providers', 'Review provider applications and coordinate service enquiries. No charging is active.', 'Pilot', Users],
     ['Orders', 'Payments, fulfillment status and customer order operations.', `${orders.length} loaded`, ShoppingBag],
     ['Payments', 'Recorded payment attempts and reconciliation; provider activation remains separate.', paidOrders ? `${paidOrders} paid` : 'Gateway setup', CreditCard],
     ['UG Souq Plus', 'Pilot records and future membership controls; delivery fees remain active.', 'Pilot', Crown],
@@ -170,6 +171,7 @@ export default function AdminDashboard() {
     Payments: '/admin/operations?tab=payments',
     'UG Souq Plus': '/admin/operations?tab=plus',
     Customers: '/admin/operations?tab=customers',
+    'Service Providers': '/admin/operations?tab=services',
     'Sellers & Products': '/admin/operations?tab=sellers',
     'Delivery Control': '/admin/deliveries',
     'Marketing Deals': '/admin/marketing',

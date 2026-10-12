@@ -1,3 +1,5 @@
+import { cleanupServiceData } from './servicePrivacy';
+import { SERVICE_TABLE_SQL } from '../db/serviceSchema';
 import { listingPrice } from "../src/lib/listingOffer";
 import { PARTNERSHIP_TABLE_SQL } from "./partnershipPolicy";
 import { Hono } from "hono";
@@ -18,6 +20,7 @@ async function ensureStartupSchema() {
   const raw: any = (db as any).$client;
   const client: any = typeof raw.promise === "function" ? raw.promise() : raw;
   await client.query(PARTNERSHIP_TABLE_SQL);
+  for (const stmt of SERVICE_TABLE_SQL) await client.query(stmt);
 
   const addColumn = async (sql: string) => {
     try {
@@ -477,6 +480,8 @@ export default app;
 
 if (env.isProduction) {
   await ensureStartupSchema();
+  await cleanupServiceData();
+  setInterval(() => { cleanupServiceData().catch(() => console.error("Service retention cleanup failed; administrator action needed.")); }, 24 * 60 * 60 * 1000).unref();
   startMarketingCampaignScheduler();
   const { serve } = await import("@hono/node-server");
   const { serveStaticFiles } = await import("./lib/vite");

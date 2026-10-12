@@ -30,6 +30,7 @@ export default function Footer() {
           <Link to="/support" className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full bg-emerald-500/10 px-3 text-sm font-semibold text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300"><CircleHelp size={15} /> Help Centre</Link>
         </div>
         <FooterGroup title="Shop">
+            <li><Link to="/services" className="hover:text-white">Services catalogue</Link></li>
             <li><Link to="/mall" className="hover:text-white">Super Mall</Link></li>
             <li><Link to="/catalog?deals=1" className="hover:text-white">Today's Deals</Link></li>
             <li><Link to="/food" className="hover:text-white">UG Souq Food</Link></li>
@@ -38,6 +39,8 @@ export default function Footer() {
             <li><Link to="/catalog?condition=refurbished" className="hover:text-white">Refurbished</Link></li>
         </FooterGroup>
         <FooterGroup title="Sell & Earn">
+            <li><Link to="/services/register" className="hover:text-white">Become a service provider</Link></li>
+            <li><Link to="/services/terms" className="hover:text-white">Provider agreement</Link></li>
             <li><Link to="/sell" className="hover:text-white">Open a shop</Link></li>
             <li><Link to="/sell/listings" className="hover:text-white">List an item</Link></li>
             <li><Link to="/verification" className="hover:text-white">Get verified</Link></li>

@@ -1,3 +1,4 @@
+import { serviceAdminRouter } from './services';
 import { partnershipRouter } from "./partnerships";
 import { sellerPartnerships } from "../db/schema";
 import { activePartnership } from "./partnershipPolicy";
@@ -157,6 +158,7 @@ async function createNotification(params: {
 }
 
 export const adminRouter = createRouter({
+  services: serviceAdminRouter(requireAdmin),
   partnerships: partnershipRouter(requireAdmin),
   login: publicQuery.input(z.object({ key: z.string() })).mutation(({ input }) => {
     requireAdmin(input.key);
@@ -767,7 +769,7 @@ export const adminRouter = createRouter({
     }
 
     return filtered.map((c) => ({
-      ...c,
+      id: c.id, name: c.name, phone: c.phone, email: c.email, location: c.location, createdAt: c.createdAt,
       orderCount: orderMap.get(c.phone) ?? 0,
       totalSpent: spentMap.get(c.phone) ?? 0,
     }));

@@ -1,3 +1,6 @@
+import Services from './pages/Services'
+import ServiceRegister from './pages/ServiceRegister'
+import ServiceTerms from './pages/ServiceTerms'
 import { Routes, Route, useLocation } from 'react-router'
 import { useEffect } from 'react'
 import { CartProvider } from './lib/cart'
@@ -61,10 +64,13 @@ export default function App() {
     <CartProvider>
       {!isAdminRoute && <ChatBot />}
       {!isAdminRoute && <PromotionPopup />}
-      {!isAdminRoute && !promotionPage(location.pathname) && !/^\/(cart|pay|account|orders|track|payment-settings|addresses)(\/|$)/.test(location.pathname) && <SponsoredBanner />}
+      {!isAdminRoute && !promotionPage(location.pathname) && !/^\/(cart|pay|account|orders|track|payment-settings|addresses|services)(\/|$)/.test(location.pathname) && <SponsoredBanner />}
       {isAdminRoute && <AdminNavigationBridge />}
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/services" element={<Services />} />
+        <Route path="/services/register" element={<ServiceRegister />} />
+        <Route path="/services/terms" element={<ServiceTerms />} />
         <Route path="/sell" element={<Sell />} />
         <Route path="/affiliates" element={<Affiliates />} />
         <Route path="/verification" element={<Verification />} />

@@ -1,3 +1,4 @@
+import ServiceAdminPanel from '../components/admin/ServiceAdminPanel'
 import PartnershipPanel from "../components/admin/PartnershipPanel"
 import { useEffect, useState } from 'react'
 import React from 'react'
@@ -37,7 +38,7 @@ const SELLER_STATUS_COLORS: Record<string, string> = {
 
 const ORDER_STATUSES = ["placed","confirmed","pending_delivery","on_the_way","delivered","cancelled"] as const
 const ADMIN_TAB_IDS = new Set([
-  'overview', 'sellers', 'listings', 'orders', 'payments', 'customers', 'plus',
+  'services', 'overview', 'sellers', 'listings', 'orders', 'payments', 'customers', 'plus',
   'accounts', 'payouts', 'deliveries', 'returns', 'ads', 'marketing',
   'notifications', 'affiliates', 'audit', 'reports', 'settings',
 ])
@@ -917,8 +918,9 @@ export default function Admin() {
     { id: "orders", label: "Orders", icon: ShoppingCart },
     { id: "payments", label: "Payments", icon: CreditCard },
     { id: "customers", label: "Customers", icon: Users },
+    { id: "services", label: "Service Providers", icon: Users },
     { id: "plus", label: "UG Souq Plus", icon: ShieldCheck },
-    { id: "accounts", label: "Accounts", icon: Users },
+    { id: "accounts", label: "Financial Accounts", icon: Users },
     { id: "payouts", label: "Payouts", icon: CreditCard },
     { id: "deliveries", label: "Deliveries", icon: Truck },
     { id: "returns", label: "Returns", icon: RotateCcw },
@@ -995,6 +997,7 @@ export default function Admin() {
           {tab === "orders" && <OrderErrorBoundary><Orders adminKey={adminKey} /></OrderErrorBoundary>}
           {tab === "payments" && <PaymentsPanel adminKey={adminKey} />}
           {tab === "customers" && <BuyersPanel adminKey={adminKey} />}
+          {tab === "services" && <ServiceAdminPanel adminKey={adminKey} />}
           {tab === "plus" && <PlusMembersPanel adminKey={adminKey} />}
           {tab === "accounts" && <Accounts adminKey={adminKey} />}
           {tab === "payouts" && <Payouts adminKey={adminKey} />}
