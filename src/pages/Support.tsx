@@ -22,7 +22,7 @@ export default function Support() {
         </span>
         <h1 className="mt-5 text-3xl font-extrabold tracking-tight">How can we help?</h1>
         <p className="mt-3 max-w-2xl leading-relaxed text-neutral-600">
-          Use the protected tools below for order, return, seller and privacy matters. During the pilot, customer support is provided through these in-site tools.
+          Use the protected tools below for order, return, seller and privacy matters. You can also email our team using the addresses below.
         </p>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -35,9 +35,17 @@ export default function Support() {
           ))}
         </div>
 
-        <section className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm leading-relaxed text-amber-950">
-          <h2 className="font-extrabold">Direct support inbox is being verified</h2>
-          <p className="mt-1">The official support email will be published here only after inbound delivery has passed testing. Until then, use the secure in-site tools above. Never share a password, PIN, OTP or full payment details with anyone claiming to represent UG Souq.</p>
+        <section className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm leading-relaxed text-emerald-950">
+          <h2 className="font-extrabold">Email our team</h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            {[
+              { label: 'Customer and seller support', email: 'support@ugsouq.com' },
+              { label: 'Company partnerships', email: 'partnerships@ugsouq.com' },
+              { label: 'General enquiries', email: 'info@ugsouq.com' },
+            ].map(({ label, email }) => <div key={email} className="rounded-xl bg-white p-3"><p className="font-bold">{label}</p><a href={`mailto:${email}`} className="mt-1 inline-flex min-h-11 items-center break-all font-semibold text-emerald-800 underline underline-offset-4">{email}</a></div>)}
+          </div>
+          <p className="mt-3">Include your order reference if your message concerns an order. Never send a password, PIN, OTP, full card details or identity documents by email. Use the protected tools above for private account actions.</p>
+          <p className="mt-2">Account recovery requires ownership verification. Emailing support does not automatically unlock an account or order history.</p>
         </section>
 
         <Link to="/" className="mt-8 inline-flex min-h-11 items-center rounded-full px-5 text-sm font-bold text-white" style={{ background: ORANGE }}>Return to the market</Link>
