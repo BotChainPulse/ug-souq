@@ -5,6 +5,7 @@ import { ORANGE } from '../lib/site'
 import { useCart } from '../lib/cart'
 
 const CATEGORIES = [
+  { name: 'Services & Service Providers', q: '', to: '/services', icon: HomeIcon },
   { name: 'Phones', q: 'phone', icon: Smartphone },
   { name: 'Electronics & TVs', q: 'electronics', icon: Tv },
   { name: "Women's Fashion", q: 'fashion', icon: Shirt },
@@ -51,6 +52,7 @@ export default function Header() {
           <button onClick={() => setCatOpen(true)} className="flex items-center gap-2 rounded-xl border border-neutral-200 p-2.5 text-sm font-medium transition-colors hover:bg-emerald-50 hover:text-emerald-800 dark:border-neutral-700 dark:hover:bg-emerald-950/50 dark:hover:text-emerald-300">
             <Grid3X3 size={18} /><span className="hidden sm:inline">Categories</span><ChevronDown size={14} className="hidden sm:inline" />
           </button>
+          <Link to="/services" className="shrink-0 rounded-lg bg-green-50 px-2 py-2 text-xs font-bold text-green-800">Services</Link>
           <div className="flex-1" />
           <Link to="/account" className="rounded-full p-2 transition-colors hover:bg-emerald-50 dark:hover:bg-emerald-950/50" aria-label="My account"><UserRound size={22} /></Link>
           <Link to="/cart" className="relative rounded-full p-2 transition-colors hover:bg-emerald-50 dark:hover:bg-emerald-950/50" aria-label="Cart">

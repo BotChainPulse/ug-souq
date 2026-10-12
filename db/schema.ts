@@ -1,3 +1,4 @@
+export { serviceProviders, serviceRequests } from './serviceSchema';
 import {
   mysqlTable,
   mysqlEnum,

@@ -1,27 +1,32 @@
+import { sameRegistrationDay } from '../../lib/servicePolicy'
 import { useState } from 'react'
 import { trpc } from '../../providers/trpc'
 import { fmt } from '../../lib/cart'
 import { Search, Phone, MapPin, ShoppingBag, ChevronDown, ChevronUp, Package } from 'lucide-react'
 
 export default function BuyersPanel({ adminKey }: { adminKey: string }) {
+  const [todayOnly, setTodayOnly] = useState(false)
   const [search, setSearch] = useState('')
   const [expandedPhone, setExpandedPhone] = useState<string | null>(null)
 
-  const { data, isLoading } = trpc.admin.customers.useQuery({ key: adminKey, search: search || undefined })
+  const { data, isLoading, error, refetch } = trpc.admin.customers.useQuery({ key: adminKey, search: search || undefined })
   const { data: customerOrders } = trpc.admin.customerOrders.useQuery(
     { key: adminKey, phone: expandedPhone ?? '' },
     { enabled: !!expandedPhone }
   )
 
-  const customers = data ?? []
+  const allCustomers = data ?? []
+  const customers = todayOnly ? allCustomers.filter(c => sameRegistrationDay(c.createdAt)) : allCustomers
 
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-xl border border-neutral-200 p-4">
         <h2 className="font-bold text-lg">Buyers / Customers</h2>
-        <p className="text-xs text-neutral-500 mt-1">{customers.length} registered customers with order history.</p>
+        <p className="text-xs text-neutral-500 mt-1">{customers.length} registered buyer accounts. Includes buyers with zero orders; no administrator approval is needed.</p>
       </div>
 
+      <div className="flex gap-2"><button onClick={() => setTodayOnly(!todayOnly)} aria-pressed={todayOnly} className="rounded-lg border px-4 py-2 bg-white">{todayOnly ? 'Show all registrations' : 'Registered today (Kampala)'}</button><button onClick={() => refetch()} className="rounded-lg border px-4 py-2 bg-white">Refresh</button></div>
+      {error && <p role="alert" className="text-red-700">Customer records could not load: {error.message}</p>}
       {/* Search */}
       <div className="relative">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
@@ -36,14 +41,14 @@ export default function BuyersPanel({ adminKey }: { adminKey: string }) {
 
       {isLoading && <p className="text-neutral-500">Loading customers...</p>}
 
-      {customers.length === 0 && !isLoading && (
+      {customers.length === 0 && !isLoading && !error && (
         <div className="bg-white rounded-xl border border-neutral-200 p-8 text-center">
           <p className="text-neutral-500">No customers found.</p>
         </div>
       )}
 
       <div className="space-y-3">
-        {customers.map((c: any) => (
+        {customers.map((c) => (
           <div key={c.id} className="bg-white rounded-xl border border-neutral-200 overflow-hidden">
             <div
               className="p-4 flex flex-wrap items-center justify-between gap-3 cursor-pointer hover:bg-neutral-50"
@@ -58,6 +63,7 @@ export default function BuyersPanel({ adminKey }: { adminKey: string }) {
                   <p className="text-xs text-neutral-500 flex items-center gap-1">
                     <Phone size={10} /> {c.phone}
                   </p>
+                  <p className="text-xs text-neutral-500 mt-1">Registered {new Date(c.createdAt).toLocaleString('en-UG', { timeZone: 'Africa/Kampala' })} (Kampala time)</p>
                   {c.location && (
                     <p className="text-xs text-neutral-400 flex items-center gap-1 mt-0.5">
                       <MapPin size={10} /> {c.location}
@@ -81,7 +87,7 @@ export default function BuyersPanel({ adminKey }: { adminKey: string }) {
                   <p className="text-sm text-neutral-400">No orders found.</p>
                 ) : (
                   <div className="space-y-2">
-                    {customerOrders.map((o: any) => (
+                    {customerOrders.map((o) => (
                       <div key={o.id} className="bg-white rounded-lg border border-neutral-200 p-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
@@ -96,7 +102,7 @@ export default function BuyersPanel({ adminKey }: { adminKey: string }) {
                         <p className="text-xs text-neutral-400 mt-1">{new Date(o.createdAt).toLocaleString('en-UG')}</p>
                         {o.items && o.items.length > 0 && (
                           <div className="mt-2 space-y-1">
-                            {o.items.map((it: any, idx: number) => (
+                            {o.items.map((it, idx: number) => (
                               <p key={idx} className="text-xs text-neutral-600">
                                 {it.qty} × {it.name} — {fmt(it.price * it.qty)}
                               </p>
