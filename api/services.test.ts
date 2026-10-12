@@ -8,7 +8,7 @@ import { SERVICE_PROPOSAL_VERSION } from '../src/lib/servicePolicy'
 import { TRPCError } from '@trpc/server'
 const token = 'a'.repeat(43)
 const customer = { id: 1, phone: '0700000001', deletionTokenHash: accountDeletionTokenHash(token) }
-const form = { phone: customer.phone, businessName: 'Synthetic cleaner', category: 'Cleaning' as const, district: 'Wakiso', description: 'Synthetic cleaning service description for isolated tests.', experience: 'Synthetic experience statement', priceUnit: 'quote' as const, publicProfileConsent: true as const, proposalAcknowledged: true as const, proposalVersion: SERVICE_PROPOSAL_VERSION }
+const form = { phone: customer.phone, businessName: 'Synthetic cleaner', category: 'Cleaning' as const, district: 'Wakiso', description: 'Synthetic cleaning service description for isolated tests.', experience: 'Synthetic experience statement', priceUnit: 'quote' as const, publicProfileConsent: true as const, proposalAcknowledged: true as const, proposalVersion: SERVICE_PROPOSAL_VERSION as typeof SERVICE_PROPOSAL_VERSION }
 const context = (credential?: string) => ({ req: new Request('https://example.test/api/trpc', { headers: credential ? { 'x-ugsouq-customer-credential': credential } : {} }), resHeaders: new Headers() })
 const admin = serviceAdminRouter(key => { if (key !== 'test-key') throw new TRPCError({ code: 'UNAUTHORIZED' }) })
 beforeEach(() => {
