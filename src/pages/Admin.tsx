@@ -1,3 +1,4 @@
+import HealthcareAdminPanel from '../components/admin/HealthcareAdminPanel'
 import ServiceAdminPanel from '../components/admin/ServiceAdminPanel'
 import PartnershipPanel from "../components/admin/PartnershipPanel"
 import { useEffect, useState } from 'react'
@@ -38,7 +39,7 @@ const SELLER_STATUS_COLORS: Record<string, string> = {
 
 const ORDER_STATUSES = ["placed","confirmed","pending_delivery","on_the_way","delivered","cancelled"] as const
 const ADMIN_TAB_IDS = new Set([
-  'services', 'overview', 'sellers', 'listings', 'orders', 'payments', 'customers', 'plus',
+  'healthcare', 'services', 'overview', 'sellers', 'listings', 'orders', 'payments', 'customers', 'plus',
   'accounts', 'payouts', 'deliveries', 'returns', 'ads', 'marketing',
   'notifications', 'affiliates', 'audit', 'reports', 'settings',
 ])
@@ -918,6 +919,7 @@ export default function Admin() {
     { id: "orders", label: "Orders", icon: ShoppingCart },
     { id: "payments", label: "Payments", icon: CreditCard },
     { id: "customers", label: "Customers", icon: Users },
+    { id: "healthcare", label: "Healthcare Review", icon: ShieldCheck },
     { id: "services", label: "Service Providers", icon: Users },
     { id: "plus", label: "UG Souq Plus", icon: ShieldCheck },
     { id: "accounts", label: "Financial Accounts", icon: Users },
@@ -997,6 +999,7 @@ export default function Admin() {
           {tab === "orders" && <OrderErrorBoundary><Orders adminKey={adminKey} /></OrderErrorBoundary>}
           {tab === "payments" && <PaymentsPanel adminKey={adminKey} />}
           {tab === "customers" && <BuyersPanel adminKey={adminKey} />}
+          {tab === "healthcare" && <HealthcareAdminPanel adminKey={adminKey} />}
           {tab === "services" && <ServiceAdminPanel adminKey={adminKey} />}
           {tab === "plus" && <PlusMembersPanel adminKey={adminKey} />}
           {tab === "accounts" && <Accounts adminKey={adminKey} />}

@@ -1,3 +1,6 @@
+import { HEALTHCARE_TABLE_SQL } from '../db/healthcareSchema';
+import { cleanupHealthcareData } from './healthcarePrivacy';
+import { primaryAdminDestination } from './adminDestination';
 import { cleanupServiceData } from './servicePrivacy';
 import { SERVICE_TABLE_SQL } from '../db/serviceSchema';
 import { listingPrice } from "../src/lib/listingOffer";
@@ -21,6 +24,7 @@ async function ensureStartupSchema() {
   const client: any = typeof raw.promise === "function" ? raw.promise() : raw;
   await client.query(PARTNERSHIP_TABLE_SQL);
   for (const stmt of SERVICE_TABLE_SQL) await client.query(stmt);
+  for (const stmt of HEALTHCARE_TABLE_SQL) await client.query(stmt);
 
   const addColumn = async (sql: string) => {
     try {
@@ -231,16 +235,26 @@ async function ensureStartupSchema() {
   `);
 }
 const app = new Hono<{ Bindings: HttpBindings }>();
+app.use('/admin*', async (c, next) => {
+  const destination = primaryAdminDestination(c.req.url);
+  if (destination) return c.redirect(destination, 302);
+  await next();
+});
 
 app.use(bodyLimit({ maxSize: 50 * 1024 * 1024 }));
 app.use("/api/trpc/*", async (c) => {
-  return fetchRequestHandler({
+  const response = await fetchRequestHandler({
     endpoint: "/api/trpc",
     allowMethodOverride: true,
     req: c.req.raw,
     router: appRouter,
     createContext,
   });
+  if (c.req.path.includes("healthcare") || c.req.header("x-ugsouq-customer-credential")) {
+    response.headers.set("Cache-Control", "private, no-store");
+    response.headers.set("Pragma", "no-cache");
+  }
+  return response;
 });
 registerMarketingCampaignRoutes(app);
 registerInboundEmailRoutes(app);
@@ -481,6 +495,8 @@ export default app;
 if (env.isProduction) {
   await ensureStartupSchema();
   await cleanupServiceData();
+  await cleanupHealthcareData();
+  setInterval(() => { cleanupHealthcareData().catch(() => console.error("Healthcare retention cleanup failed; administrator action needed.")); }, 60 * 60 * 1000).unref();
   setInterval(() => { cleanupServiceData().catch(() => console.error("Service retention cleanup failed; administrator action needed.")); }, 24 * 60 * 60 * 1000).unref();
   startMarketingCampaignScheduler();
   const { serve } = await import("@hono/node-server");

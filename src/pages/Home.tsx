@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { Heart, Store, BadgePercent, Grid3X3, UtensilsCrossed, Timer, Send, Leaf, Recycle, Wallet, Zap, Star, Truck, ShieldCheck, Home as HomeIcon, BadgeCheck, ShoppingCart, Check, UserRound } from 'lucide-react'
+import { Heart, Store, BadgePercent, Grid3X3, UtensilsCrossed, Timer, Send, Leaf, Recycle, Wallet, Zap, Star, Truck, ShieldCheck, Home as HomeIcon, BadgeCheck, ShoppingCart, Check, UserRound, Stethoscope, Wrench } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import MarketingSignup from '../components/MarketingSignup'
@@ -12,9 +12,11 @@ import { categoryName } from '../lib/categories'
 import { loadWishlist, saveWishlist, toggleWishlist, wishlistKey } from '../lib/wishlist'
 
 const services = [
+  { icon: Wrench, label: 'Home Services', to: '/services' },
+  { icon: Stethoscope, label: 'UG Souq Health', to: '/healthcare' },
   { icon: Store, label: 'Super Mall', to: '/mall' },
   { icon: UtensilsCrossed, label: 'UG Souq Food', to: '/food' },
-  { icon: Timer, label: 'UG Souq Fresh', tag: '45 min', to: '/catalog?category=agriculture&title=UG%20Souq%20Fresh' },
+  { icon: Timer, label: 'UG Souq Fresh', to: '/catalog?category=agriculture&title=UG%20Souq%20Fresh' },
   { icon: Send, label: 'Boda Send', to: '/boda' },
   { icon: Leaf, label: 'Farm Direct', to: '/catalog?category=agriculture&title=Farm%20Direct' },
   { icon: Recycle, label: 'Refurbished', to: '/catalog?condition=refurbished' },
@@ -59,16 +61,16 @@ export default function HomePage() {
     <div className="ugsouq-page-bg min-h-screen pb-16 text-neutral-900 antialiased dark:text-neutral-100 sm:pb-0">
       <Header />
 
-      <div className="border-b border-neutral-200 bg-white dark:border-neutral-800">
-        <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-3 py-2.5 [scrollbar-width:none] sm:px-4">
-          {services.map(({ icon: Icon, label, tag, to }) => (
-            <Link key={label} to={to} className="flex shrink-0 items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-xs font-bold transition hover:border-emerald-300 hover:bg-emerald-50 dark:border-neutral-700 dark:hover:bg-emerald-950/40 sm:text-sm">
-              <Icon size={16} style={{ color: ORANGE }} /> {label}
-              {tag && <span className="rounded-full bg-emerald-700 px-1.5 py-0.5 text-[9px] text-white">{tag}</span>}
+      <nav aria-label="UG Souq departments" className="border-b border-emerald-100 bg-gradient-to-r from-emerald-100 via-cyan-50 to-amber-50 dark:from-emerald-950 dark:via-neutral-950 dark:to-neutral-900">
+        <div className="mx-auto flex max-w-7xl snap-x snap-mandatory gap-3 overflow-x-auto px-3 py-4 [scrollbar-width:thin] sm:px-4">
+          {services.map(({ icon: Icon, label, to }) => (
+            <Link key={label} to={to} className="flex h-28 w-28 shrink-0 snap-start flex-col items-center justify-center gap-2 rounded-3xl border border-white/80 bg-white/95 p-3 text-center text-xs font-black text-emerald-950 shadow-sm transition hover:-translate-y-1 hover:border-emerald-300 focus-visible:ring-2 focus-visible:ring-emerald-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-emerald-100 sm:h-32 sm:w-32 sm:text-sm">
+              <span className="grid h-11 w-11 place-items-center rounded-2xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"><Icon size={26} aria-hidden="true" /></span>
+              <span>{label}</span>
             </Link>
           ))}
         </div>
-      </div>
+      </nav>
 
       <section className="mx-auto max-w-7xl px-3 pt-3 sm:px-4 sm:pt-6">
         <div className="relative overflow-hidden rounded-2xl bg-emerald-950 text-white">
@@ -87,7 +89,8 @@ export default function HomePage() {
 
       <section className="mx-auto max-w-7xl px-3 pt-5 sm:px-4">
         <div className="mb-3 flex items-center justify-between"><h2 className="text-lg font-extrabold sm:text-2xl">Shop by category</h2><Link to="/catalog" className="text-xs font-bold text-emerald-700">View all →</Link></div>
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-12">
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-7">
+          {[{ label: 'Home Services', to: '/services', icon: Wrench }, { label: 'Doctors & Pharmacists', to: '/healthcare', icon: Stethoscope }].map(({ label, to, icon: Icon }) => <Link key={to} to={to} className="group min-w-0 text-center"><span className="mx-auto grid aspect-square w-full max-w-24 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-100 to-cyan-50 shadow-sm ring-1 ring-emerald-200"><Icon size={34} className="text-emerald-800" aria-hidden="true" /></span><span className="mt-1.5 block min-h-8 text-[10px] font-semibold leading-tight sm:text-xs">{label}</span></Link>)}
           {homeTiles.map((slug) => (
             <Link key={slug} to={`/catalog?category=${slug}`} className="group min-w-0 text-center">
               <span className="mx-auto block aspect-square w-full max-w-24 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-neutral-200 dark:ring-neutral-700">
