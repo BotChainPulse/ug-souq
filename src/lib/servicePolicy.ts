@@ -1,4 +1,4 @@
-export const SERVICE_CATEGORIES = ['Cleaning', 'Plumbing', 'Electrical', 'Repairs', 'Painting', 'Moving', 'Tailoring', 'Photography', 'Computers', 'Beauty', 'Gardening'] as const
+export const SERVICE_CATEGORIES = ['Cleaning', 'Plumbing', 'Electrical', 'Repairs', 'Painting', 'Moving', 'Tailoring', 'Photography', 'Computers', 'Beauty', 'Gardening', 'Construction', 'Carpentry', 'Welding', 'Roofing', 'Tiling', 'Automotive', 'Property Services', 'Catering', 'Events', 'Tutoring', 'Laundry', 'Pest Control'] as const
 export const SERVICE_COMMISSION_BPS = 700
 export const SERVICE_PROPOSAL_VERSION = 'services-pilot-2026-10-12'
 export function serviceCommission(labourPaid: number, labourRefunded = 0) {

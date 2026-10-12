@@ -1,15 +1,16 @@
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { trpc } from '../providers/trpc'
 import { getAccount } from '../lib/account'
 import { HEALTHCARE_CONSENT_VERSION } from '../lib/healthcarePolicy'
 export default function HealthcareRegister() {
+  const [searchParams] = useSearchParams()
   const account = getAccount(); const secured = !!account?.deletionToken
   const mine = trpc.healthcare.mine.useQuery({ phone: account?.phone ?? '' }, { enabled: secured, retry: false })
   const apply = trpc.healthcare.registerProfessional.useMutation({ onSuccess: () => mine.refetch() })
-  const [form, setForm] = useState({ name: '', profession: 'doctor' as 'doctor' | 'pharmacist', district: '', facility: '', specialty: '', businessPhone: '', registrationNumber: '', licenceExpiresOn: '', facilityLicenceReference: '', facilityLicenceExpiresOn: '' })
+  const [form, setForm] = useState({ name: '', profession: (searchParams.get('profession') === 'pharmacist' ? 'pharmacist' : 'doctor') as 'doctor' | 'pharmacist', district: '', facility: '', specialty: '', businessPhone: '', registrationNumber: '', licenceExpiresOn: '', facilityLicenceReference: '', facilityLicenceExpiresOn: '' })
   const [consent, setConsent] = useState(false); const [restrictions, setRestrictions] = useState(false)
   const field = 'mt-1 block w-full rounded-xl border border-neutral-300 bg-white p-3 font-normal'
   return <div className="min-h-screen bg-neutral-50"><Header /><main className="mx-auto max-w-3xl space-y-5 px-4 py-8"><h1 className="text-3xl font-black">Register a healthcare professional</h1><p>Doctors and pharmacists apply separately from ordinary service providers. Your profile remains private and pending until identity, current professional registration, practising licence and facility checks are complete.</p>

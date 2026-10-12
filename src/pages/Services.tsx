@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { trpc } from '../providers/trpc'
@@ -8,6 +8,7 @@ import { SERVICE_CATEGORIES } from '../lib/servicePolicy'
 import { fmt } from '../lib/cart'
 
 export default function Services() {
+  const navigate = useNavigate()
   const [q, setQ] = useState('')
   const [district, setDistrict] = useState('')
   const [category, setCategory] = useState<typeof SERVICE_CATEGORIES[number] | ''>('')
@@ -21,9 +22,10 @@ export default function Services() {
   const request = trpc.services.requestQuote.useMutation()
   const chooseProvider = (id: number, area: string) => { setSelected(id); setRequestDistrict(area); request.reset(); setBrief(''); setConsent(false) }
   return <div className="min-h-screen bg-neutral-50"><Header /><main className="mx-auto max-w-6xl px-4 py-8">
-    <div className="flex flex-wrap justify-between gap-4"><div><p className="font-bold text-green-800">UGSouq Services · Pilot</p><h1 className="text-3xl font-black mt-2">Find a service provider</h1><p className="mt-3 text-neutral-600">Cleaning, repairs, trades and creative services across Uganda.</p></div><Link to="/services/register" className="self-start rounded-xl bg-green-800 px-5 py-3 font-bold text-white">Become a service provider</Link></div>
+    <div className="flex flex-wrap justify-between gap-4"><div><p className="font-bold text-green-800">UGSouq Services · Pilot</p><h1 className="text-3xl font-black mt-2">Find a service provider</h1><p className="mt-3 text-neutral-600">Trades, property, vehicle, household and creative services across Uganda.</p></div><Link to="/services/register" className="self-start rounded-xl bg-green-800 px-5 py-3 font-bold text-white">Become a service provider</Link></div>
+    <section className="mt-6 rounded-xl border bg-white p-4"><h2 className="font-bold">Healthcare services</h2><p className="mt-2 text-sm text-neutral-600">Doctors and pharmacists have a separate directory and licence review.</p><div className="mt-3 flex flex-wrap gap-3"><Link to="/healthcare" className="rounded-lg border px-4 py-2 font-bold text-green-800">Find doctors and pharmacists</Link><Link to="/healthcare/register?profession=doctor" className="rounded-lg border px-4 py-2 font-bold text-green-800">Register as a Doctor</Link><Link to="/healthcare/register?profession=pharmacist" className="rounded-lg border px-4 py-2 font-bold text-green-800">Register as a Pharmacist</Link></div></section>
     <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm">Request a quote first. An enquiry does not confirm a booking or charge you. Agree the work, materials, timing and final price in writing. Administrator review is not a guarantee of workmanship or a professional licence.</div>
-    <div className="mt-6 grid gap-3 sm:grid-cols-3"><label className="text-sm font-semibold">Search services<input value={q} maxLength={100} onChange={e => setQ(e.target.value)} className="block w-full border rounded-lg p-3 mt-1" placeholder="e.g. cleaning" /></label><label className="text-sm font-semibold">Category<select value={category} onChange={e => setCategory(e.target.value as typeof category)} className="block w-full border rounded-lg p-3 mt-1"><option value="">All services</option>{SERVICE_CATEGORIES.map(c => <option key={c}>{c}</option>)}</select></label><label className="text-sm font-semibold">District<input value={district} maxLength={64} onChange={e => setDistrict(e.target.value)} className="block w-full border rounded-lg p-3 mt-1" placeholder="e.g. Wakiso" /></label></div>
+    <div className="mt-6 grid gap-3 sm:grid-cols-3"><label className="text-sm font-semibold">Search services<input value={q} maxLength={100} onChange={e => setQ(e.target.value)} className="block w-full border rounded-lg p-3 mt-1" placeholder="e.g. cleaning" /></label><label className="text-sm font-semibold">Category<select value={category} onChange={e => { const value = e.target.value; if (value === 'doctor' || value === 'pharmacist') { navigate('/healthcare'); return }; setCategory(value as typeof category) }} className="block w-full border rounded-lg p-3 mt-1"><option value="">All services</option><optgroup label="General services">{SERVICE_CATEGORIES.map(c => <option key={c}>{c}</option>)}</optgroup><optgroup label="Healthcare directory"><option value="doctor">Doctor</option><option value="pharmacist">Pharmacist</option></optgroup></select></label><label className="text-sm font-semibold">District<input value={district} maxLength={64} onChange={e => setDistrict(e.target.value)} className="block w-full border rounded-lg p-3 mt-1" placeholder="e.g. Wakiso" /></label></div>
     {directory.isLoading && <p className="mt-8">Loading providers…</p>}
     {directory.error && <div role="alert" className="mt-6 text-red-700">Unable to load providers. <button onClick={() => directory.refetch()} className="underline">Retry</button></div>}
     {!directory.isLoading && !directory.error && !directory.data?.length && <div className="mt-8 rounded-2xl bg-white border p-8"><h2 className="font-bold">No approved providers match yet</h2><p className="mt-2 text-neutral-600">Applications are welcome. Profiles appear after review; we do not display demo providers.</p></div>}

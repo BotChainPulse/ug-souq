@@ -67,9 +67,9 @@ export default function AccountPage() {
   }, [profileData])
 
   const handleSave = () => {
-    if (!form.name.trim() || !form.phone.trim() || !form.email.trim()) return
+    if (register.isPending) return
     register.mutate(
-      { name: form.name, phone: form.phone, email: form.email, location: form.location, deletionToken: account?.deletionToken },
+      { name: form.name.trim(), phone: form.phone.trim(), email: form.email.trim(), location: form.location.trim(), deletionToken: account?.deletionToken },
       {
         onSuccess: ({ customer, deletionToken }) => {
           const saved = { name: customer.name, phone: customer.phone, email: customer.email ?? '', location: customer.location ?? '', deletionToken }
@@ -128,11 +128,12 @@ export default function AccountPage() {
           <h1 className="text-2xl font-bold text-gray-900 mb-6">
             {account ? 'Edit Profile' : 'Create Account'}
           </h1>
-          <div className="space-y-4">
+          <form className="space-y-4" onSubmit={e => { e.preventDefault(); handleSave() }}>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
               <input
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+                required minLength={2} maxLength={255} autoComplete="name"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="Your name"
@@ -142,6 +143,7 @@ export default function AccountPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
               <input
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+                required minLength={9} maxLength={32} type="tel" autoComplete="tel"
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 placeholder="07XX XXX XXX"
@@ -151,6 +153,7 @@ export default function AccountPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Email for order updates</label>
               <input
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+                required maxLength={255}
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 type="email"
@@ -162,27 +165,33 @@ export default function AccountPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Location / District</label>
               <input
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+                required minLength={3} maxLength={255}
                 value={form.location}
                 onChange={(e) => setForm({ ...form, location: e.target.value })}
                 placeholder="e.g. Kampala, Mpigi"
               />
             </div>
             <button
-              onClick={handleSave}
-              className="w-full py-3 rounded-lg font-semibold text-white"
+              type="submit"
+              disabled={register.isPending}
+              className="w-full py-3 rounded-lg font-semibold text-white disabled:opacity-50"
               style={{ backgroundColor: ORANGE }}
             >
-              {account ? 'Save Changes' : 'Create Account'}
+              {register.isPending ? (account ? 'Saving…' : 'Creating account…') : account ? 'Save Changes' : 'Create Account'}
             </button>
+            {register.isPending && <p role="status" className="text-sm text-gray-600">Please wait while we save your account.</p>}
+            {register.error && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800"><p>{register.error.message}</p>{register.error.data?.code === 'UNAUTHORIZED' && <Link to="/support" className="mt-2 inline-block font-bold underline">Get help recovering your account</Link>}</div>}
             {account && (
               <button
+                type="button"
+                disabled={register.isPending}
                 onClick={() => setEditing(false)}
                 className="w-full py-3 rounded-lg font-semibold border border-gray-300 text-gray-700"
               >
                 Cancel
               </button>
             )}
-          </div>
+          </form>
         </div>
         <Footer />
       </div>
