@@ -40,7 +40,7 @@ const categoryImages: Record<string, string> = {
 const homeTiles = ['phones', 'electronics', 'appliances', 'home', 'womens-fashion', 'mens-fashion', 'beauty', 'grocery', 'agriculture', 'solar', 'sports', 'baby']
 
 export default function HomePage() {
-  const { data: offers, isLoading } = trpc.products.browse.useQuery({ deals: true })
+  const { data: offers, isLoading } = trpc.products.browse.useQuery({ deals: true }, { refetchInterval: 60_000 })
   const products = offers?.filter(product => product.stock > 0).slice(0, 8)
   const { data: groceryProducts, isLoading: groceriesLoading } = trpc.products.homepageGroceries.useQuery()
   const { add } = useCart()

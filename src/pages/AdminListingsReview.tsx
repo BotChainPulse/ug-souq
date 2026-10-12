@@ -1,3 +1,4 @@
+import { discountedPrice } from '../lib/listingOffer'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { AlertTriangle, ArrowLeft, Check, CheckCircle, Package, Search, X } from 'lucide-react'
@@ -22,7 +23,7 @@ export default function AdminListingsReview() {
     { enabled: !!adminKey, retry: false },
   )
   const setListingStatus = trpc.admin.setListingStatus.useMutation({ onSuccess: () => listings.refetch() })
-  const rows = (listings.data ?? []) as any[]
+  const rows = listings.data ?? []
 
   if (!adminKey) {
     return <div className="min-h-screen grid place-items-center bg-slate-100 p-6"><div className="rounded-2xl bg-white p-6 text-center shadow-sm"><p className="font-bold">Admin sign-in required</p><Link to="/admin" className="mt-3 inline-block text-sm font-bold text-emerald-700">Open admin</Link></div></div>
@@ -39,12 +40,12 @@ export default function AdminListingsReview() {
 
       <main className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
         <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-          Review the item photo and details before approving. Approval publishes the listing to shoppers.
+          Review the item photo and details before approving. Approval publishes the listing to shoppers. Check the regular price, discount and offer dates for misleading price claims. Discounts do not include paid advertising.
         </div>
 
         <div className="grid gap-3 sm:grid-cols-[1fr_190px]">
           <div className="relative"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search product or seller" className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-9 pr-3 text-sm" /></div>
-          <select value={status} onChange={(e) => setStatus(e.target.value as any)} className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold"><option value="pending">Pending</option><option value="all">All status</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select>
+          <select value={status} onChange={(e) => setStatus(e.target.value as typeof status)} className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold"><option value="pending">Pending</option><option value="all">All status</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select>
         </div>
 
         {listings.isLoading && <div className="rounded-2xl bg-white p-8 text-center text-slate-500">Loading listings…</div>}
@@ -62,6 +63,12 @@ export default function AdminListingsReview() {
                 <div className="p-4">
                   <div className="flex flex-wrap items-center gap-2"><h2 className="font-black">{item.name || 'Unnamed listing'}</h2><span className={`rounded-full px-2 py-1 text-xs font-bold ${statusClass[item.status] || statusClass.pending}`}>{item.status || 'pending'}</span>{item.sellerVerified && <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-1 text-xs font-bold text-blue-700"><CheckCircle size={12} />Verified seller</span>}</div>
                   <p className="mt-2 text-xl font-black">UGX {Number(item.price || 0).toLocaleString()}</p>
+                  {item.offerPercent && <div className="mt-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">
+                    <b>{item.offerPercent}% offer · UGX {discountedPrice(Number(item.price), Number(item.offerPercent)).toLocaleString()}</b>
+                    <p>Start: {item.offerStartsAt ? new Date(item.offerStartsAt).toLocaleString() : 'Missing'} · End: {item.offerEndsAt ? new Date(item.offerEndsAt).toLocaleString() : 'Missing'}</p>
+                    <p className="mt-1 text-xs">Offer only applies within these dates after approval. Verify the regular price against genuine selling history.</p>
+                  </div>}
+                  {!item.offerPercent && Number(item.oldPrice) > item.price && <p className="mt-2 text-sm text-amber-800">Legacy undated discount is hidden. A dated offer must be submitted for review.</p>}
                   <p className="mt-1 text-sm text-slate-600">Seller: <b>{item.sellerName || '-'}</b></p>
                   <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                     <div className="rounded-lg bg-slate-50 p-2"><span className="text-slate-500">Category</span><p className="font-bold capitalize">{item.category || '-'}</p></div>

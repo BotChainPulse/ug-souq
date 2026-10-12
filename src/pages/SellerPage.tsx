@@ -10,11 +10,11 @@ import { BadgeCheck, Star, Store, CircleHelp, ShoppingCart, Check, ArrowLeft } f
 export default function SellerPage() {
   const { id = '' } = useParams()
   const sellerId = Number(id)
-  const { data, isLoading } = trpc.products.bySeller.useQuery({ sellerId }, { enabled: !!sellerId })
+  const { data, isLoading } = trpc.products.bySeller.useQuery({ sellerId }, { enabled: !!sellerId, refetchInterval: 60_000 })
   const { add } = useCart()
-  const [added, setAdded] = useState(null)
+  const [added, setAdded] = useState<number | null>(null)
 
-  const onAdd = (p: any) => {
+  const onAdd = (p: NonNullable<typeof data>['products'][number]) => {
     add({ itemType: p.kind === 'listing' ? 'listing' : 'product', itemId: p.id, name: p.name, price: p.price, image: p.image, sellerId: p.sellerId, sellerName: p.sellerName })
     setAdded(p.id)
     setTimeout(() => setAdded(null), 1400)
@@ -97,33 +97,22 @@ export default function SellerPage() {
             {items.map((p) => (
               <div key={p.kind + '-' + p.id} className="group bg-white rounded-2xl border border-neutral-200 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all">
                 <div className="block relative bg-white">
-                  {p.kind === 'product' ? (
                     <Link to={'/product/' + p.slug}>
                       <img src={p.image} alt={p.name} className="product-image-standard" loading="lazy" />
                       {p.discount > 0 && (
                         <span className="absolute top-3 left-3 text-[11px] font-bold text-white px-2 py-0.5 rounded-full" style={{ background: ORANGE }}>{'-' + p.discount + '%'}</span>
                       )}
                     </Link>
-                  ) : (
-                    <>
-                      <img src={p.image} alt={p.name} className="product-image-standard" loading="lazy" />
-                      {p.discount > 0 && (
-                        <span className="absolute top-3 left-3 text-[11px] font-bold text-white px-2 py-0.5 rounded-full" style={{ background: ORANGE }}>{'-' + p.discount + '%'}</span>
-                      )}
-                    </>
-                  )}
+
                 </div>
                 <div className="p-4">
-                  {p.kind === 'product' ? (
                     <Link to={'/product/' + p.slug}><h3 className="text-sm font-medium leading-snug line-clamp-2 min-h-[2.6em] hover:text-orange-600">{p.name}</h3></Link>
-                  ) : (
-                    <h3 className="text-sm font-medium leading-snug line-clamp-2 min-h-[2.6em]">{p.name}</h3>
-                  )}
+
                   <div className="mt-2 flex items-baseline gap-2">
                     <span className="font-extrabold" style={{ color: ORANGE }}>{fmt(p.price)}</span>
                     {p.oldPrice && <span className="text-xs text-neutral-400 line-through">{fmt(p.oldPrice)}</span>}
                   </div>
-                  <button
+                  <button disabled={p.stock < 1}
                     onClick={() => onAdd(p)}
                     className="mt-3 w-full flex items-center justify-center gap-2 text-sm font-bold text-white py-2.5 rounded-xl transition-colors shadow-sm active:scale-95"
                     style={{ background: added === p.id ? '#16a34a' : ORANGE }}>

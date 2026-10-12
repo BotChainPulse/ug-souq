@@ -12,7 +12,7 @@ export default function SearchResults() {
   const [params] = useSearchParams()
   const q = (params.get('q') || '').trim()
   const { add } = useCart()
-  const products = trpc.products.search.useQuery({ q }, { enabled: q.length > 0 })
+  const products = trpc.products.search.useQuery({ q }, { enabled: q.length > 0, refetchInterval: 60_000 })
   const restaurants = trpc.food.search.useQuery({ q }, { enabled: q.length > 0 })
   const loading = products.isLoading || restaurants.isLoading
   const pList = products.data ?? []
@@ -54,7 +54,7 @@ export default function SearchResults() {
             <h2 className="font-bold text-lg mb-4">Products ({pList.length})</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {pList.map((p) => (
-                <div key={p.id} className={`bg-white rounded-2xl border p-3 flex flex-col ${p.sellerVerified ? 'border-sky-200 ring-1 ring-sky-100' : 'border-neutral-200'}`}>
+                <div key={`${p.kind}-${p.id}`} className={`bg-white rounded-2xl border p-3 flex flex-col ${p.sellerVerified ? 'border-sky-200 ring-1 ring-sky-100' : 'border-neutral-200'}`}>
                   <div className="relative overflow-hidden rounded-xl">
                     <Link to={`/product/${p.slug}`}><img src={p.image} alt={p.name} className="product-image-standard rounded-xl" loading="lazy" /></Link>
                     {p.discount > 0 && (
@@ -71,8 +71,8 @@ export default function SearchResults() {
                       <p className="font-extrabold text-sm">{fmt(p.price)}</p>
                       {p.oldPrice && <p className="text-[11px] text-neutral-400 line-through">{fmt(p.oldPrice)}</p>}
                     </div>
-                    <button
-                      onClick={() => add({ itemType: 'product', itemId: p.id, name: p.name, price: p.price })}
+                    <button disabled={p.stock < 1}
+                      onClick={() => add({ itemType: p.kind, itemId: p.id, name: p.name, price: p.price })}
                       className="w-9 h-9 rounded-full grid place-items-center text-white shrink-0"
                       style={{ background: ORANGE }}
                       aria-label={`Add ${p.name} to cart`}
