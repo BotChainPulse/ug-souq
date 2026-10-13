@@ -111,6 +111,7 @@ export default function AccountPage() {
     { icon: Globe, label: 'Language', value: 'English', to: '/account' },
     { icon: MapPin, label: 'Country', value: 'Uganda', to: '/account' },
     { icon: Settings, label: 'Preferences', to: '/preferences' },
+    { icon: Settings, label: 'Service provider inbox', to: '/services/inbox' },
     { icon: Bell, label: 'Notifications', to: '/notifications' },
     { icon: Lock, label: 'Account Security', to: '/account-security' },
     { icon: Trash2, label: 'Delete account & data', to: '/delete-account' },

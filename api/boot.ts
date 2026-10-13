@@ -3,6 +3,7 @@ import { cleanupHealthcareData } from './healthcarePrivacy';
 import { primaryAdminDestination } from './adminDestination';
 import { cleanupServiceData } from './servicePrivacy';
 import { SERVICE_TABLE_SQL } from '../db/serviceSchema';
+import { startServiceNotificationScheduler } from './serviceNotifications';
 import { listingPrice } from "../src/lib/listingOffer";
 import { PARTNERSHIP_TABLE_SQL } from "./partnershipPolicy";
 import { Hono } from "hono";
@@ -499,6 +500,7 @@ if (env.isProduction) {
   setInterval(() => { cleanupHealthcareData().catch(() => console.error("Healthcare retention cleanup failed; administrator action needed.")); }, 60 * 60 * 1000).unref();
   setInterval(() => { cleanupServiceData().catch(() => console.error("Service retention cleanup failed; administrator action needed.")); }, 24 * 60 * 60 * 1000).unref();
   startMarketingCampaignScheduler();
+  startServiceNotificationScheduler();
   const { serve } = await import("@hono/node-server");
   const { serveStaticFiles } = await import("./lib/vite");
   serveStaticFiles(app);
