@@ -40,10 +40,12 @@ export async function sendResendEmail(input: {
   kind?: "transactional" | "marketing";
   idempotencyKey?: string;
   replyTo?: string;
+  // Internal durable queues preserve the original sender when retrying.
+  fromAddress?: string;
 }) {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const to = input.to.trim().toLowerCase();
-  const from = outboundFromAddress(input.kind);
+  const from = input.fromAddress || outboundFromAddress(input.kind);
   if (!apiKey) throw new Error("RESEND_API_KEY is not configured");
   if (!from) throw new Error("A verified Resend sender address is not configured");
   if (!EMAIL_PATTERN.test(to)) throw new Error("A valid recipient email is required");
