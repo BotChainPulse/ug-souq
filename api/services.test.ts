@@ -125,13 +125,25 @@ describe('service applications and enquiries', () => {
   it('avoids sending a duplicate legacy enquiry notification', async () => {
     db.rows = [[{ id: 5, customerId: 2, status: 'approved' }], [{ id: 7, status: 'requested' }], [{ id: 11, emailState: 'accepted' }]]
     const result = await admin.createCaller(context()).notifyProvider({ key: 'test-key', providerId: 5, requestId: 7 })
-    expect(result).toEqual({ queued: false, emailState: 'accepted' }); expect(db.insert).not.toHaveBeenCalled()
+    expect(result).toEqual({ queued: false, notificationId: 11, emailState: 'accepted' }); expect(db.insert).not.toHaveBeenCalled()
   })
   it('queues a legacy review without changing the approval itself', async () => {
     db.rows = [[{ id: 5, customerId: 2, status: 'approved', reviewedAt: new Date('2026-10-13T10:00:00Z') }], []]
-    await admin.createCaller(context()).notifyProvider({ key: 'test-key', providerId: 5 })
+    const result = await admin.createCaller(context()).notifyProvider({ key: 'test-key', providerId: 5 })
+    expect(result).toMatchObject({ queued: true, notificationId: 5 })
     expect(db.values[0]).toMatchObject({ eventKey: 'review-5-approved-1791885600000', kind: 'review' })
     expect(db.update).not.toHaveBeenCalled()
+  })
+  it('rejects unauthorised notification-status inspection', async () => {
+    await expect(admin.createCaller(context()).notificationStatus({ key: 'wrong', id: 11 })).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
+    expect(db.select).not.toHaveBeenCalled()
+  })
+  it('returns status for the requested notification without email payload fields', async () => {
+    db.rows = [[{ id: 11, emailState: 'failed', attempts: 1, failureCode: 'email_not_confirmed' }]]
+    const result = await admin.createCaller(context()).notificationStatus({ key: 'test-key', id: 11 })
+    expect(result).toMatchObject({ id: 11, emailState: 'failed', attempts: 1 })
+    expect(new MySqlDialect().sqlToQuery(db.conditions.at(-1) as SQL).params).toEqual([11])
+    expect(result).not.toHaveProperty('recipientEmail'); expect(result).not.toHaveProperty('emailHtml')
   })
   it('deletes owned provider and related enquiries on customer deletion', async () => {
     db.rows = [[{ id: 5 }]]

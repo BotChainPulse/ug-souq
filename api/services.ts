@@ -111,6 +111,12 @@ export function serviceAdminRouter(requireAdmin: (key: string) => void) {
       const rows = await getDb().select({ id: serviceNotifications.id, providerId: serviceNotifications.providerId, businessName: serviceProviders.businessName, requestId: serviceNotifications.requestId, kind: serviceNotifications.kind, decision: serviceNotifications.decision, emailState: serviceNotifications.emailState, attempts: serviceNotifications.attempts, failureCode: serviceNotifications.failureCode, createdAt: serviceNotifications.createdAt }).from(serviceNotifications).innerJoin(serviceProviders, eq(serviceNotifications.providerId, serviceProviders.id)).orderBy(desc(serviceNotifications.createdAt)).limit(100)
       return { emailConfigured: outboundEmailConfigured(), rows }
     }),
+    notificationStatus: publicQuery.input(z.object({ key: z.string(), id: z.number().int().positive() })).query(async ({ input }) => {
+      requireAdmin(input.key)
+      const [notification] = await getDb().select({ id: serviceNotifications.id, emailState: serviceNotifications.emailState, attempts: serviceNotifications.attempts, failureCode: serviceNotifications.failureCode }).from(serviceNotifications).where(eq(serviceNotifications.id, input.id)).limit(1)
+      if (!notification) throw new TRPCError({ code: 'NOT_FOUND', message: 'Notification not found. Refresh Services and try again.' })
+      return { ...notification, emailConfigured: outboundEmailConfigured() }
+    }),
     notifyProvider: publicQuery.input(z.object({ key: z.string(), providerId: z.number().int().positive(), requestId: z.number().int().positive().optional() })).mutation(async ({ input }) => {
       requireAdmin(input.key)
       const result = await getDb().transaction(async tx => {
@@ -122,9 +128,9 @@ export function serviceAdminRouter(requireAdmin: (key: string) => void) {
         } else if (!provider.reviewedAt || provider.status === 'pending') throw new TRPCError({ code: 'BAD_REQUEST', message: 'Review this provider before notifying a decision.' })
         const eventKey = input.requestId ? `enquiry-${input.requestId}` : `review-${provider.id}-${provider.status}-${provider.reviewedAt!.getTime()}`
         const [existing] = await tx.select({ id: serviceNotifications.id, emailState: serviceNotifications.emailState }).from(serviceNotifications).where(eq(serviceNotifications.eventKey, eventKey)).limit(1)
-        if (existing) return { queued: false, emailState: existing.emailState }
-        await tx.insert(serviceNotifications).values({ eventKey, customerId: provider.customerId, providerId: provider.id, requestId: input.requestId ?? null, kind: input.requestId ? 'enquiry' : 'review', decision: input.requestId ? null : provider.status })
-        return { queued: true, emailState: 'pending' as const }
+        if (existing) return { queued: false, notificationId: existing.id, emailState: existing.emailState }
+        const [saved] = await tx.insert(serviceNotifications).values({ eventKey, customerId: provider.customerId, providerId: provider.id, requestId: input.requestId ?? null, kind: input.requestId ? 'enquiry' : 'review', decision: input.requestId ? null : provider.status }).$returningId()
+        return { queued: true, notificationId: saved.id, emailState: 'pending' as const }
       })
       kickServiceNotifications()
       return result
