@@ -1,3 +1,4 @@
+import { caseInsensitiveContains } from './searchPolicy';
 import { healthcareRouter } from './healthcare';
 import { deleteCustomerHealthcareData } from './healthcarePrivacy';
 import { deleteCustomerServiceData } from './servicePrivacy';
@@ -8,7 +9,7 @@ import { activePartnership } from "./partnershipPolicy";
 import { z } from "zod";
 import { requireCustomerOwnership, customerOrderSummary } from "./customerOwnership";
 import { TRPCError } from "@trpc/server";
-import { eq, desc, asc, like, or, and, sql } from "drizzle-orm";
+import { eq, desc, asc, or, and, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { createRouter, publicQuery } from "./middleware";
 import { getDb } from "./queries/connection";
@@ -330,14 +331,14 @@ export const appRouter = createRouter({
           .filter((p) => (input.deals ? p.discount > 0 && p.stock > 0 : true));
         return [...items, ...litems].sort((a, b) => Number(b.sellerVerified) - Number(a.sellerVerified));
       }),
-    search: publicQuery.input(z.object({ q: z.string().min(1) })).query(async ({ input }) => {
+    search: publicQuery.input(z.object({ q: z.string().trim().min(1).max(100) })).query(async ({ input }) => {
       const db = getDb();
-      const q = `%${input.q.trim()}%`;
+      const q = input.q;
       const rows = await db
         .select({ product: products, seller: sellers })
         .from(products)
         .innerJoin(sellers, eq(products.sellerId, sellers.id))
-        .where(and(eq(sellers.status, "approved"), or(like(products.name, q), like(products.category, q))));
+        .where(and(eq(sellers.status, "approved"), or(caseInsensitiveContains(products.name, q), caseInsensitiveContains(products.category, q))));
       const productResults = rows
         .map(({ product, seller }) => ({
           kind: "product" as const,
@@ -349,7 +350,7 @@ export const appRouter = createRouter({
         ;
       const listingRows = await db.select({ listing: listings, seller: sellers }).from(listings)
         .innerJoin(sellers, eq(listings.sellerId, sellers.id))
-        .where(and(eq(listings.status, "approved"), eq(sellers.status, "approved"), or(like(listings.name, q), like(listings.category, q))));
+        .where(and(eq(listings.status, "approved"), eq(sellers.status, "approved"), or(caseInsensitiveContains(listings.name, q), caseInsensitiveContains(listings.category, q))));
       const listingResults = listingRows.map(({ listing, seller }) => ({
         kind: "listing" as const, id: listing.id, sellerId: listing.sellerId,
         name: listing.name, slug: `listing-${listing.id}`, category: listing.category,
@@ -362,11 +363,11 @@ export const appRouter = createRouter({
   }),
 
   food: createRouter({
-    search: publicQuery.input(z.object({ q: z.string().min(1) })).query(async ({ input }) => {
+    search: publicQuery.input(z.object({ q: z.string().trim().min(1).max(100) })).query(async ({ input }) => {
       const db = getDb();
-      const q = `%${input.q.trim()}%`;
+      const q = input.q;
       return db.select().from(restaurants)
-        .where(or(like(restaurants.name, q), like(restaurants.cuisine, q), like(restaurants.area, q)))
+        .where(or(caseInsensitiveContains(restaurants.name, q), caseInsensitiveContains(restaurants.cuisine, q), caseInsensitiveContains(restaurants.area, q)))
         .orderBy(desc(restaurants.rating));
     }),
     restaurants: publicQuery.query(async () => {

@@ -10,11 +10,12 @@ const SUGGESTIONS = ['iPhone', 'TV', 'dress', 'matooke', 'KFC', 'rolex', 'fridge
 
 export default function SearchResults() {
   const [params] = useSearchParams()
-  const q = (params.get('q') || '').trim()
+  const q = (params.get('q') || '').trim().slice(0, 100)
   const { add } = useCart()
   const products = trpc.products.search.useQuery({ q }, { enabled: q.length > 0, refetchInterval: 60_000 })
   const restaurants = trpc.food.search.useQuery({ q }, { enabled: q.length > 0 })
   const loading = products.isLoading || restaurants.isLoading
+  const searchFailed = !!products.error || !!restaurants.error
   const pList = products.data ?? []
   const rList = restaurants.data ?? []
 
@@ -27,13 +28,14 @@ export default function SearchResults() {
         </h1>
         {q && !loading && (
           <p className="mt-1 text-sm text-neutral-500">
-            {pList.length + rList.length} result{pList.length + rList.length === 1 ? '' : 's'} found
+            {searchFailed ? 'Available matches: ' : ''}{pList.length + rList.length} result{pList.length + rList.length === 1 ? '' : 's'} found
           </p>
         )}
 
+        {searchFailed && <div role="alert" className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><p>Part of the search could not load. Please try again; an unavailable search is not proof that an item is out of stock.</p><button type="button" onClick={() => { products.refetch(); restaurants.refetch() }} className="mt-2 font-bold underline">Retry search</button></div>}
         {loading && <p className="mt-10 text-neutral-500">Searching the market…</p>}
 
-        {!loading && q && pList.length === 0 && rList.length === 0 && (
+        {!loading && !searchFailed && q && pList.length === 0 && rList.length === 0 && (
           <div className="mt-12 text-center">
             <SearchX size={48} className="mx-auto text-neutral-300" />
             <h2 className="mt-4 font-bold text-lg">Nothing found for “{q}” yet</h2>

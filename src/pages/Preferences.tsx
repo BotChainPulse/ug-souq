@@ -18,7 +18,7 @@ const DEFAULT_PREFS: Preferences = {
   emailNotifications: false,
   smsNotifications: false,
   darkMode: false,
-  marketingEmails: true,
+  marketingEmails: false,
 }
 
 const PREFS_KEY = 'ugsouq.preferences'
@@ -59,10 +59,10 @@ export default function PreferencesPage() {
   }
 
   const items: Array<{ key: PreferenceKey; label: string; icon: typeof Bell; desc: string }> = [
-    { key: 'emailNotifications', label: 'Email Notifications', icon: Bell, desc: 'Coming after verified email delivery is connected' },
+    { key: 'emailNotifications', label: 'Email Notifications', icon: Bell, desc: 'Email notification preferences are not connected yet' },
     { key: 'smsNotifications', label: 'SMS Notifications', icon: Bell, desc: 'Coming after a verified SMS provider is connected' },
     { key: 'darkMode', label: 'Dark Mode', icon: Moon, desc: 'Switch to dark theme' },
-    { key: 'marketingEmails', label: 'Marketing Emails', icon: ShoppingBag, desc: 'Receive deals and offers' },
+    { key: 'marketingEmails', label: 'Marketing Emails', icon: ShoppingBag, desc: 'Manage your subscription using the unsubscribe link in a UGSouq promotional email' },
   ]
 
   return (
@@ -84,7 +84,7 @@ export default function PreferencesPage() {
                 <p className="text-xs text-gray-500 dark:text-neutral-400">{item.desc}</p>
               </div>
             </div>
-            <button
+            {item.key === 'marketingEmails' ? <span className="ml-3 shrink-0 rounded-full bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">Manage in email</span> : <button
               type="button"
               role="switch"
               aria-checked={prefs[item.key] && !['emailNotifications', 'smsNotifications'].includes(item.key)}
@@ -95,10 +95,11 @@ export default function PreferencesPage() {
               style={{ backgroundColor: prefs[item.key] && !['emailNotifications', 'smsNotifications'].includes(item.key) ? ORANGE : undefined }}
             >
               <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-all ${prefs[item.key] && !['emailNotifications', 'smsNotifications'].includes(item.key) ? 'left-6' : 'left-1'}`} />
-            </button>
+            </button>}
           </div>
         ))}
       </div>
+      <section className="mx-auto max-w-3xl px-4 pb-6"><div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-100"><h2 className="font-bold">Your marketing subscription</h2><p className="mt-2">This page does not display your email subscription status. To stop promotional emails, use Unsubscribe in any UGSouq promotional email; that link updates the sending list. An old on/off setting saved on this device did not subscribe or unsubscribe you.</p><p className="mt-2">To receive offers, use the marketplace signup form and choose your channels. Order messages are separate from promotions.</p><div className="mt-3 flex flex-wrap gap-4"><Link to="/" className="font-bold underline">Open marketplace signup</Link><Link to="/support" className="font-bold underline">Get unsubscribe help</Link></div></div></section>
       <Footer />
     </div>
   )
