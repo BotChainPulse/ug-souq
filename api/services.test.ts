@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MySqlDialect } from 'drizzle-orm/mysql-core'
 import type { SQL } from 'drizzle-orm'
-const db = vi.hoisted(() => ({ rows: [] as unknown[][], conditions: [] as unknown[], select: vi.fn(), insert: vi.fn(), update: vi.fn(), delete: vi.fn(), transaction: vi.fn(), values: [] as Record<string, unknown>[] }))
+const db = vi.hoisted(() => ({ rows: [] as unknown[][], conditions: [] as unknown[], changes: [] as Record<string, unknown>[], select: vi.fn(), insert: vi.fn(), update: vi.fn(), delete: vi.fn(), transaction: vi.fn(), values: [] as Record<string, unknown>[] }))
 vi.mock('./queries/connection', () => ({ getDb: () => db }))
 vi.mock('./serviceNotifications', () => ({ kickServiceNotifications: vi.fn() }))
 import { servicesRouter, serviceAdminRouter } from './services'
@@ -9,13 +9,15 @@ import { accountDeletionTokenHash } from './accountDeletion'
 import { deleteCustomerServiceData } from './servicePrivacy'
 import { SERVICE_PROPOSAL_VERSION } from '../src/lib/servicePolicy'
 import { TRPCError } from '@trpc/server'
+import { serviceProfileRevision } from './serviceProfilePolicy'
 const token = 'a'.repeat(43)
 const customer = { id: 1, phone: '0700000001', deletionTokenHash: accountDeletionTokenHash(token) }
 const form = { phone: customer.phone, businessName: 'Synthetic cleaner', category: 'Cleaning' as const, district: 'Wakiso', description: 'Synthetic cleaning service description for isolated tests.', experience: 'Synthetic experience statement', priceUnit: 'quote' as const, publicProfileConsent: true as const, proposalAcknowledged: true as const, proposalVersion: SERVICE_PROPOSAL_VERSION as typeof SERVICE_PROPOSAL_VERSION }
+const ownedProfile = { ...form, id: 5, customerId: 1, category: 'Gardening', status: 'approved' as const, startingPrice: null, reviewNotes: 'PRIVATE ADMIN NOTE', reviewedAt: new Date('2026-10-13T10:00:00Z'), consentedAt: new Date(), createdAt: new Date() }
 const context = (credential?: string) => ({ req: new Request('https://example.test/api/trpc', { headers: credential ? { 'x-ugsouq-customer-credential': credential } : {} }), resHeaders: new Headers() })
 const admin = serviceAdminRouter(key => { if (key !== 'test-key') throw new TRPCError({ code: 'UNAUTHORIZED' }) })
 beforeEach(() => {
-  vi.clearAllMocks(); db.rows = []; db.values = []; db.conditions = []
+  vi.clearAllMocks(); db.rows = []; db.values = []; db.conditions = []; db.changes = []
   db.select.mockImplementation(() => {
     const rows = db.rows.shift() ?? []
     const chain: Record<string, unknown> = {}
@@ -25,11 +27,57 @@ beforeEach(() => {
     return chain
   })
   db.insert.mockImplementation(() => ({ values: (value: Record<string, unknown>) => { db.values.push(value); return { $returningId: async () => [{ id: 5 }] } } }))
-  db.update.mockImplementation(() => ({ set: () => ({ where: async () => undefined }) }))
+  db.update.mockImplementation(() => ({ set: (value: Record<string, unknown>) => { db.changes.push(value); return { where: async () => undefined } } }))
   db.delete.mockImplementation(() => ({ where: async () => undefined }))
   db.transaction.mockImplementation(async action => action(db))
 })
 describe('service applications and enquiries', () => {
+  it('rejects phone-only profile editing before any database read or write', async () => {
+    await expect(servicesRouter.createCaller(context()).updateProfile({ ...form, revision: serviceProfileRevision(ownedProfile) })).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
+    expect(db.select).not.toHaveBeenCalled(); expect(db.update).not.toHaveBeenCalled()
+  })
+  it('rejects editing with another customer’s credential', async () => {
+    db.rows = [[{ ...customer, deletionTokenHash: accountDeletionTokenHash('b'.repeat(43)) }]]
+    await expect(servicesRouter.createCaller(context(token)).updateProfile({ ...form, revision: serviceProfileRevision(ownedProfile) })).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
+    expect(db.update).not.toHaveBeenCalled(); expect(db.transaction).not.toHaveBeenCalled()
+  })
+  it('prefills only the owned profile fields without disclosing administrator notes or credentials', async () => {
+    db.rows = [[{ ...customer, email: 'synthetic@example.test' }], [ownedProfile]]
+    const result = await servicesRouter.createCaller(context(token)).editableProfile({ phone: customer.phone })
+    expect(result).toMatchObject({ category: 'Gardening', experience: form.experience, contactEmail: 'synthetic@example.test' })
+    expect(result).not.toHaveProperty('reviewNotes'); expect(result).not.toHaveProperty('deletionTokenHash'); expect(result).not.toHaveProperty('customerId')
+    expect(new MySqlDialect().sqlToQuery(db.conditions.at(-1) as SQL).params).toEqual([1])
+  })
+  it('changes Gardening to Property Services and requires a new review without deleting existing enquiries', async () => {
+    db.rows = [[customer], [ownedProfile]]
+    const result = await servicesRouter.createCaller(context(token)).updateProfile({ ...form, category: 'Property Services', revision: serviceProfileRevision(ownedProfile) })
+    expect(result).toEqual({ changed: true, status: 'pending' })
+    expect(db.changes[0]).toMatchObject({ category: 'Property Services', status: 'pending' })
+    expect(db.changes[0]).not.toHaveProperty('customerId'); expect(db.changes[0]).not.toHaveProperty('reviewNotes')
+    expect(db.values[0]).toMatchObject({ action: 'service_profile_edit', entityId: '5' })
+    expect(String(db.values[0].afterState)).toContain('category'); expect(String(db.values[0].afterState)).not.toContain(form.experience)
+    expect(db.delete).not.toHaveBeenCalled()
+  })
+  it('does not reset approval or add an audit event when the form is unchanged', async () => {
+    db.rows = [[customer], [ownedProfile]]
+    const result = await servicesRouter.createCaller(context(token)).updateProfile({ ...form, category: 'Gardening', revision: serviceProfileRevision(ownedProfile) })
+    expect(result).toEqual({ changed: false, status: 'approved' }); expect(db.update).not.toHaveBeenCalled(); expect(db.insert).not.toHaveBeenCalled()
+  })
+  it('rejects a stale edit when another edit or review changed the profile', async () => {
+    db.rows = [[customer], [{ ...ownedProfile, category: 'Property Services' }]]
+    await expect(servicesRouter.createCaller(context(token)).updateProfile({ ...form, revision: serviceProfileRevision(ownedProfile) })).rejects.toMatchObject({ code: 'CONFLICT' })
+    expect(db.update).not.toHaveBeenCalled()
+  })
+  it('does not let a suspended provider reactivate itself through editing', async () => {
+    db.rows = [[customer], [{ ...ownedProfile, status: 'suspended' }]]
+    await expect(servicesRouter.createCaller(context(token)).updateProfile({ ...form, revision: serviceProfileRevision(ownedProfile) })).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    expect(db.update).not.toHaveBeenCalled()
+  })
+  it('rejects clinical categories and missing publication consent in ordinary profile edits', async () => {
+    await expect(servicesRouter.createCaller(context(token)).updateProfile({ ...form, category: 'Doctor' as typeof form.category, revision: serviceProfileRevision(ownedProfile) })).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+    await expect(servicesRouter.createCaller(context(token)).updateProfile({ ...form, publicProfileConsent: false as unknown as true, revision: serviceProfileRevision(ownedProfile) })).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+    expect(db.update).not.toHaveBeenCalled()
+  })
   it('blocks phone-only registration before database access', async () => {
     await expect(servicesRouter.createCaller(context()).registerProvider(form)).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
     expect(db.select).not.toHaveBeenCalled(); expect(db.insert).not.toHaveBeenCalled()
@@ -74,14 +122,19 @@ describe('service applications and enquiries', () => {
     await expect(admin.createCaller(context()).providers({ key: 'wrong' })).rejects.toMatchObject({ code: 'UNAUTHORIZED' }); expect(db.select).not.toHaveBeenCalled()
   })
   it('blocks approval without completed review checks', async () => {
-    await expect(admin.createCaller(context()).review({ key: 'test-key', id: 5, status: 'approved', notes: 'Synthetic review note', checksCompleted: false })).rejects.toMatchObject({ code: 'BAD_REQUEST' }); expect(db.transaction).not.toHaveBeenCalled()
+    await expect(admin.createCaller(context()).review({ key: 'test-key', id: 5, revision: serviceProfileRevision({ ...ownedProfile, customerId: 2, status: 'pending' }), status: 'approved', notes: 'Synthetic review note', checksCompleted: false })).rejects.toMatchObject({ code: 'BAD_REQUEST' }); expect(db.transaction).not.toHaveBeenCalled()
   })
   it('records the approval and a minimal decision audit', async () => {
-    db.rows = [[{ id: 5, customerId: 2, status: 'pending' }]]
-    await admin.createCaller(context()).review({ key: 'test-key', id: 5, status: 'approved', notes: 'Synthetic review note', checksCompleted: true })
+    db.rows = [[{ ...ownedProfile, customerId: 2, status: 'pending' }]]
+    await admin.createCaller(context()).review({ key: 'test-key', id: 5, revision: serviceProfileRevision({ ...ownedProfile, customerId: 2, status: 'pending' }), status: 'approved', notes: 'Synthetic review note', checksCompleted: true })
     expect(db.update).toHaveBeenCalledOnce(); expect(db.values[0]).toMatchObject({ action: 'service_provider_review' }); expect(String(db.values[0].afterState)).not.toContain('Synthetic review note')
     expect(db.values[1]).toMatchObject({ customerId: 2, providerId: 5, kind: 'review', decision: 'approved' })
     expect(db.values[1]).not.toHaveProperty('notes')
+  })
+  it('does not approve a stale profile after the provider changed its category', async () => {
+    db.rows = [[{ ...ownedProfile, category: 'Property Services', status: 'pending' }]]
+    await expect(admin.createCaller(context()).review({ key: 'test-key', id: 5, revision: serviceProfileRevision(ownedProfile), status: 'approved', notes: 'Synthetic reviewed checks', checksCompleted: true })).rejects.toMatchObject({ code: 'CONFLICT' })
+    expect(db.update).not.toHaveBeenCalled(); expect(db.insert).not.toHaveBeenCalled()
   })
   it('blocks phone-only inbox access before loading private enquiries', async () => {
     await expect(servicesRouter.createCaller(context()).inbox({ phone: customer.phone })).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
