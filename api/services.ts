@@ -8,14 +8,18 @@ import { customers, adminAuditLogs } from '../db/schema'
 import { serviceNotifications, serviceProviders, serviceRequests } from '../db/serviceSchema'
 import { kickServiceNotifications } from './serviceNotifications'
 import { outboundEmailConfigured } from './email'
+import { EDITABLE_SERVICE_FIELDS, editableServiceFields, serviceProfileRevision } from './serviceProfilePolicy'
 import { SERVICE_CATEGORIES, SERVICE_PROPOSAL_VERSION } from '../src/lib/servicePolicy'
-const profile = z.object({
+const profileFields = {
   phone: z.string().min(9).max(32), businessName: z.string().trim().min(3).max(128),
   category: z.enum(SERVICE_CATEGORIES), district: z.string().trim().min(2).max(64),
   description: z.string().trim().min(30).max(1500), experience: z.string().trim().min(10).max(1000),
   startingPrice: z.number().int().min(1000).max(2_000_000_000).optional(), priceUnit: z.enum(['job','hour','quote']),
   publicProfileConsent: z.literal(true), proposalAcknowledged: z.literal(true), proposalVersion: z.literal(SERVICE_PROPOSAL_VERSION),
-}).refine(p => p.priceUnit === 'quote' || p.startingPrice !== undefined, { message: 'Enter a starting price or choose Request a quote.' })
+}
+const pricedProfile = (p: { priceUnit: string; startingPrice?: number }) => p.priceUnit === 'quote' || p.startingPrice !== undefined
+const profile = z.object(profileFields).refine(pricedProfile, { message: 'Enter a starting price or choose Request a quote.' })
+const editedProfile = z.object({ ...profileFields, revision: z.string().regex(/^[a-f0-9]{64}$/) }).refine(pricedProfile, { message: 'Enter a starting price or choose Request a quote.' })
 function publicProfile(p: typeof serviceProviders.$inferSelect) {
   return { id: p.id, businessName: p.businessName, category: p.category, district: p.district, description: p.description, startingPrice: p.startingPrice, priceUnit: p.priceUnit }
 }
@@ -28,6 +32,26 @@ export const servicesRouter = createRouter({
     const customer = await requireCustomerOwnership(ctx.req, input.phone)
     const [provider] = await getDb().select().from(serviceProviders).where(eq(serviceProviders.customerId, customer.id)).limit(1)
     return provider ? { ...publicProfile(provider), status: provider.status, createdAt: provider.createdAt } : null
+  }),
+  editableProfile: publicQuery.input(z.object({ phone: z.string().min(9).max(32) })).query(async ({ input, ctx }) => {
+    const customer = await requireCustomerOwnership(ctx.req, input.phone)
+    const [provider] = await getDb().select().from(serviceProviders).where(eq(serviceProviders.customerId, customer.id)).limit(1)
+    return provider ? { ...editableServiceFields(provider), status: provider.status, revision: serviceProfileRevision(provider), contactEmail: customer.email || null } : null
+  }),
+  updateProfile: publicQuery.input(editedProfile).mutation(async ({ input, ctx }) => {
+    const customer = await requireCustomerOwnership(ctx.req, input.phone)
+    return getDb().transaction(async tx => {
+      const [existing] = await tx.select().from(serviceProviders).where(eq(serviceProviders.customerId, customer.id)).for('update')
+      if (!existing) throw new TRPCError({ code: 'NOT_FOUND', message: 'Your provider profile was not found.' })
+      if (!['pending','approved'].includes(existing.status)) throw new TRPCError({ code: 'FORBIDDEN', message: 'Contact support before editing a rejected or suspended profile.' })
+      if (serviceProfileRevision(existing) !== input.revision) throw new TRPCError({ code: 'CONFLICT', message: 'Your profile or review changed after this form opened. Refresh the profile before submitting again.' })
+      const next = editableServiceFields({ ...input, startingPrice: input.priceUnit === 'quote' ? null : input.startingPrice! })
+      const changedFields = EDITABLE_SERVICE_FIELDS.filter(field => existing[field] !== next[field])
+      if (!changedFields.length) return { changed: false, status: existing.status }
+      await tx.update(serviceProviders).set({ ...next, status: 'pending', proposalVersion: input.proposalVersion, consentedAt: new Date() }).where(eq(serviceProviders.id, existing.id))
+      await tx.insert(adminAuditLogs).values({ actorTag: 'authenticated_service_provider', action: 'service_profile_edit', entityType: 'service_provider', entityId: String(existing.id), beforeState: JSON.stringify({ status: existing.status }), afterState: JSON.stringify({ status: 'pending', changedFields }) })
+      return { changed: true, status: 'pending' as const }
+    })
   }),
   inbox: publicQuery.input(z.object({ phone: z.string().min(9).max(32) })).query(async ({ input, ctx }) => {
     const customer = await requireCustomerOwnership(ctx.req, input.phone)
@@ -57,7 +81,7 @@ export const servicesRouter = createRouter({
     const customer = await requireCustomerOwnership(ctx.req, input.phone)
     const db = getDb()
     const [existing] = await db.select().from(serviceProviders).where(eq(serviceProviders.customerId, customer.id)).limit(1)
-    if (existing) throw new TRPCError({ code: 'CONFLICT', message: 'Your provider application already exists. Contact support to update it; changes require review.' })
+    if (existing) throw new TRPCError({ code: 'CONFLICT', message: 'Your provider application already exists. Open your provider inbox to edit eligible profiles, or contact support.' })
     const [created] = await db.insert(serviceProviders).values({ customerId: customer.id, businessName: input.businessName, category: input.category, district: input.district, description: input.description, experience: input.experience, startingPrice: input.priceUnit === 'quote' ? null : input.startingPrice, priceUnit: input.priceUnit, status: 'pending', proposalVersion: input.proposalVersion, consentedAt: new Date() }).$returningId()
     return { id: created.id, status: 'pending' as const }
   }),
@@ -88,15 +112,16 @@ export function serviceAdminRouter(requireAdmin: (key: string) => void) {
     providers: publicQuery.input(z.object({ key: z.string() })).query(async ({ input }) => {
       requireAdmin(input.key)
       const rows = await getDb().select({ provider: serviceProviders, owner: { name: customers.name, phone: customers.phone, email: customers.email } }).from(serviceProviders).innerJoin(customers, eq(serviceProviders.customerId, customers.id)).orderBy(desc(serviceProviders.createdAt))
-      return rows
+      return rows.map(row => ({ ...row, revision: serviceProfileRevision(row.provider) }))
     }),
-    review: publicQuery.input(z.object({ key: z.string(), id: z.number().int().positive(), status: z.enum(['approved','rejected','suspended']), notes: z.string().trim().min(10).max(1000), checksCompleted: z.boolean() })).mutation(async ({ input }) => {
+    review: publicQuery.input(z.object({ key: z.string(), id: z.number().int().positive(), revision: z.string().regex(/^[a-f0-9]{64}$/), status: z.enum(['approved','rejected','suspended']), notes: z.string().trim().min(10).max(1000), checksCompleted: z.boolean() })).mutation(async ({ input }) => {
       requireAdmin(input.key)
       if (input.status === 'approved' && !input.checksCompleted) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Check provider identity, contact, capability and any required licences before approval.' })
       const db = getDb()
       const result = await db.transaction(async tx => {
         const [before] = await tx.select().from(serviceProviders).where(eq(serviceProviders.id, input.id)).for('update')
         if (!before) throw new TRPCError({ code: 'NOT_FOUND', message: 'Provider not found.' })
+        if (serviceProfileRevision(before) !== input.revision) throw new TRPCError({ code: 'CONFLICT', message: 'This provider profile changed after it was loaded. Refresh Services and review the latest details before deciding.' })
         const reviewedAt = new Date(Math.floor(Date.now() / 1000) * 1000)
         await tx.update(serviceProviders).set({ status: input.status, reviewNotes: input.notes, reviewedAt }).where(eq(serviceProviders.id, input.id))
         await tx.insert(adminAuditLogs).values({ actorTag: 'authenticated_admin', action: 'service_provider_review', entityType: 'service_provider', entityId: String(input.id), beforeState: JSON.stringify({ status: before.status }), afterState: JSON.stringify({ status: input.status, checksCompleted: input.checksCompleted }) })

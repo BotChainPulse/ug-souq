@@ -3,6 +3,7 @@ import HealthcareRegister from './pages/HealthcareRegister'
 import Services from './pages/Services'
 import ServiceRegister from './pages/ServiceRegister'
 import ServiceInbox from './pages/ServiceInbox'
+import ServiceProfile from './pages/ServiceProfile'
 import ServiceTerms from './pages/ServiceTerms'
 import { Routes, Route, useLocation } from 'react-router'
 import { useEffect } from 'react'
@@ -76,6 +77,7 @@ export default function App() {
         <Route path="/services" element={<Services />} />
         <Route path="/services/register" element={<ServiceRegister />} />
         <Route path="/services/inbox" element={<ServiceInbox />} />
+        <Route path="/services/profile" element={<ServiceProfile />} />
         <Route path="/services/terms" element={<ServiceTerms />} />
         <Route path="/sell" element={<Sell />} />
         <Route path="/affiliates" element={<Affiliates />} />
