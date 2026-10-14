@@ -4,6 +4,7 @@ import { primaryAdminDestination } from './adminDestination';
 import { cleanupServiceData } from './servicePrivacy';
 import { SERVICE_TABLE_SQL } from '../db/serviceSchema';
 import { startServiceNotificationScheduler } from './serviceNotifications';
+import { paymentReturnPath } from './paymentReturn';
 import { listingPrice } from "../src/lib/listingOffer";
 import { PARTNERSHIP_TABLE_SQL } from "./partnershipPolicy";
 import { Hono } from "hono";
@@ -423,8 +424,7 @@ app.get("/api/pesapal/callback", async (c) => {
   const base = (process.env.APP_URL ?? "").replace(/\/$/, "");
   try {
     const result = await verifyPesapalPayment(trackingId, merchantReference);
-    const path = result.orderCode ? `/order/${encodeURIComponent(result.orderCode)}` : "/orders";
-    return c.redirect(`${base}${path}?payment=${result.ok ? "successful" : result.status}`);
+    return c.redirect(`${base}${paymentReturnPath(result.orderCode, result.ok ? "successful" : result.status)}`);
   } catch (error) {
     console.error("[PESAPAL] callback verification failed", error);
     return c.redirect(`${base}/orders?payment=failed`);
