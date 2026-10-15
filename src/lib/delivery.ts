@@ -9,6 +9,13 @@ export type DeliveryZone = {
   doorEta: string
 }
 
+export const FOOD_DELIVERY_FEE_NOTICE = 'Delivery fee shown at checkout'
+export const FOOD_DELIVERY_TIMING = 'Confirm food timing before ordering'
+
+export function checkoutDeliveryTiming(zone: DeliveryZone, method: 'door' | 'pickup', containsFood: boolean) {
+  return containsFood ? FOOD_DELIVERY_TIMING : method === 'door' ? zone.doorEta : zone.pickupEta
+}
+
 export const DELIVERY_ZONES: DeliveryZone[] = [
   {
     id: 'kampala',

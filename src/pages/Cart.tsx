@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { Minus, Plus, Trash2, ShoppingCart, Wallet, Truck, Package, BadgeCheck, LockKeyhole, ShieldCheck, ChevronRight, Mail } from 'lucide-react'
-import { DELIVERY_ZONES, PICKUP_POINTS } from '../lib/delivery'
+import { checkoutDeliveryTiming, DELIVERY_ZONES, PICKUP_POINTS } from '../lib/delivery'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
+import FoodDeliveryNotice from '../components/FoodDeliveryNotice'
 import { fmt, useCart } from '../lib/cart'
 import { trpc } from '@/providers/trpc'
 import { ORANGE } from '../lib/site'
@@ -12,6 +13,7 @@ import OrderConfirmation from '../components/OrderConfirmation'
 
 export default function Cart() {
   const { items, setQty, remove, clear, subtotal, count } = useCart()
+  const containsFood = items.some(item => item.itemType === 'menu_item')
   const acc = getAccount()
   const [form, setForm] = useState({
     name: acc?.name ?? '',
@@ -293,6 +295,7 @@ export default function Cart() {
                       </select>
                     </div>
 
+                    {containsFood && <div className="sm:col-span-2"><FoodDeliveryNotice /></div>}
                     <div className="grid grid-cols-2 gap-2 sm:col-span-2">
                       <button
                         type="button"
@@ -308,7 +311,7 @@ export default function Cart() {
                         </p>
                         <p className="mt-0.5 text-xs text-neutral-500">
                           {activePlusForCheckout ? 'Free with Plus' : fmt(zone.doorFee)} ·{' '}
-                          {zone.doorEta}
+                          {checkoutDeliveryTiming(zone, 'door', containsFood)}
                         </p>
                       </button>
 
@@ -326,7 +329,7 @@ export default function Cart() {
                         </p>
                         <p className="mt-0.5 text-xs text-neutral-500">
                           {activePlusForCheckout ? 'Free with Plus' : fmt(zone.pickupFee)} ·{' '}
-                          {zone.pickupEta}
+                          {checkoutDeliveryTiming(zone, 'pickup', containsFood)}
                         </p>
                       </button>
                     </div>
