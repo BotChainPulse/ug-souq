@@ -1,8 +1,9 @@
 import { useParams, Link } from 'react-router'
-import { Star, Clock, Bike, Plus, Check, ChevronLeft, Flame } from 'lucide-react'
+import { Star, Plus, Check, ChevronLeft, Flame } from 'lucide-react'
 import { useState } from 'react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
+import FoodDeliveryNotice from '../components/FoodDeliveryNotice'
 import { trpc } from '@/providers/trpc'
 import { fmt, useCart } from '../lib/cart'
 import { ORANGE } from '../lib/site'
@@ -44,13 +45,12 @@ export default function Restaurant() {
                   <span className="flex items-center gap-1 font-bold"><Star size={16} className="fill-amber-400 text-amber-400" /> {(r.rating / 10).toFixed(1)}</span>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-4 text-sm text-neutral-600">
-                  <span className="flex items-center gap-1.5"><Clock size={15} /> {r.deliveryMins} min delivery</span>
-                  <span className="flex items-center gap-1.5"><Bike size={15} /> {r.deliveryFee === 0 ? 'Free delivery' : fmt(r.deliveryFee)}</span>
                   <span>Min order {fmt(r.minOrder)}</span>
                 </div>
               </div>
             </div>
 
+            <div className="mt-5"><FoodDeliveryNotice /></div>
             <h2 className="mb-4 mt-8 text-lg font-extrabold">Menu</h2>
             <div className="mb-8 grid gap-3 sm:grid-cols-2">
               {r.items.map((item) => (

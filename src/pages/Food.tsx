@@ -1,7 +1,8 @@
 import { Link } from 'react-router'
-import { Star, Clock, Bike, UtensilsCrossed } from 'lucide-react'
+import { Star, UtensilsCrossed } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
+import FoodDeliveryNotice from '../components/FoodDeliveryNotice'
 import { trpc } from '@/providers/trpc'
 import { fmt } from '../lib/cart'
 import { ORANGE } from '../lib/site'
@@ -15,11 +16,12 @@ export default function Food() {
       <section className="bg-neutral-900 text-white">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:py-10">
           <h1 className="flex items-center gap-3 text-2xl font-extrabold sm:text-3xl"><UtensilsCrossed size={26} style={{ color: ORANGE }} /> UG Souq Food</h1>
-          <p className="mt-1.5 text-sm text-neutral-300 sm:text-base">Order from Kampala's favourite kitchens — hot delivery by boda in under 45 minutes.</p>
+          <p className="mt-1.5 text-sm text-neutral-300 sm:text-base">Browse menus. Delivery fees are shown at checkout; confirm availability and timing before ordering.</p>
         </div>
       </section>
 
       <section className="mx-auto mb-4 mt-4 max-w-7xl px-3 sm:mt-8 sm:px-4">
+        <div className="mb-5"><FoodDeliveryNotice /></div>
         {isLoading ? (
           <div className="grid gap-3 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
             {[...Array(6)].map((_, i) => <div key={i} className="h-64 animate-pulse rounded-2xl border border-neutral-200 bg-white" />)}
@@ -40,8 +42,7 @@ export default function Food() {
                   </div>
                   <p className="mt-0.5 line-clamp-1 text-sm text-neutral-500">{r.cuisine} · {r.area}</p>
                   <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-neutral-600">
-                    <span className="flex items-center gap-1"><Clock size={13} /> {r.deliveryMins} min</span>
-                    <span className="flex items-center gap-1"><Bike size={13} /> {r.deliveryFee === 0 ? 'Free delivery' : fmt(r.deliveryFee)}</span>
+                    <FoodDeliveryNotice compact />
                     <span>Min {fmt(r.minOrder)}</span>
                   </div>
                 </div>
