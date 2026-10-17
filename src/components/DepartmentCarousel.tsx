@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import useEmblaCarousel from 'embla-carousel-react'
 import { Link } from 'react-router'
-import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Pause, RotateCw } from 'lucide-react'
 
 const departments = [
   { label: 'Home Services', to: '/services', image: 'home-services' },
@@ -19,6 +19,8 @@ const departments = [
 export default function DepartmentCarousel() {
   const [viewportRef, api] = useEmblaCarousel({ loop: true, align: 'start', duration: 35 })
   const regionRef = useRef<HTMLElement>(null)
+  const dragging = useRef(false)
+  const resumeAfter = useRef(0)
   const [playing, setPlaying] = useState(true)
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
@@ -41,15 +43,30 @@ export default function DepartmentCarousel() {
   }, [])
 
   useEffect(() => {
+    if (!api) return
+    const hold = () => { dragging.current = true }
+    const release = () => {
+      dragging.current = false
+      resumeAfter.current = Date.now() + 8000
+    }
+    api.on('pointerDown', hold)
+    api.on('pointerUp', release)
+    return () => {
+      api.off('pointerDown', hold)
+      api.off('pointerUp', release)
+    }
+  }, [api])
+
+  useEffect(() => {
     if (!api || !playing || hovered || focused || !visible || reducedMotion) return
     const timer = window.setInterval(() => {
-      if (!document.hidden) api.scrollNext()
+      if (!document.hidden && !dragging.current && Date.now() >= resumeAfter.current) api.scrollNext()
     }, 4000)
     return () => window.clearInterval(timer)
   }, [api, playing, hovered, focused, visible, reducedMotion])
 
   const move = (direction: 'previous' | 'next') => {
-    setPlaying(false)
+    resumeAfter.current = Date.now() + 8000
     if (direction === 'previous') api?.scrollPrev(reducedMotion)
     else api?.scrollNext(reducedMotion)
   }
@@ -62,7 +79,8 @@ export default function DepartmentCarousel() {
       className="border-b border-emerald-100 bg-gradient-to-r from-emerald-100 via-cyan-50 to-amber-50 dark:border-neutral-800 dark:from-emerald-950 dark:via-neutral-950 dark:to-neutral-900"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      onFocusCapture={() => setFocused(true)}
+      onPointerDownCapture={() => setFocused(false)}
+      onFocusCapture={(event) => setFocused(event.target.matches(':focus-visible'))}
       onBlurCapture={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false)
       }}
@@ -72,16 +90,15 @@ export default function DepartmentCarousel() {
           <span className="text-xs font-bold text-emerald-950 dark:text-emerald-100">Explore UG Souq</span>
           <div className="flex items-center gap-1">
             {!reducedMotion && (
-              <button type="button" onClick={() => setPlaying((current) => !current)} aria-label={playing ? 'Pause department rotation' : 'Start department rotation'} className="flex min-h-9 items-center gap-1 rounded-full px-3 text-xs font-semibold text-emerald-950 hover:bg-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 dark:text-emerald-100 dark:hover:bg-neutral-800">
-                {playing ? <Pause size={13} aria-hidden="true" /> : <Play size={13} aria-hidden="true" />}
-                {playing ? 'Pause' : 'Play'}
+              <button type="button" onClick={() => setPlaying((current) => !current)} aria-label={playing ? 'Pause automatic scrolling' : 'Resume automatic scrolling'} title={playing ? 'Pause automatic scrolling' : 'Resume automatic scrolling'} aria-pressed={!playing} className="grid size-9 place-items-center rounded-full text-emerald-950/60 hover:bg-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 dark:text-emerald-100/60 dark:hover:bg-neutral-800">
+                {playing ? <Pause size={14} aria-hidden="true" /> : <RotateCw size={14} aria-hidden="true" />}
               </button>
             )}
             <button type="button" aria-label="Previous departments" onClick={() => move('previous')} className="grid size-9 place-items-center rounded-full bg-white/80 text-emerald-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 dark:bg-neutral-800 dark:text-emerald-100"><ChevronLeft size={18} aria-hidden="true" /></button>
             <button type="button" aria-label="Next departments" onClick={() => move('next')} className="grid size-9 place-items-center rounded-full bg-white/80 text-emerald-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 dark:bg-neutral-800 dark:text-emerald-100"><ChevronRight size={18} aria-hidden="true" /></button>
           </div>
         </div>
-        <div ref={viewportRef} className="overflow-hidden" onPointerDown={() => setPlaying(false)}>
+        <div ref={viewportRef} className="overflow-hidden">
           <div className="-ml-3 flex touch-pan-y">
             {departments.map(({ label, to, image }) => (
               <div key={label} className="min-w-0 shrink-0 grow-0 basis-[116px] py-1 pl-3 sm:basis-[140px]">
