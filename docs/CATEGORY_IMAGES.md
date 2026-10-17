@@ -5,7 +5,7 @@
 
 The navigation immediately below the search bar reuses the category photographs and the two additional built-in image-generation assets below (17 October 2026). Final assets are 360 × 360 optimized WebP illustrations of the departments, not a payment receipt or a specific delivery provider.
 
-Ten original department destinations remain intact. Embla (already installed) loops one card every four seconds. Pointer drag or arrow navigation stops autoplay until Play is selected. Hover and keyboard focus pause it temporarily. Offscreen or hidden pages do not advance; reduced-motion preferences disable autoplay and make manual steps immediate. Pause/Play and previous/next controls are keyboard accessible. No new package was added.
+Ten original department destinations remain intact. Embla (already installed) loops one card every four seconds. Pointer drag and arrow navigation delay the next automatic advance by at least eight seconds, then scrolling resumes without shopper action. Hover and visible keyboard focus pause it temporarily; touch focus does not leave scrolling stuck. A discreet icon allows shoppers to explicitly pause or resume scrolling, with accessible labels and a tooltip, without visible Play/Pause text. Offscreen or hidden pages do not advance; reduced-motion preferences disable autoplay and make manual steps immediate. Previous/next controls remain keyboard accessible. No new package was added.
 
 ### Boda Send
 
