@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import useEmblaCarousel from 'embla-carousel-react'
 import { Link } from 'react-router'
-import { ChevronLeft, ChevronRight, Pause, RotateCw } from 'lucide-react'
 
 const departments = [
   { label: 'Home Services', to: '/services', image: 'home-services' },
@@ -21,7 +20,6 @@ export default function DepartmentCarousel() {
   const regionRef = useRef<HTMLElement>(null)
   const dragging = useRef(false)
   const resumeAfter = useRef(0)
-  const [playing, setPlaying] = useState(true)
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
   const [visible, setVisible] = useState(true)
@@ -58,18 +56,12 @@ export default function DepartmentCarousel() {
   }, [api])
 
   useEffect(() => {
-    if (!api || !playing || hovered || focused || !visible || reducedMotion) return
+    if (!api || hovered || focused || !visible || reducedMotion) return
     const timer = window.setInterval(() => {
       if (!document.hidden && !dragging.current && Date.now() >= resumeAfter.current) api.scrollNext()
     }, 4000)
     return () => window.clearInterval(timer)
-  }, [api, playing, hovered, focused, visible, reducedMotion])
-
-  const move = (direction: 'previous' | 'next') => {
-    resumeAfter.current = Date.now() + 8000
-    if (direction === 'previous') api?.scrollPrev(reducedMotion)
-    else api?.scrollNext(reducedMotion)
-  }
+  }, [api, hovered, focused, visible, reducedMotion])
 
   return (
     <nav
@@ -84,20 +76,16 @@ export default function DepartmentCarousel() {
       onBlurCapture={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false)
       }}
+      onKeyDown={(event) => {
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+        event.preventDefault()
+        resumeAfter.current = Date.now() + 8000
+        if (event.key === 'ArrowLeft') api?.scrollPrev(reducedMotion)
+        else api?.scrollNext(reducedMotion)
+      }}
     >
       <div className="mx-auto max-w-7xl px-3 py-3 sm:px-4">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <span className="text-xs font-bold text-emerald-950 dark:text-emerald-100">Explore UG Souq</span>
-          <div className="flex items-center gap-1">
-            {!reducedMotion && (
-              <button type="button" onClick={() => setPlaying((current) => !current)} aria-label={playing ? 'Pause automatic scrolling' : 'Resume automatic scrolling'} title={playing ? 'Pause automatic scrolling' : 'Resume automatic scrolling'} aria-pressed={!playing} className="grid size-9 place-items-center rounded-full text-emerald-950/60 hover:bg-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 dark:text-emerald-100/60 dark:hover:bg-neutral-800">
-                {playing ? <Pause size={14} aria-hidden="true" /> : <RotateCw size={14} aria-hidden="true" />}
-              </button>
-            )}
-            <button type="button" aria-label="Previous departments" onClick={() => move('previous')} className="grid size-9 place-items-center rounded-full bg-white/80 text-emerald-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 dark:bg-neutral-800 dark:text-emerald-100"><ChevronLeft size={18} aria-hidden="true" /></button>
-            <button type="button" aria-label="Next departments" onClick={() => move('next')} className="grid size-9 place-items-center rounded-full bg-white/80 text-emerald-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 dark:bg-neutral-800 dark:text-emerald-100"><ChevronRight size={18} aria-hidden="true" /></button>
-          </div>
-        </div>
+        <p className="mb-2 text-xs font-bold text-emerald-950 dark:text-emerald-100">Explore UG Souq</p>
         <div ref={viewportRef} className="overflow-hidden">
           <div className="-ml-3 flex touch-pan-y">
             {departments.map(({ label, to, image }) => (
