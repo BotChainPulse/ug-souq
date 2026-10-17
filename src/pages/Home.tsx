@@ -41,6 +41,18 @@ const categoryImages: Record<string, string> = {
 
 const homeTiles = ['phones', 'electronics', 'appliances', 'home', 'womens-fashion', 'mens-fashion', 'beauty', 'grocery', 'agriculture', 'solar', 'sports', 'baby']
 
+const homeCategoryTiles = [
+  { label: 'Home Services', to: '/services', image: '/images/categories/home-services.webp' },
+  { label: 'Doctors & Pharmacists', to: '/healthcare', image: '/images/categories/healthcare.webp' },
+  ...homeTiles.map((slug) => ({
+    label: slug === 'agriculture' ? 'Farm Produce' : categoryName(slug),
+    to: `/catalog?category=${slug}`,
+    image: categoryImages[slug],
+  })),
+  { label: 'UG Souq Food', to: '/food', image: '/images/categories/food.webp' },
+  { label: 'Refurbished Tech', to: '/catalog?condition=refurbished', image: '/images/categories/refurbished.webp' },
+]
+
 export default function HomePage() {
   const { data: offers, isLoading } = trpc.products.browse.useQuery({ deals: true }, { refetchInterval: 60_000 })
   const products = offers?.filter(product => product.stock > 0).slice(0, 8)
@@ -89,21 +101,21 @@ export default function HomePage() {
 
       <section className="mx-auto max-w-7xl px-3 pt-5 sm:px-4">
         <div className="mb-3 flex items-center justify-between"><h2 className="text-lg font-extrabold sm:text-2xl">Shop by category</h2><Link to="/catalog" className="text-xs font-bold text-emerald-700">View all →</Link></div>
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-7">
-          {[{ label: 'Home Services', to: '/services', icon: Wrench }, { label: 'Doctors & Pharmacists', to: '/healthcare', icon: Stethoscope }].map(({ label, to, icon: Icon }) => <Link key={to} to={to} className="group min-w-0 text-center"><span className="mx-auto grid aspect-square w-full max-w-24 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-100 to-cyan-50 shadow-sm ring-1 ring-emerald-200"><Icon size={34} className="text-emerald-800" aria-hidden="true" /></span><span className="mt-1.5 block min-h-8 text-[10px] font-semibold leading-tight sm:text-xs">{label}</span></Link>)}
-          {homeTiles.map((slug) => (
-            <Link key={slug} to={`/catalog?category=${slug}`} className="group min-w-0 text-center">
+        <div className="grid grid-cols-4 gap-2 md:grid-cols-8">
+          {homeCategoryTiles.map(({ label, to, image }) => (
+            <Link key={to} to={to} className="group min-w-0 rounded-2xl text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2">
               <span className="mx-auto block aspect-square w-full max-w-24 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-neutral-200 dark:ring-neutral-700">
                 <img
-                  src={categoryImages[slug]}
+                  src={image}
                   alt=""
                   className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                   loading="lazy"
+                  decoding="async"
                   width="360"
                   height="360"
                 />
               </span>
-              <span className="mt-1.5 block min-h-8 line-clamp-2 text-[10px] font-semibold leading-tight sm:text-xs">{slug === 'agriculture' ? 'Farm Produce' : categoryName(slug)}</span>
+              <span className="mt-1.5 block min-h-8 line-clamp-2 text-[10px] font-semibold leading-tight sm:text-xs">{label}</span>
             </Link>
           ))}
         </div>
