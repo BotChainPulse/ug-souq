@@ -68,7 +68,7 @@ export default function ChatBot() {
     setMsgs([{
       from: 'bot',
       text: r === 'buyer'
-        ? 'Muli otya! 👋 I\'m Kik, your UG Souq shopping assistant. What would you like to do?'
+        ? 'Oli otya! 👋 I\'m Kik, your UG Souq shopping assistant. What would you like to do?'
         : 'Welcome, seller! 💼 I can guide you through opening a shop, verification, payouts and more.',
     }])
   }
@@ -109,7 +109,7 @@ export default function ChatBot() {
             {!role ? (
               <div className="space-y-3 pt-2">
                 <div className="bg-white rounded-2xl rounded-tl-sm border border-neutral-200 p-3 text-sm shadow-sm">
-                  Muli otya! 👋 I'm <b>Kik</b>, the UG Souq assistant. How can I help you today — are you here to…
+                  Oli otya! 👋 I'm <b>Kik</b>, the UG Souq assistant. How can I help you today — are you here to…
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <button onClick={() => greet('buyer')} className="rounded-xl border-2 border-orange-500 bg-orange-50 py-3 text-sm font-bold hover:bg-orange-100">🛍️ Shop / Buy</button>
