@@ -1,5 +1,6 @@
+import { needsSize } from '../lib/sizes'
 import {useState,  useMemo } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { useNavigate, Link, useSearchParams } from 'react-router'
 import {Heart,  BadgeCheck, Check, RefreshCcw, ShoppingCart, Star, Store, Timer } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -26,6 +27,7 @@ export default function Catalog() {
 
   const { data: items, isLoading } = trpc.products.browse.useQuery({ category, condition, deals }, { refetchInterval: 60_000 })
   const { add } = useCart()
+  const navigate = useNavigate()
   const [wishlist, setWishlist] = useState<string[]>(loadWishlist)
   const toggleWish = (id: string) => {
     const next = toggleWishlist(wishlist, id)
@@ -150,6 +152,7 @@ export default function Catalog() {
                     <p className="mt-1 flex items-center gap-1 text-[11px] text-neutral-500"><Star size={12} className="text-amber-500" fill="currentColor" /> {'sellerRating' in p ? Number(p.sellerRating).toFixed(1) : 'Verified'} seller {p.stock > 0 ? '· In stock' : '· Out of stock'}</p>
                       <button disabled={p.stock < 1}
                         onClick={() => {
+                          if (needsSize(p)) { navigate(`/product/${p.slug}`); return }
                           add({ itemType: p.kind, itemId: p.id, name: p.name, price: p.price, image: p.image, sellerId: p.sellerId, sellerName: p.sellerName })
                           setAdded(key)
                           setTimeout(() => setAdded(null), 1200)
@@ -157,7 +160,7 @@ export default function Catalog() {
                         className="mt-3 w-full flex items-center justify-center gap-2 text-sm font-bold text-white py-3 rounded-xl transition-colors shadow-sm active:scale-95 disabled:opacity-50"
                         style={{ background: added === key ? '#16a34a' : ORANGE }}
                       >
-                        {added === key ? <><Check size={14} /> Added</> : <><ShoppingCart size={14} /> Add to cart</>}
+                        {needsSize(p) ? 'Choose size' : added === key ? <><Check size={14} /> Added</> : <><ShoppingCart size={14} /> Add to cart</>}
                       </button>
 
                   </div>

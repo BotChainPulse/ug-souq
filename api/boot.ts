@@ -69,6 +69,9 @@ async function ensureStartupSchema() {
   await addColumn(`ALTER TABLE listings ADD COLUMN is_branded BOOLEAN NOT NULL DEFAULT FALSE`);
   await addColumn(`ALTER TABLE listings ADD COLUMN brand_name VARCHAR(128) NULL`);
   await addColumn(`ALTER TABLE listings ADD COLUMN authenticity_evidence TEXT NULL`);
+  await addColumn(`ALTER TABLE products ADD COLUMN size_options TEXT NULL`);
+  await addColumn(`ALTER TABLE listings ADD COLUMN size_options TEXT NULL`);
+  await addColumn(`ALTER TABLE order_items ADD COLUMN size VARCHAR(32) NULL`);
   await addColumn(`ALTER TABLE customers ADD COLUMN deletion_token_hash VARCHAR(64) NULL`);
   await addColumn(`ALTER TABLE customers ADD COLUMN email VARCHAR(255) NULL`);
   await addColumn(`ALTER TABLE orders ADD COLUMN customer_email VARCHAR(255) NULL`);

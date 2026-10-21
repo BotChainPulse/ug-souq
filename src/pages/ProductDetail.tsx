@@ -1,3 +1,4 @@
+import { needsSize, readSizes } from '../lib/sizes'
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { trpc } from '@/providers/trpc'
@@ -17,6 +18,10 @@ export default function ProductDetailPage() {
   const { data: p, isLoading } = trpc.products.bySlug.useQuery({ slug }, { refetchInterval: 60_000 })
   const { add } = useCart()
   const [added, setAdded] = useState(false)
+  const [selection, setSelection] = useState({ slug: '', label: '' })
+  const sizes = readSizes(p?.sizeOptions)
+  const sized = !!p && needsSize(p)
+  const selectedSize = selection.slug === slug ? sizes.find(option => option.label === selection.label && option.stock > 0) : undefined
   const [zoneId, setZoneId] = useState('kampala')
   const zone = DELIVERY_ZONES.find((z) => z.id === zoneId) ?? DELIVERY_ZONES[0]
 
@@ -30,8 +35,8 @@ export default function ProductDetailPage() {
   )
 
   const onAdd = () => {
-    if (!p) return
-    add({ itemType: p.kind === 'listing' ? 'listing' : 'product', itemId: p.id, name: p.name, price: p.price, image: p.image, sellerId: p.sellerId, sellerName: p.sellerName })
+    if (!p || (sized && !selectedSize)) return
+    add({ itemType: p.kind === 'listing' ? 'listing' : 'product', itemId: p.id, name: p.name, price: p.price, image: p.image, sellerId: p.sellerId, sellerName: p.sellerName, size: selectedSize?.label, sizeRequired: sized, slug })
     setAdded(true)
     setTimeout(() => setAdded(false), 1400)
   }
@@ -113,10 +118,22 @@ export default function ProductDetailPage() {
                   </p>
                 )}
 
+                {sized && <fieldset className="mt-5 rounded-xl border border-neutral-200 p-4">
+                  <legend className="px-1 font-bold">Choose your size *</legend>
+                  {sizes.length ? <>
+                    <label htmlFor="product-size" className="text-sm">Available sizes</label>
+                    <select id="product-size" value={selectedSize?.label ?? ''} onChange={event => setSelection({ slug, label: event.target.value })} className="mt-2 w-full rounded-lg border p-3 bg-white text-neutral-900">
+                      <option value="">Select a size</option>
+                      {sizes.map(option => <option key={option.label} value={option.label} disabled={option.stock < 1}>{option.label}{option.stock < 1 ? ' — Out of stock' : ''}</option>)}
+                    </select>
+                    {selectedSize && <p className="mt-2 text-sm">{selectedSize.stock} available in size {selectedSize.label}</p>}
+                    <p className="mt-2 text-xs text-neutral-600">Check the seller's size label and sizing system before ordering.</p>
+                  </> : <p role="status" className="text-sm text-amber-900">The seller has not confirmed sizes yet. Ordering is unavailable until size stock is recorded.</p>}
+                </fieldset>}
                 <div className="mt-5 flex gap-3">
                   <button
                     onClick={onAdd}
-                    disabled={p.stock === 0}
+                    disabled={p.stock === 0 || (sized && !selectedSize)}
                     className="flex-1 flex items-center justify-center gap-2 font-bold text-white py-3.5 rounded-xl text-sm sm:text-base transition-colors disabled:opacity-50"
                     style={{ background: added ? '#16a34a' : ORANGE }}
                   >

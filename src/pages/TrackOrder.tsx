@@ -81,7 +81,7 @@ export default function TrackOrder() {
 
             <div className="mt-6 border-t border-neutral-100 pt-4 space-y-1.5 text-sm">
               {order.items.map((i) => (
-                <div key={i.id} className="flex justify-between"><span className="text-neutral-600">{i.qty}× {i.name}</span><span className="font-medium">{fmt(i.price * i.qty)}</span></div>
+                <div key={i.id} className="flex justify-between"><span className="text-neutral-600">{i.qty}× {i.name}{i.size ? ` · Size: ${i.size}` : ''}</span><span className="font-medium">{fmt(i.price * i.qty)}</span></div>
               ))}
             </div>
           </div>

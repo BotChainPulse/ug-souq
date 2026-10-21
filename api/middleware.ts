@@ -1,11 +1,12 @@
+import { restoreItemStock } from "./sizeStock";
 import { requireCustomerOwnership } from "./customerOwnership";
 import { initTRPC, TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import superjson from "superjson";
 import type { TrpcContext } from "./context";
 import { getDb } from "./queries/connection";
-import { listings, notifications, orderItems, orders, paymentTransactions, products, returns } from "../db/schema";
+import { notifications, orderItems, orders, paymentTransactions, returns } from "../db/schema";
 import { returnWindowMs } from "./returnPolicy";
 
 const t = initTRPC.context<TrpcContext>().create({
@@ -28,17 +29,7 @@ async function cancelPlacedUnpaidOrder(orderId: number) {
     if (paymentRows.some((row) => row.status === "pending" || row.status === "completed")) return false;
 
     const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, orderId));
-    for (const item of items) {
-      if (item.itemType === "product") {
-        await tx.update(products)
-          .set({ stock: sql`${products.stock} + ${item.qty}` })
-          .where(eq(products.id, item.itemId));
-      } else if (item.itemType === "listing") {
-        await tx.update(listings)
-          .set({ stock: sql`${listings.stock} + ${item.qty}` })
-          .where(eq(listings.id, item.itemId));
-      }
-    }
+    for (const item of items) await restoreItemStock(tx, item);
 
     await tx.update(orders).set({ status: "cancelled" }).where(eq(orders.id, orderId));
     await tx.insert(notifications).values({

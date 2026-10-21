@@ -1,3 +1,5 @@
+import { needsSize, readSizes, sizeTotal, validateSizes } from "../src/lib/sizes";
+import { restoreItemStock } from "./sizeStock";
 import { healthcareAdminRouter } from './healthcare';
 import { customerMatchesSearch } from '../src/lib/customerSearch';
 import { serviceAdminRouter } from './services';
@@ -594,13 +596,7 @@ export const adminRouter = createRouter({
         }
         if (input.status === "cancelled" && before.status !== "cancelled") {
           const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, input.id));
-          for (const item of items) {
-            if (item.itemType === "product") {
-              await tx.update(products).set({ stock: sql`${products.stock} + ${item.qty}` }).where(eq(products.id, item.itemId));
-            } else if (item.itemType === "listing") {
-              await tx.update(listings).set({ stock: sql`${listings.stock} + ${item.qty}` }).where(eq(listings.id, item.itemId));
-            }
-          }
+          for (const item of items) await restoreItemStock(tx, item);
         }
         const updates: any = { status: input.status };
         if (input.status === "delivered") updates.deliveredAt = new Date();
@@ -841,6 +837,38 @@ export const adminRouter = createRouter({
     return mapped.sort((a, b) => (a.status === "pending" ? -1 : 0) - (b.status === "pending" ? -1 : 0));
   }),
 
+  sizeInventory: publicQuery.input(z.object({ key: z.string() })).query(async ({ input }) => {
+    requireAdmin(input.key);
+    const db = getDb();
+    const curated = await db.select().from(products);
+    const submitted = await db.select().from(listings);
+    return [
+      ...curated.map(item => ({ itemType: "product" as const, id: item.id, name: item.name, category: item.category, stock: item.stock, sizeOptions: item.sizeOptions ?? null })),
+      ...submitted.map(item => ({ itemType: "listing" as const, id: item.id, name: item.name, category: item.category, stock: item.stock, sizeOptions: item.sizeOptions ?? null })),
+    ].filter(item => needsSize(item));
+  }),
+  setItemSizes: publicQuery.input(z.object({
+    key: z.string(), itemType: z.enum(["product", "listing"]), id: z.number().int().positive(),
+    expectedStock: z.number().int(), expectedSizes: z.string().nullable(),
+    sizes: z.array(z.object({ label: z.string().max(32), stock: z.number().int().min(0).max(10000) })).max(30),
+  })).mutation(async ({ input }) => {
+    requireAdmin(input.key);
+    let sizes;
+    try { sizes = validateSizes(input.sizes); } catch (error) { throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Invalid sizes." }); }
+    const db = getDb();
+    const table = input.itemType === "product" ? products : listings;
+    await db.transaction(async tx => {
+      const [before] = await tx.select().from(table).where(eq(table.id, input.id)).for("update");
+      if (!before) throw new TRPCError({ code: "NOT_FOUND", message: "Item not found." });
+      if (before.stock !== input.expectedStock || (before.sizeOptions ?? null) !== input.expectedSizes) throw new TRPCError({ code: "CONFLICT", message: "Stock changed. Refresh before saving size stock." });
+      if (needsSize(before) && !sizes.length) throw new TRPCError({ code: "BAD_REQUEST", message: "Enter the item's actual sizes, including One size when applicable." });
+      if (sizeTotal(sizes) > 10000) throw new TRPCError({ code: "BAD_REQUEST", message: "Total size stock cannot exceed 10,000." });
+      await tx.update(table).set({ sizeOptions: JSON.stringify(sizes), stock: sizeTotal(sizes) }).where(eq(table.id, input.id));
+    });
+    await writeAudit({ key: input.key, action: "inventory.sizes.updated", entityType: input.itemType, entityId: input.id, afterState: { sizes } });
+    return { ok: true };
+  }),
+
   setListingStatus: publicQuery
     .input(z.object({ key: z.string(), id: z.number(), status: z.enum(["pending", "approved", "rejected", "suspended", "terminated"]) }))
     .mutation(async ({ input }) => {
@@ -848,6 +876,9 @@ export const adminRouter = createRouter({
       const db = getDb();
       const [before] = await db.select().from(listings).where(eq(listings.id, input.id));
       if (!before) throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found." });
+      if (input.status === "approved" && needsSize(before) && (!readSizes(before.sizeOptions).length || sizeTotal(readSizes(before.sizeOptions)) !== before.stock)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Confirm sizes and stock in Size inventory before approving this listing." });
+      }
       if (input.status === "approved" && before.isBranded && (!before.brandName || !before.authenticityEvidence)) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Branded goods cannot be approved without recorded authenticity evidence." });
       }

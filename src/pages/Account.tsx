@@ -362,7 +362,7 @@ export default function AccountPage() {
                 </div>
                 {o.items?.map((it: any, idx: number) => (
                   <div key={idx} className="flex items-center justify-between py-1">
-                    <span className="text-sm text-gray-700">{it.qty}× {it.name}</span>
+                    <span className="text-sm text-gray-700">{it.qty}× {it.name}{it.size ? ` · Size: ${it.size}` : ''}</span>
                     <span className="text-sm font-semibold text-gray-900">{fmt(it.price * it.qty)}</span>
                   </div>
                 ))}

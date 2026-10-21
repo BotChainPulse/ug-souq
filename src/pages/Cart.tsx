@@ -53,6 +53,7 @@ export default function Cart() {
   const deliveryFee = activePlusForCheckout ? 0 : standardDeliveryFee
   const total = subtotal + deliveryFee
   const valid =
+    !items.some(item => item.sizeRequired && !item.size) &&
     form.name.length >= 2 &&
     form.phone.length >= 9 &&
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) &&
@@ -74,6 +75,7 @@ export default function Cart() {
         name: i.name,
         price: i.price,
         qty: i.qty,
+        size: i.size,
       })),
     })
 
@@ -157,7 +159,7 @@ export default function Cart() {
                   <div className="divide-y divide-neutral-100">
                     {items.map((i) => (
                       <div
-                        key={`${i.itemType}-${i.itemId}`}
+                        key={`${i.itemType}-${i.itemId}-${i.size ?? ""}`}
                         className="flex items-center gap-4 p-4 sm:p-5"
                       >
                         <div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-xl bg-neutral-50">
@@ -174,6 +176,8 @@ export default function Cart() {
 
                         <div className="min-w-0 flex-1">
                           <p className="line-clamp-2 text-sm font-bold">{i.name}</p>
+                          {i.size && <p className="text-sm font-semibold text-emerald-800">Size: {i.size}</p>}
+                          {i.sizeRequired && !i.size && <p role="alert" className="text-sm text-red-700">Remove this item and choose a size on its product page.</p>}
                           {i.sellerName && (
                             <p className="mt-1 flex items-center gap-1 text-xs text-neutral-500">
                               <BadgeCheck size={13} className="text-sky-600" /> Sold by{' '}
@@ -189,7 +193,7 @@ export default function Cart() {
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
-                            onClick={() => setQty(i.itemType, i.itemId, i.qty - 1)}
+                            onClick={() => setQty(i.itemType, i.itemId, i.qty - 1, i.size)}
                             className="grid h-8 w-8 place-items-center rounded-full border border-neutral-300"
                           >
                             <Minus size={14} />
@@ -197,7 +201,7 @@ export default function Cart() {
                           <span className="w-6 text-center text-sm font-bold">{i.qty}</span>
                           <button
                             type="button"
-                            onClick={() => setQty(i.itemType, i.itemId, i.qty + 1)}
+                            onClick={() => setQty(i.itemType, i.itemId, i.qty + 1, i.size)}
                             className="grid h-8 w-8 place-items-center rounded-full border border-neutral-300"
                           >
                             <Plus size={14} />
@@ -206,7 +210,7 @@ export default function Cart() {
 
                         <button
                           type="button"
-                          onClick={() => remove(i.itemType, i.itemId)}
+                          onClick={() => remove(i.itemType, i.itemId, i.size)}
                           className="p-2 text-neutral-400 hover:text-red-600"
                         >
                           <Trash2 size={16} />

@@ -1,4 +1,5 @@
-import { Link, useSearchParams } from 'react-router'
+import { needsSize } from '../lib/sizes'
+import { useNavigate, Link, useSearchParams } from 'react-router'
 import { SearchX, BadgeCheck, Star, Clock, Plus } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -12,6 +13,7 @@ export default function SearchResults() {
   const [params] = useSearchParams()
   const q = (params.get('q') || '').trim().slice(0, 100)
   const { add } = useCart()
+  const navigate = useNavigate()
   const products = trpc.products.search.useQuery({ q }, { enabled: q.length > 0, refetchInterval: 60_000 })
   const restaurants = trpc.food.search.useQuery({ q }, { enabled: q.length > 0 })
   const loading = products.isLoading || restaurants.isLoading
@@ -74,10 +76,10 @@ export default function SearchResults() {
                       {p.oldPrice && <p className="text-[11px] text-neutral-400 line-through">{fmt(p.oldPrice)}</p>}
                     </div>
                     <button disabled={p.stock < 1}
-                      onClick={() => add({ itemType: p.kind, itemId: p.id, name: p.name, price: p.price })}
+                      onClick={() => needsSize(p) ? navigate(`/product/${p.slug}`) : add({ itemType: p.kind, itemId: p.id, name: p.name, price: p.price })}
                       className="w-9 h-9 rounded-full grid place-items-center text-white shrink-0"
                       style={{ background: ORANGE }}
-                      aria-label={`Add ${p.name} to cart`}
+                      aria-label={needsSize(p) ? `Choose size for ${p.name}` : `Add ${p.name} to cart`}
                     >
                       <Plus size={18} />
                     </button>

@@ -1,5 +1,6 @@
+import { needsSize } from '../lib/sizes'
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { useNavigate, Link } from 'react-router'
 import { Heart, Grid3X3, Wallet, Zap, Star, Truck, ShieldCheck, Home as HomeIcon, BadgeCheck, ShoppingCart, Check, UserRound } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -46,6 +47,7 @@ export default function HomePage() {
   const products = offers?.filter(product => product.stock > 0).slice(0, 8)
   const { data: groceryProducts, isLoading: groceriesLoading } = trpc.products.homepageGroceries.useQuery()
   const { add } = useCart()
+  const navigate = useNavigate()
   const [wishlist, setWishlist] = useState<string[]>(loadWishlist)
   const [added, setAdded] = useState<string | null>(null)
   const toggleWish = (id: string | number, kind: 'product' | 'listing' = 'product') => {
@@ -54,6 +56,8 @@ export default function HomePage() {
   }
   const isWished = (id: string | number, kind: 'product' | 'listing' = 'product') => wishlist.includes(wishlistKey(kind, id))
   const onAdd = (id: number, name: string, price: number, kind: 'product' | 'listing' = 'product') => {
+    const item = products?.find(p => p.kind === kind && p.id === id)
+    if (item && needsSize(item)) { navigate(`/product/${item.slug}`); return }
     add({ itemType: kind, itemId: id, name, price }); setAdded(`${kind}:${id}`); setTimeout(() => setAdded(null), 1200)
   }
 
@@ -118,7 +122,7 @@ export default function HomePage() {
                   <span className="block truncate text-[10px] font-semibold text-emerald-700">{p.sellerVerified && <BadgeCheck size={11} className="mr-1 inline" />}{p.sellerName}</span>
                   <Link to={`/product/${p.slug}`}><h3 className="mt-1 line-clamp-2 min-h-[2.4em] text-xs font-semibold leading-snug sm:text-sm">{p.name}</h3></Link>
                   <div className="mt-1.5 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5"><span className="whitespace-nowrap text-sm font-extrabold sm:text-base">{fmt(p.price)}</span>{p.oldPrice && <span className="whitespace-nowrap text-[10px] text-neutral-400 line-through">{fmt(p.oldPrice)}</span>}</div>
-                  <div className="mt-1 flex items-center justify-between"><span className="flex items-center gap-1 text-[10px] text-neutral-500"><Star size={11} className="fill-amber-400 text-amber-400" />{p.sellerRating.toFixed(1)}</span><button onClick={() => onAdd(p.id, p.name, p.price, p.kind)} aria-label="Add to cart" className="grid h-8 w-8 place-items-center rounded-lg text-white active:scale-95" style={{ background: ORANGE }}>{added === `${p.kind}:${p.id}` ? <Check size={15} /> : <ShoppingCart size={15} />}</button></div>
+                  <div className="mt-1 flex items-center justify-between"><span className="flex items-center gap-1 text-[10px] text-neutral-500"><Star size={11} className="fill-amber-400 text-amber-400" />{p.sellerRating.toFixed(1)}</span><button onClick={() => onAdd(p.id, p.name, p.price, p.kind)} aria-label={needsSize(p) ? `Choose size for ${p.name}` : "Add to cart"} className="grid h-8 w-8 place-items-center rounded-lg text-white active:scale-95" style={{ background: ORANGE }}>{added === `${p.kind}:${p.id}` ? <Check size={15} /> : <ShoppingCart size={15} />}</button></div>
                 </div>
               </article>
             ))}

@@ -1,3 +1,4 @@
+import { sizeLabel } from "../src/lib/sizes";
 import { TRPCError } from "@trpc/server";
 import { DELIVERY_ZONES, PICKUP_POINTS } from "../src/lib/delivery";
 
@@ -7,12 +8,13 @@ export type RequestedOrderItem = {
   itemType: OrderItemType;
   itemId: number;
   qty: number;
+  size?: string;
 };
 
 export function validateRequestedItems(items: RequestedOrderItem[]) {
   const seen = new Set<string>();
   for (const item of items) {
-    const key = `${item.itemType}:${item.itemId}`;
+    const key = `${item.itemType}:${item.itemId}:${sizeLabel(item.size ?? "")}`;
     if (seen.has(key)) {
       throw new TRPCError({
         code: "BAD_REQUEST",

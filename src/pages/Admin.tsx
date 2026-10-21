@@ -1,6 +1,8 @@
 import HealthcareAdminPanel from '../components/admin/HealthcareAdminPanel'
 import ServiceAdminPanel from '../components/admin/ServiceAdminPanel'
 import PartnershipPanel from "../components/admin/PartnershipPanel"
+import { readSizes } from '../lib/sizes'
+import SizeInventoryPanel from '../components/admin/SizeInventoryPanel'
 import { useEffect, useState } from 'react'
 import React from 'react'
 import { useLocation, useNavigate } from 'react-router'
@@ -345,6 +347,7 @@ function Listings({ adminKey }: { adminKey: string }) {
                 {l?.sellerVerified && <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium flex items-center gap-1"><CheckCircle size={12} /> Verified Seller</span>}
               </div>
               <p className="text-sm text-neutral-600">UGX {Number(l?.price ?? 0).toLocaleString()} · by {l?.sellerName ?? "-"}</p>
+              <p className="mt-2 text-sm">{readSizes(l?.sizeOptions).map(size => `${size.label}: ${size.stock}`).join(' · ')}</p>
               {l?.isBranded && (
                 <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
                   <p><b>Branded item:</b> {l?.brandName || 'Brand not supplied'}</p>
@@ -433,7 +436,7 @@ function Orders({ adminKey }: { adminKey: string }) {
               <div className="mt-3 overflow-hidden rounded-lg border border-neutral-200 text-xs">
                 {(o?.items ?? []).map((item: any) => (
                   <div key={item.id} className="flex flex-wrap justify-between gap-2 border-b border-neutral-100 px-3 py-2 last:border-0">
-                    <span><b>{item.name}</b> · {item.qty} × UGX {Number(item.price).toLocaleString()} · {item.itemType === 'listing' ? 'Seller listing' : item.itemType}</span>
+                    <span><b>{item.name}</b>{item.size ? ` · Size: ${item.size}` : ''} · {item.qty} × UGX {Number(item.price).toLocaleString()} · {item.itemType === 'listing' ? 'Seller listing' : item.itemType}</span>
                     <span className="text-neutral-500">Commission UGX {Number(item.commissionFee ?? 0).toLocaleString()} · Seller net UGX {Number(item.sellerNet ?? 0).toLocaleString()}</span>
                   </div>
                 ))}
@@ -995,7 +998,7 @@ export default function Admin() {
             </div>
           )}
           {tab === "sellers" && <Sellers adminKey={adminKey} />}
-          {tab === "listings" && <Listings adminKey={adminKey} />}
+          {tab === "listings" && <><SizeInventoryPanel adminKey={adminKey} /><Listings adminKey={adminKey} /></>}
           {tab === "orders" && <OrderErrorBoundary><Orders adminKey={adminKey} /></OrderErrorBoundary>}
           {tab === "payments" && <PaymentsPanel adminKey={adminKey} />}
           {tab === "customers" && <BuyersPanel adminKey={adminKey} />}
