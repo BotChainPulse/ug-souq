@@ -1,3 +1,4 @@
+import { sizeLabel } from './sizes'
 import { createContext, useContext, useState } from 'react'
 import type { ReactNode } from 'react'
 
@@ -12,13 +13,16 @@ export type CartItem = {
   image?: string
   sellerId?: number
   sellerName?: string
+  size?: string
+  sizeRequired?: boolean
+  slug?: string
 }
 
 type CartContextType = {
   items: CartItem[]
   add: (item: Omit<CartItem, 'qty'> & { qty?: number }) => void
-  setQty: (itemType: CartItemType, itemId: number, qty: number) => void
-  remove: (itemType: CartItemType, itemId: number) => void
+  setQty: (itemType: CartItemType, itemId: number, qty: number, size?: string) => void
+  remove: (itemType: CartItemType, itemId: number, size?: string) => void
   clear: () => void
   subtotal: number
   count: number
@@ -28,8 +32,8 @@ const CartContext = createContext<CartContextType | null>(null)
 // v2 drops legacy carts whose seller-listing IDs could collide with curated product IDs.
 const STORAGE_KEY = 'ugsouq_cart_v2'
 
-const sameKey = (a: { itemType: CartItemType; itemId: number }, b: { itemType: CartItemType; itemId: number }) =>
-  a.itemType === b.itemType && String(a.itemId) === String(b.itemId)
+const sameKey = (a: { itemType: CartItemType; itemId: number; size?: string }, b: { itemType: CartItemType; itemId: number; size?: string }) =>
+  a.itemType === b.itemType && String(a.itemId) === String(b.itemId) && sizeLabel(a.size ?? '') === sizeLabel(b.size ?? '')
 
 const safeQty = (q: any) => {
   const n = Number(q)
@@ -51,6 +55,9 @@ const sanitize = (raw: any[]): CartItem[] => {
       name: typeof i.name === 'string' ? i.name : 'Item',
       price: Number.isFinite(Number(i.price)) ? Number(i.price) : 0,
       qty: safeQty(i.qty),
+      ...(typeof i.size === 'string' && i.size.trim() ? { size: sizeLabel(i.size) } : {}),
+      sizeRequired: i.sizeRequired === true,
+      ...(typeof i.slug === 'string' ? { slug: i.slug } : {}),
       ...(i.image != null ? { image: i.image } : {}),
       ...(i.sellerId != null ? { sellerId: i.sellerId } : {}),
       ...(i.sellerName != null ? { sellerName: i.sellerName } : {}),
@@ -73,6 +80,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }
 
   const add: CartContextType['add'] = (item) => {
+    if (item.sizeRequired && !item.size?.trim()) return
+    item = { ...item, ...(item.size ? { size: sizeLabel(item.size) } : {}) }
     setItems((prev) => {
       const existing = prev.find((i) => sameKey(i, item))
       const qty = safeQty(item.qty ?? 1)
@@ -84,21 +93,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
     })
   }
 
-  const setQty: CartContextType['setQty'] = (itemType, itemId, qty) => {
+  const setQty: CartContextType['setQty'] = (itemType, itemId, qty, size) => {
     setItems((prev) => {
       const n = Number(qty)
       const next =
         !Number.isFinite(n) || n <= 0
-          ? prev.filter((i) => !(i.itemType === itemType && String(i.itemId) === String(itemId)))
-          : prev.map((i) => (i.itemType === itemType && String(i.itemId) === String(itemId) ? { ...i, qty: Math.floor(n) } : i))
+          ? prev.filter((i) => !(sameKey(i, { itemType, itemId, size })))
+          : prev.map((i) => (sameKey(i, { itemType, itemId, size }) ? { ...i, qty: Math.floor(n) } : i))
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)) } catch {}
       return next
     })
   }
 
-  const remove: CartContextType['remove'] = (itemType, itemId) => {
+  const remove: CartContextType['remove'] = (itemType, itemId, size) => {
     setItems((prev) => {
-      const next = prev.filter((i) => !(i.itemType === itemType && String(i.itemId) === String(itemId)))
+      const next = prev.filter((i) => !(sameKey(i, { itemType, itemId, size })))
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)) } catch {}
       return next
     })

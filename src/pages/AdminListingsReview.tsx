@@ -1,3 +1,5 @@
+import { readSizes } from '../lib/sizes'
+import SizeInventoryPanel from '../components/admin/SizeInventoryPanel'
 import { discountedPrice } from '../lib/listingOffer'
 import { useState } from 'react'
 import { Link } from 'react-router'
@@ -39,6 +41,7 @@ export default function AdminListingsReview() {
       </header>
 
       <main className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
+        <SizeInventoryPanel adminKey={adminKey} />
         <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
           Review the item photo and details before approving. Approval publishes the listing to shoppers. Check the regular price, discount and offer dates for misleading price claims. Discounts do not include paid advertising.
         </div>
@@ -76,6 +79,7 @@ export default function AdminListingsReview() {
                     <div className="rounded-lg bg-slate-50 p-2"><span className="text-slate-500">Stock</span><p className="font-bold">{item.stock ?? '-'}</p></div>
                     <div className="rounded-lg bg-slate-50 p-2"><span className="text-slate-500">Warranty</span><p className="font-bold">{Number(item.warrantyMonths || 0)} month(s)</p></div>
                   </div>
+                  <p className="mt-2 text-sm">{readSizes(item.sizeOptions).map(size => `${size.label}: ${size.stock}`).join(' · ')}</p>
                   {item.imageNote && <p className="mt-3 text-xs text-slate-500">Seller note: {item.imageNote}</p>}
                   {item.status === 'pending' && <div className="mt-4 grid grid-cols-2 gap-2"><button disabled={setListingStatus.isPending} onClick={() => window.confirm(`Approve ${item.name}? This will publish it to shoppers.`) && setListingStatus.mutate({ key: adminKey, id, status: 'approved' })} className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-3 text-sm font-bold text-white disabled:opacity-50"><Check size={16} />Approve</button><button disabled={setListingStatus.isPending} onClick={() => window.confirm(`Reject ${item.name}?`) && setListingStatus.mutate({ key: adminKey, id, status: 'rejected' })} className="flex items-center justify-center gap-2 rounded-xl bg-red-600 px-3 py-3 text-sm font-bold text-white disabled:opacity-50"><X size={16} />Reject</button></div>}
                 </div>

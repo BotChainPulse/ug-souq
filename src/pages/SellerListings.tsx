@@ -1,3 +1,5 @@
+import SizeStockEditor from '../components/SizeStockEditor'
+import { readSizes, sizeCategory, sizeTotal, validateSizes, type SizeOption } from '../lib/sizes'
 import { discountedPrice, listingPrice } from '../lib/listingOffer'
 import { useState } from 'react'
 import { Link } from 'react-router'
@@ -95,6 +97,11 @@ export default function SellerListings() {
     isBranded: false, brandName: '', authenticityEvidence: '',
   })
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }))
+  const [sizeOptions, setSizeOptions] = useState<SizeOption[]>([])
+  const [useSizes, setUseSizes] = useState(false)
+  const sized = sizeCategory(form.category) || useSizes
+  let sizesValid = true
+  try { if (sized) { const checked = validateSizes(sizeOptions); sizesValid = checked.length > 0 && sizeTotal(checked) > 0 && sizeTotal(checked) <= 10000 } } catch { sizesValid = false }
   const [justAdded, setJustAdded] = useState(false)
   const [photo, setPhoto] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -112,11 +119,11 @@ export default function SellerListings() {
     new Date(form.offerEndsAt) > new Date(form.offerStartsAt) && new Date(form.offerEndsAt) > new Date())
 
   const canSubmit =
-    approved &&
+    sizesValid && approved &&
     hasListingSlot &&
     form.name.trim().length >= 3 &&
     Number.isInteger(Number(form.price)) && Number(form.price) >= 100 && Number(form.price) <= 2_000_000_000 && offerValid &&
-    Number.isInteger(Number(form.stock)) && Number(form.stock) >= 1 && Number(form.stock) <= 10000 &&
+    (sized || (Number.isInteger(Number(form.stock)) && Number(form.stock) >= 1 && Number(form.stock) <= 10000)) &&
     photo !== null && !photoBusy &&
     (!form.isBranded || (form.brandName.trim().length >= 2 && form.authenticityEvidence.trim().length >= 10)) &&
     (form.condition === 'new' || Number(form.warrantyMonths) >= 1)
@@ -130,7 +137,8 @@ export default function SellerListings() {
       offerPercent: hasOffer ? percent : undefined,
       offerStartsAt: hasOffer ? new Date(form.offerStartsAt).toISOString() : undefined,
       offerEndsAt: hasOffer ? new Date(form.offerEndsAt).toISOString() : undefined,
-      stock: Number(form.stock),
+      stock: sized ? sizeTotal(sizeOptions) : Number(form.stock),
+      sizeOptions: sized ? validateSizes(sizeOptions) : undefined,
       condition: form.condition,
       warrantyMonths: form.condition === 'new' ? 0 : Number(form.warrantyMonths),
       isBranded: form.isBranded,
@@ -141,6 +149,8 @@ export default function SellerListings() {
     })
     setForm({ name: '', category: 'phones', price: '', offerPercent: '', offerStartsAt: '', offerEndsAt: '', stock: '1', condition: 'new', warrantyMonths: '6', imageNote: '', isBranded: false, brandName: '', authenticityEvidence: '' })
     setPhoto(null)
+    setSizeOptions([])
+    setUseSizes(false)
     setJustAdded(true)
     } catch { /* The mutation error is displayed beside the submit button. */ }
   }
@@ -279,12 +289,15 @@ export default function SellerListings() {
                 <div>
                   <label className="text-xs font-bold text-neutral-600 uppercase tracking-wide">Stock available *</label>
                   <input
-                    type="number" min={1} value={form.stock}
+                    type="number" min={1} disabled={sized} value={sized ? sizeTotal(sizeOptions) || 0 : form.stock}
                     onChange={(e) => set('stock', e.target.value)}
                     className="mt-1 w-full h-11 rounded-xl border border-neutral-300 px-4 text-sm outline-none focus:border-orange-500"
                   />
                 </div>
               </div>
+
+              {!sizeCategory(form.category) && <label className="flex gap-2 text-sm"><input type="checkbox" checked={useSizes} onChange={event => setUseSizes(event.target.checked)} />This item is sold in sizes</label>}
+              {sized && <><SizeStockEditor value={sizeOptions} onChange={setSizeOptions} />{!sizesValid && <p role="alert" className="text-sm text-red-700">Add distinct size labels and available stock before submitting.</p>}</>}
 
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
@@ -449,6 +462,7 @@ export default function SellerListings() {
                       <p className="text-xs text-neutral-500">
                         {fmt(listingPrice(l).price)} · {l.condition}{l.condition !== 'new' ? `, ${l.warrantyMonths}mo warranty` : ''} · stock {l.stock}
                       </p>
+                      {readSizes(l.sizeOptions).length > 0 && <p className="text-xs text-neutral-600 break-words">Sizes: {readSizes(l.sizeOptions).map(size => `${size.label}: ${size.stock}`).join(" · ")}</p>}
                     </div>
                   </div>
                   <div className="text-right shrink-0"><StatusPill status={l.status} />{l.offerPercent && <p className="mt-1 text-xs text-neutral-600">{l.offerPercent}% offer · {listingPrice(l).offerActive ? 'within offer window' : 'outside offer window'}</p>}</div>
