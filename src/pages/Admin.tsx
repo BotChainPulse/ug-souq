@@ -436,7 +436,7 @@ function Orders({ adminKey }: { adminKey: string }) {
               <div className="mt-3 overflow-hidden rounded-lg border border-neutral-200 text-xs">
                 {(o?.items ?? []).map((item: any) => (
                   <div key={item.id} className="flex flex-wrap justify-between gap-2 border-b border-neutral-100 px-3 py-2 last:border-0">
-                    <span><b>{item.name}</b>{item.size ? ` · Size: ${item.size}` : ''} · {item.qty} × UGX {Number(item.price).toLocaleString()} · {item.itemType === 'listing' ? 'Seller listing' : item.itemType}</span>
+                    <span><b>{item.name}</b>{item.size ? ` · Size: ${item.size}` : ''}{item.configuration ? ` · ${item.configuration}` : ''} · {item.qty} × UGX {Number(item.price).toLocaleString()} · {item.itemType === 'listing' ? 'Seller listing' : item.itemType}</span>
                     <span className="text-neutral-500">Commission UGX {Number(item.commissionFee ?? 0).toLocaleString()} · Seller net UGX {Number(item.sellerNet ?? 0).toLocaleString()}</span>
                   </div>
                 ))}

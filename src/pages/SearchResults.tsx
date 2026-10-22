@@ -1,3 +1,4 @@
+import { needsDetails } from '../lib/productDetails'
 import { needsSize } from '../lib/sizes'
 import { useNavigate, Link, useSearchParams } from 'react-router'
 import { SearchX, BadgeCheck, Star, Clock, Plus } from 'lucide-react'
@@ -76,10 +77,10 @@ export default function SearchResults() {
                       {p.oldPrice && <p className="text-[11px] text-neutral-400 line-through">{fmt(p.oldPrice)}</p>}
                     </div>
                     <button disabled={p.stock < 1}
-                      onClick={() => needsSize(p) ? navigate(`/product/${p.slug}`) : add({ itemType: p.kind, itemId: p.id, name: p.name, price: p.price })}
+                      onClick={() => (needsSize(p) || needsDetails(p)) ? navigate(`/product/${p.slug}`) : add({ itemType: p.kind, itemId: p.id, name: p.name, price: p.price })}
                       className="w-9 h-9 rounded-full grid place-items-center text-white shrink-0"
                       style={{ background: ORANGE }}
-                      aria-label={needsSize(p) ? `Choose size for ${p.name}` : `Add ${p.name} to cart`}
+                      aria-label={(needsSize(p) || needsDetails(p)) ? `View options for ${p.name}` : `Add ${p.name} to cart`}
                     >
                       <Plus size={18} />
                     </button>

@@ -1,3 +1,4 @@
+import { confirmedSpecifications, PRODUCT_TYPES } from '../src/lib/productDetails';
 import { needsSize, readSizes, sizeTotal, validateSizes } from "../src/lib/sizes";
 import { restoreItemStock } from "./sizeStock";
 import { healthcareAdminRouter } from './healthcare';
@@ -843,9 +844,37 @@ export const adminRouter = createRouter({
     const curated = await db.select().from(products);
     const submitted = await db.select().from(listings);
     return [
-      ...curated.map(item => ({ itemType: "product" as const, id: item.id, name: item.name, category: item.category, stock: item.stock, sizeOptions: item.sizeOptions ?? null })),
-      ...submitted.map(item => ({ itemType: "listing" as const, id: item.id, name: item.name, category: item.category, stock: item.stock, sizeOptions: item.sizeOptions ?? null })),
-    ].filter(item => needsSize(item));
+      ...curated.map(item => ({ itemType: "product" as const, id: item.id, name: item.name, category: item.category, stock: item.stock, sizeOptions: item.sizeOptions ?? null, productType: item.productType ?? null, requiresSize: item.requiresSize ?? null, specifications: item.specifications ?? null })),
+      ...submitted.map(item => ({ itemType: "listing" as const, id: item.id, name: item.name, category: item.category, stock: item.stock, sizeOptions: item.sizeOptions ?? null, productType: item.productType ?? null, requiresSize: item.requiresSize ?? null, specifications: item.specifications ?? null })),
+    ];
+  }),
+  setItemDetails: publicQuery.input(z.object({
+    key: z.string(), itemType: z.enum(["product", "listing"]), id: z.number().int().positive(),
+    expected: z.object({ stock: z.number().int(), sizeOptions: z.string().nullable(), productType: z.string().nullable(), requiresSize: z.boolean().nullable(), specifications: z.string().nullable() }),
+    productType: z.enum(PRODUCT_TYPES), requiresSize: z.boolean(), stock: z.number().int().min(0).max(10000),
+    sizes: z.array(z.object({ label: z.string().max(32), stock: z.number().int().min(0).max(10000) })).max(30),
+    specifications: z.array(z.object({ label: z.string().max(48), value: z.string().max(160) })).max(20),
+  })).mutation(async ({ input }) => {
+    requireAdmin(input.key);
+    const db = getDb(), table = input.itemType === "product" ? products : listings;
+    const audit = await db.transaction(async tx => {
+      const [before] = await tx.select().from(table).where(eq(table.id, input.id)).for("update");
+      if (!before) throw new TRPCError({ code: "NOT_FOUND", message: "Item not found." });
+      if (Object.entries(input.expected).some(([key, value]) => (before[key as keyof typeof before] ?? null) !== value)) throw new TRPCError({ code: "CONFLICT", message: "Item changed. Refresh inventory before saving." });
+      let sizes, specifications;
+      const details = { ...before, productType: input.productType, requiresSize: input.requiresSize, specifications: input.specifications };
+      try {
+        sizes = validateSizes(input.sizes);
+        if (needsSize({ ...details, sizeOptions: sizes.length ? sizes : null }) && !sizes.length) throw new Error("Enter actual sizes, including One size when appropriate.");
+        if (sizeTotal(sizes) > 10000) throw new Error("Total size stock cannot exceed 10,000.");
+        specifications = confirmedSpecifications(details);
+      } catch (error) { throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Invalid item details." }); }
+      const afterState = { productType: input.productType, requiresSize: input.requiresSize, specifications: specifications.length ? JSON.stringify(specifications) : null, sizeOptions: sizes.length ? JSON.stringify(sizes) : null, stock: sizes.length ? sizeTotal(sizes) : input.stock };
+      await tx.update(table).set(afterState).where(eq(table.id, input.id));
+      return { beforeState: before, afterState };
+    });
+    await writeAudit({ key: input.key, action: "inventory.details.updated", entityType: input.itemType, entityId: input.id, ...audit });
+    return { ok: true };
   }),
   setItemSizes: publicQuery.input(z.object({
     key: z.string(), itemType: z.enum(["product", "listing"]), id: z.number().int().positive(),
@@ -878,6 +907,9 @@ export const adminRouter = createRouter({
       if (!before) throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found." });
       if (input.status === "approved" && needsSize(before) && (!readSizes(before.sizeOptions).length || sizeTotal(readSizes(before.sizeOptions)) !== before.stock)) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Confirm sizes and stock in Size inventory before approving this listing." });
+      }
+      if (input.status === "approved") {
+        try { confirmedSpecifications(before); } catch (error) { throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Confirm product specifications before approval." }); }
       }
       if (input.status === "approved" && before.isBranded && (!before.brandName || !before.authenticityEvidence)) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Branded goods cannot be approved without recorded authenticity evidence." });

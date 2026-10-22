@@ -260,7 +260,7 @@ function OrderDetailsPage() {
             <section className="rounded-2xl border border-neutral-200 bg-white p-5">
               <h2 className="font-extrabold">Items</h2>
               <div className="mt-3 divide-y divide-neutral-100">
-                {items.map((item) => <div key={item.id} className="flex justify-between gap-3 py-3 text-sm"><span className="text-neutral-700">{Number(item.qty) || 0} × {item.name || 'Item'}{item.size ? ` · Size: ${item.size}` : ''}</span><span className="shrink-0 font-semibold">{safeAmount((Number(item.price) || 0) * (Number(item.qty) || 0))}</span></div>)}
+                {items.map((item) => <div key={item.id} className="flex justify-between gap-3 py-3 text-sm"><span className="text-neutral-700">{Number(item.qty) || 0} × {item.name || 'Item'}{item.size ? ` · Size: ${item.size}` : ''}{item.configuration ? ` · ${item.configuration}` : ''}</span><span className="shrink-0 font-semibold">{safeAmount((Number(item.price) || 0) * (Number(item.qty) || 0))}</span></div>)}
                 {items.length === 0 && <p className="py-3 text-sm text-neutral-500">No item lines were saved for this legacy order.</p>}
               </div>
               <div className="mt-2 space-y-2 border-t border-neutral-200 pt-3 text-sm"><div className="flex justify-between text-neutral-600"><span>Subtotal</span><span>{safeAmount(order.subtotal)}</span></div><div className="flex justify-between text-neutral-600"><span>Delivery</span><span>{Number(order.deliveryFee) === 0 ? 'Free' : safeAmount(order.deliveryFee)}</span></div><div className="flex justify-between pt-1 text-base font-extrabold"><span>Total</span><span>{safeAmount(order.total)}</span></div></div>

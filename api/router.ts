@@ -1,3 +1,4 @@
+import { confirmedSpecifications, PRODUCT_TYPES } from '../src/lib/productDetails';
 import { caseInsensitiveContains } from './searchPolicy';
 import { healthcareRouter } from './healthcare';
 import { deleteCustomerHealthcareData } from './healthcarePrivacy';
@@ -13,7 +14,7 @@ import { eq, desc, asc, or, and } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { createRouter, publicQuery } from "./middleware";
 import { getDb } from "./queries/connection";
-import { listingSizes, reserveSize } from "./sizeStock";
+import { listingSizes, reserveSize, checkoutConfiguration } from "./sizeStock";
 import { sellers, sellerIdentityDocuments, products, restaurants, menuItems, orders, orderItems, affiliates, listings, customers, deliveryPartners, sellerAdBookings, notifications, plusMemberships, plusPayments, marketingSubscribers, sellerSubscriptions } from "../db/schema";
 import { plusPlan } from "./plus";
 import { adminRouter } from "./admin";
@@ -196,7 +197,7 @@ export const appRouter = createRouter({
           category: listing.category,
           ...listingPrice(listing),
           image: listing.imageData ?? "/images/product-default.png",
-          stock: listing.stock, sizeOptions: listing.sizeOptions,
+          stock: listing.stock, sizeOptions: listing.sizeOptions, productType: listing.productType, requiresSize: listing.requiresSize, specifications: listing.specifications,
           condition: listing.condition,
           warrantyMonths: listing.warrantyMonths,
           flashSale: false,
@@ -256,7 +257,7 @@ export const appRouter = createRouter({
           category: listing.category,
           ...listingPrice(listing),
           image: listing.imageData ?? "/images/product-default.png",
-          stock: listing.stock, sizeOptions: listing.sizeOptions,
+          stock: listing.stock, sizeOptions: listing.sizeOptions, productType: listing.productType, requiresSize: listing.requiresSize, specifications: listing.specifications,
           condition: listing.condition,
           warrantyMonths: listing.warrantyMonths,
           flashSale: false,
@@ -318,7 +319,7 @@ export const appRouter = createRouter({
             category: listing.category,
             ...listingPrice(listing),
             image: listing.imageData ?? "/images/product-default.png",
-            stock: listing.stock, sizeOptions: listing.sizeOptions,
+            stock: listing.stock, sizeOptions: listing.sizeOptions, productType: listing.productType, requiresSize: listing.requiresSize, specifications: listing.specifications,
             condition: listing.condition,
             warrantyMonths: listing.warrantyMonths,
             flashSale: false,
@@ -356,7 +357,7 @@ export const appRouter = createRouter({
         kind: "listing" as const, id: listing.id, sellerId: listing.sellerId,
         name: listing.name, slug: `listing-${listing.id}`, category: listing.category,
         ...listingPrice(listing), image: listing.imageData ?? "/images/product-default.png",
-        stock: listing.stock, sizeOptions: listing.sizeOptions, condition: listing.condition, warrantyMonths: listing.warrantyMonths,
+        stock: listing.stock, sizeOptions: listing.sizeOptions, productType: listing.productType, requiresSize: listing.requiresSize, specifications: listing.specifications, condition: listing.condition, warrantyMonths: listing.warrantyMonths,
         sellerName: seller.shopName, sellerVerified: seller.verified,
       }));
       return [...productResults, ...listingResults].sort((a, b) => Number(b.sellerVerified) - Number(a.sellerVerified));
@@ -404,6 +405,7 @@ export const appRouter = createRouter({
           price: z.number().optional(),
           qty: z.number().int().min(1).max(99),
           size: z.string().trim().min(1).max(32).optional(),
+          configuration: z.string().max(5000).optional(),
         })).min(1).max(50),
         // Kept only so an older cached PWA can still submit. It is deliberately ignored.
         deliveryFee: z.number().optional(),
@@ -421,6 +423,7 @@ export const appRouter = createRouter({
             price: number;
             qty: number;
             size: string | null;
+            configuration: string | null;
             sellerId: number | null;
             commissionRate: string;
             commissionFee: number;
@@ -445,13 +448,14 @@ export const appRouter = createRouter({
                 .where(and(eq(products.id, requested.itemId), eq(sellers.status, "approved")))
                 .for("update");
               if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "A product in your cart is no longer available." });
+              const configuration = checkoutConfiguration(row.item, requested.configuration);
               const sized = reserveSize(row.item, requested.size, requested.qty);
               await tx.update(products)
                 .set({ stock: sized.stock, sizeOptions: sized.sizeOptions })
                 .where(eq(products.id, requested.itemId));
               const terms = await commercialTerms(row.item.sellerId);
               const fee = commissionForLine(row.item.price, requested.qty, terms.commissionRate);
-              canonicalItems.push({ size: sized.size, itemType: "product", itemId: row.item.id, name: row.item.name, price: row.item.price, qty: requested.qty, sellerId: row.item.sellerId, commissionRate: terms.commissionRate.toFixed(4), commissionFee: fee, sellerNet: row.item.price * requested.qty - fee });
+              canonicalItems.push({ configuration, size: sized.size, itemType: "product", itemId: row.item.id, name: row.item.name, price: row.item.price, qty: requested.qty, sellerId: row.item.sellerId, commissionRate: terms.commissionRate.toFixed(4), commissionFee: fee, sellerNet: row.item.price * requested.qty - fee });
               continue;
             }
 
@@ -467,6 +471,7 @@ export const appRouter = createRouter({
                 ))
                 .for("update");
               if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "A seller listing in your cart is no longer available." });
+              const configuration = checkoutConfiguration(row.item, requested.configuration);
               const sized = reserveSize(row.item, requested.size, requested.qty);
               const pricing = listingPrice(row.item);
               if (requested.price == null || requested.price !== pricing.price) {
@@ -477,7 +482,7 @@ export const appRouter = createRouter({
                 .where(eq(listings.id, requested.itemId));
               const terms = await commercialTerms(row.item.sellerId);
               const fee = commissionForLine(pricing.price, requested.qty, terms.commissionRate);
-              canonicalItems.push({ size: sized.size, itemType: "listing", itemId: row.item.id, name: row.item.name, price: pricing.price, qty: requested.qty, sellerId: row.item.sellerId, commissionRate: terms.commissionRate.toFixed(4), commissionFee: fee, sellerNet: pricing.price * requested.qty - fee });
+              canonicalItems.push({ configuration, size: sized.size, itemType: "listing", itemId: row.item.id, name: row.item.name, price: pricing.price, qty: requested.qty, sellerId: row.item.sellerId, commissionRate: terms.commissionRate.toFixed(4), commissionFee: fee, sellerNet: pricing.price * requested.qty - fee });
               continue;
             }
 
@@ -488,7 +493,7 @@ export const appRouter = createRouter({
               .innerJoin(restaurants, eq(menuItems.restaurantId, restaurants.id))
               .where(and(eq(menuItems.id, requested.itemId), eq(restaurants.open, true)));
             if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "A menu item in your cart is no longer available." });
-            canonicalItems.push({ size: null, itemType: "menu_item", itemId: row.item.id, name: row.item.name, price: row.item.price, qty: requested.qty, sellerId: null, commissionRate: "0.0000", commissionFee: 0, sellerNet: row.item.price * requested.qty });
+            canonicalItems.push({ configuration: null, size: null, itemType: "menu_item", itemId: row.item.id, name: row.item.name, price: row.item.price, qty: requested.qty, sellerId: null, commissionRate: "0.0000", commissionFee: 0, sellerNet: row.item.price * requested.qty });
           }
 
           const subtotal = canonicalItems.reduce((sum, item) => sum + item.price * item.qty, 0);
@@ -530,7 +535,7 @@ export const appRouter = createRouter({
       if (!customer) return [];
       const myOrders = await db.select().from(orders).where(eq(orders.phone, phone)).orderBy(desc(orders.createdAt)).limit(20);
       const withItems = await Promise.all(
-        myOrders.map(async (o) => ({ ...customerOrderSummary(o), items: await db.select({ id: orderItems.id, name: orderItems.name, qty: orderItems.qty, price: orderItems.price, itemType: orderItems.itemType, itemId: orderItems.itemId, size: orderItems.size }).from(orderItems).where(eq(orderItems.orderId, o.id)) })),
+        myOrders.map(async (o) => ({ ...customerOrderSummary(o), items: await db.select({ id: orderItems.id, name: orderItems.name, qty: orderItems.qty, price: orderItems.price, itemType: orderItems.itemType, itemId: orderItems.itemId, size: orderItems.size, configuration: orderItems.configuration }).from(orderItems).where(eq(orderItems.orderId, o.id)) })),
       );
       return withItems;
     }),
@@ -667,6 +672,9 @@ export const appRouter = createRouter({
         offerEndsAt: z.string().datetime().optional(),
         stock: z.number().int().min(1).max(10000),
         sizeOptions: z.array(z.object({ label: z.string().max(32), stock: z.number().int().min(0).max(10000) })).max(30).optional(),
+        productType: z.enum(PRODUCT_TYPES).optional(),
+        requiresSize: z.boolean().optional(),
+        specifications: z.array(z.object({ label: z.string().max(48), value: z.string().max(160) })).max(20).optional(),
         condition: z.enum(["new", "refurbished", "used"]),
         warrantyMonths: z.number().min(0).max(60),
         isBranded: z.boolean().default(false),
@@ -677,7 +685,9 @@ export const appRouter = createRouter({
       }))
       .mutation(async ({ input }) => {
         if (input.oldPrice != null) throw new TRPCError({ code: "BAD_REQUEST", message: "Use the regular price, discount percentage and offer dates. Refresh the seller listing form." });
-        const sizes = listingSizes(input.category, input.sizeOptions);
+        const sizes = listingSizes(input.category, input.sizeOptions, input);
+        let specifications;
+        try { specifications = confirmedSpecifications(input); } catch (error) { throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Confirm product specifications." }); }
         let offer;
         try { offer = validateListingOffer(input); } catch (error) {
           throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Invalid offer." });
@@ -712,6 +722,7 @@ export const appRouter = createRouter({
           ...offer,
           stock: sizes.length ? sizes.reduce((sum, size) => sum + size.stock, 0) : input.stock,
           sizeOptions: sizes.length ? JSON.stringify(sizes) : null,
+          productType: input.productType ?? null, requiresSize: input.requiresSize ?? false, specifications: specifications.length ? JSON.stringify(specifications) : null,
           condition: input.condition,
           warrantyMonths: input.condition === "new" ? 0 : input.warrantyMonths,
           imageNote: input.imageNote ?? "Photo uploaded by seller",
@@ -871,7 +882,7 @@ export const appRouter = createRouter({
       if (!customer) return { customer: null, orders: [], membership: null, membershipRecord: null };
       const myOrders = await db.select().from(orders).where(eq(orders.phone, phone)).orderBy(desc(orders.createdAt)).limit(20);
       const withItems = await Promise.all(
-        myOrders.map(async (o) => ({ ...customerOrderSummary(o), items: await db.select({ id: orderItems.id, name: orderItems.name, qty: orderItems.qty, price: orderItems.price, itemType: orderItems.itemType, itemId: orderItems.itemId, size: orderItems.size }).from(orderItems).where(eq(orderItems.orderId, o.id)) })),
+        myOrders.map(async (o) => ({ ...customerOrderSummary(o), items: await db.select({ id: orderItems.id, name: orderItems.name, qty: orderItems.qty, price: orderItems.price, itemType: orderItems.itemType, itemId: orderItems.itemId, size: orderItems.size, configuration: orderItems.configuration }).from(orderItems).where(eq(orderItems.orderId, o.id)) })),
       );
       const [membership] = await db.select().from(plusMemberships).where(eq(plusMemberships.customerId, customer.id));
       const activeMembership = membership && membership.status === "active" && membership.expiresAt && membership.expiresAt > new Date()

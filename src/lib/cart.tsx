@@ -14,6 +14,7 @@ export type CartItem = {
   sellerId?: number
   sellerName?: string
   size?: string
+  configuration?: string
   sizeRequired?: boolean
   slug?: string
 }
@@ -21,8 +22,8 @@ export type CartItem = {
 type CartContextType = {
   items: CartItem[]
   add: (item: Omit<CartItem, 'qty'> & { qty?: number }) => void
-  setQty: (itemType: CartItemType, itemId: number, qty: number, size?: string) => void
-  remove: (itemType: CartItemType, itemId: number, size?: string) => void
+  setQty: (itemType: CartItemType, itemId: number, qty: number, size?: string, configuration?: string) => void
+  remove: (itemType: CartItemType, itemId: number, size?: string, configuration?: string) => void
   clear: () => void
   subtotal: number
   count: number
@@ -32,8 +33,8 @@ const CartContext = createContext<CartContextType | null>(null)
 // v2 drops legacy carts whose seller-listing IDs could collide with curated product IDs.
 const STORAGE_KEY = 'ugsouq_cart_v2'
 
-const sameKey = (a: { itemType: CartItemType; itemId: number; size?: string }, b: { itemType: CartItemType; itemId: number; size?: string }) =>
-  a.itemType === b.itemType && String(a.itemId) === String(b.itemId) && sizeLabel(a.size ?? '') === sizeLabel(b.size ?? '')
+const sameKey = (a: { itemType: CartItemType; itemId: number; size?: string; configuration?: string }, b: { itemType: CartItemType; itemId: number; size?: string; configuration?: string }) =>
+  a.itemType === b.itemType && String(a.itemId) === String(b.itemId) && sizeLabel(a.size ?? '') === sizeLabel(b.size ?? '') && (a.configuration ?? '') === (b.configuration ?? '')
 
 const safeQty = (q: any) => {
   const n = Number(q)
@@ -57,6 +58,7 @@ const sanitize = (raw: any[]): CartItem[] => {
       qty: safeQty(i.qty),
       ...(typeof i.size === 'string' && i.size.trim() ? { size: sizeLabel(i.size) } : {}),
       sizeRequired: i.sizeRequired === true,
+      ...(typeof i.configuration === 'string' && i.configuration.length <= 5000 ? { configuration: i.configuration } : {}),
       ...(typeof i.slug === 'string' ? { slug: i.slug } : {}),
       ...(i.image != null ? { image: i.image } : {}),
       ...(i.sellerId != null ? { sellerId: i.sellerId } : {}),
@@ -93,21 +95,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
     })
   }
 
-  const setQty: CartContextType['setQty'] = (itemType, itemId, qty, size) => {
+  const setQty: CartContextType['setQty'] = (itemType, itemId, qty, size, configuration) => {
     setItems((prev) => {
       const n = Number(qty)
       const next =
         !Number.isFinite(n) || n <= 0
-          ? prev.filter((i) => !(sameKey(i, { itemType, itemId, size })))
-          : prev.map((i) => (sameKey(i, { itemType, itemId, size }) ? { ...i, qty: Math.floor(n) } : i))
+          ? prev.filter((i) => !(sameKey(i, { itemType, itemId, size, configuration })))
+          : prev.map((i) => (sameKey(i, { itemType, itemId, size, configuration }) ? { ...i, qty: Math.floor(n) } : i))
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)) } catch {}
       return next
     })
   }
 
-  const remove: CartContextType['remove'] = (itemType, itemId, size) => {
+  const remove: CartContextType['remove'] = (itemType, itemId, size, configuration) => {
     setItems((prev) => {
-      const next = prev.filter((i) => !(sameKey(i, { itemType, itemId, size })))
+      const next = prev.filter((i) => !(sameKey(i, { itemType, itemId, size, configuration })))
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)) } catch {}
       return next
     })

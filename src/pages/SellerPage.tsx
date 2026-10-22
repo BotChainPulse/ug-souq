@@ -1,3 +1,4 @@
+import { needsDetails } from '../lib/productDetails'
 import { needsSize } from '../lib/sizes'
 import { useState } from 'react'
 import { useNavigate, Link, useParams } from 'react-router'
@@ -17,7 +18,7 @@ export default function SellerPage() {
   const [added, setAdded] = useState<number | null>(null)
 
   const onAdd = (p: NonNullable<typeof data>['products'][number]) => {
-    if (needsSize(p)) { navigate(`/product/${p.slug}`); return }
+    if ((needsSize(p) || needsDetails(p))) { navigate(`/product/${p.slug}`); return }
     add({ itemType: p.kind === 'listing' ? 'listing' : 'product', itemId: p.id, name: p.name, price: p.price, image: p.image, sellerId: p.sellerId, sellerName: p.sellerName })
     setAdded(p.id)
     setTimeout(() => setAdded(null), 1400)
@@ -119,7 +120,7 @@ export default function SellerPage() {
                     onClick={() => onAdd(p)}
                     className="mt-3 w-full flex items-center justify-center gap-2 text-sm font-bold text-white py-2.5 rounded-xl transition-colors shadow-sm active:scale-95"
                     style={{ background: added === p.id ? '#16a34a' : ORANGE }}>
-                    {needsSize(p) ? 'Choose size' : added === p.id ? <><Check size={16} /> Added to cart</> : <><ShoppingCart size={16} /> Add to cart</>}
+                    {(needsSize(p) || needsDetails(p)) ? 'View options' : added === p.id ? <><Check size={16} /> Added to cart</> : <><ShoppingCart size={16} /> Add to cart</>}
                   </button>
                 </div>
               </div>

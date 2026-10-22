@@ -1,3 +1,4 @@
+import { readSpecifications, specificationIssue, configurationOf } from '../lib/productDetails'
 import { needsSize, readSizes } from '../lib/sizes'
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
@@ -21,6 +22,9 @@ export default function ProductDetailPage() {
   const [selection, setSelection] = useState({ slug: '', label: '' })
   const sizes = readSizes(p?.sizeOptions)
   const sized = !!p && needsSize(p)
+  const specs = readSpecifications(p?.specifications)
+  const specsError = p ? specificationIssue(p) : ''
+  const configuration = p && !specsError ? configurationOf(p) : ''
   const selectedSize = selection.slug === slug ? sizes.find(option => option.label === selection.label && option.stock > 0) : undefined
   const [zoneId, setZoneId] = useState('kampala')
   const zone = DELIVERY_ZONES.find((z) => z.id === zoneId) ?? DELIVERY_ZONES[0]
@@ -35,8 +39,8 @@ export default function ProductDetailPage() {
   )
 
   const onAdd = () => {
-    if (!p || (sized && !selectedSize)) return
-    add({ itemType: p.kind === 'listing' ? 'listing' : 'product', itemId: p.id, name: p.name, price: p.price, image: p.image, sellerId: p.sellerId, sellerName: p.sellerName, size: selectedSize?.label, sizeRequired: sized, slug })
+    if (!p || specsError || (sized && !selectedSize)) return
+    add({ itemType: p.kind === 'listing' ? 'listing' : 'product', itemId: p.id, name: p.name, price: p.price, image: p.image, sellerId: p.sellerId, sellerName: p.sellerName, size: selectedSize?.label, sizeRequired: sized, configuration: configuration || undefined, slug })
     setAdded(true)
     setTimeout(() => setAdded(false), 1400)
   }
@@ -118,6 +122,11 @@ export default function ProductDetailPage() {
                   </p>
                 )}
 
+                {(specs.length > 0 || specsError) && <section className="mt-5 rounded-xl border border-neutral-200 p-4">
+                  <h2 className="font-bold">Product specifications</h2>
+                  {specs.length > 0 && <dl className="mt-2 divide-y">{specs.map(spec => <div key={spec.label} className="grid grid-cols-2 gap-3 py-2 text-sm"><dt className="font-semibold break-words">{spec.label}</dt><dd className="break-words">{spec.value}</dd></div>)}</dl>}
+                  {specsError ? <p role="status" className="mt-2 text-sm text-amber-900">The seller has not confirmed this item's specifications yet. Ordering is unavailable until confirmed.</p> : <p className="mt-2 text-xs text-neutral-600">This price and stock apply to the exact configuration shown. Other configurations are listed separately.</p>}
+                </section>}
                 {sized && <fieldset className="mt-5 rounded-xl border border-neutral-200 p-4">
                   <legend className="px-1 font-bold">Choose your size *</legend>
                   {sizes.length ? <>
@@ -133,7 +142,7 @@ export default function ProductDetailPage() {
                 <div className="mt-5 flex gap-3">
                   <button
                     onClick={onAdd}
-                    disabled={p.stock === 0 || (sized && !selectedSize)}
+                    disabled={!!specsError || p.stock === 0 || (sized && !selectedSize)}
                     className="flex-1 flex items-center justify-center gap-2 font-bold text-white py-3.5 rounded-xl text-sm sm:text-base transition-colors disabled:opacity-50"
                     style={{ background: added ? '#16a34a' : ORANGE }}
                   >

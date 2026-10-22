@@ -1,6 +1,7 @@
+import { inferredType, type ProductDetails } from './productDetails'
 export type SizeOption = { label: string; stock: number }
 export const sizeLabel = (value: string) => value.normalize('NFKC').trim().replace(/\s+/g, ' ').toUpperCase()
-export const sizeCategory = (category?: string) => ['mens-fashion', 'womens-fashion', 'shoes'].includes(category ?? '')
+export const sizeCategory = (category?: string) => ['mens-fashion', 'womens-fashion', 'shoes', 'clothing', 'footwear', 'baby-clothing', 'kids-fashion', 'underwear'].includes(category ?? '')
 
 export function validateSizes(options: SizeOption[]): SizeOption[] {
   if (!Array.isArray(options) || options.length > 30) throw new Error('Use up to 30 sizes.')
@@ -20,6 +21,6 @@ export function readSizes(raw: unknown): SizeOption[] {
 }
 
 export const sizeTotal = (options: SizeOption[]) => options.reduce((sum, option) => sum + option.stock, 0)
-export function needsSize(item: { category?: string; sizeOptions?: unknown }) {
-  return sizeCategory(item.category) || (item.sizeOptions != null && item.sizeOptions !== '' && item.sizeOptions !== '[]')
+export function needsSize(item: ProductDetails) {
+  return item.requiresSize === true || ['clothing', 'footwear', 'ring', 'bedding'].includes(inferredType(item)) || ['clothing', 'footwear', 'ring', 'bedding'].includes(item.productType ?? '') || sizeCategory(item.category) || (item.sizeOptions != null && item.sizeOptions !== '' && item.sizeOptions !== '[]')
 }

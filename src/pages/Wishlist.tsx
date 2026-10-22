@@ -1,3 +1,4 @@
+import { needsDetails } from '../lib/productDetails'
 import { needsSize } from '../lib/sizes'
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router'
@@ -71,7 +72,7 @@ export default function WishlistPage() {
                     type="button"
                     disabled={item.stock <= 0}
                     onClick={() => {
-                      if (needsSize(item)) { navigate(`/product/${item.slug}`); return }
+                      if ((needsSize(item) || needsDetails(item))) { navigate(`/product/${item.slug}`); return }
                       add({ itemType: 'product', itemId: item.id, name: item.name, price: item.price, image: item.image, sellerId: item.sellerId, sellerName: item.sellerName })
                       setAdded(key)
                       setTimeout(() => setAdded(null), 1200)
@@ -79,7 +80,7 @@ export default function WishlistPage() {
                     className="mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-bold text-white disabled:bg-gray-300"
                     style={item.stock > 0 ? { backgroundColor: added === key ? '#16a34a' : ORANGE } : undefined}
                   >
-                    <ShoppingCart size={14} /> {item.stock <= 0 ? 'Out of stock' : needsSize(item) ? 'Choose size' : added === key ? 'Added' : 'Add to cart'}
+                    <ShoppingCart size={14} /> {item.stock <= 0 ? 'Out of stock' : (needsSize(item) || needsDetails(item)) ? 'View options' : added === key ? 'Added' : 'Add to cart'}
                   </button>
                 ) : (
                   <Link to={`/seller/${item.sellerId}`} className="mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-emerald-700 px-3 text-xs font-bold text-white"><Store size={14} /> View seller</Link>

@@ -99,7 +99,7 @@ export type EmailOrder = {
   total: number;
 };
 
-type EmailOrderItem = { name: string; qty: number; price: number; size?: string | null };
+type EmailOrderItem = { name: string; qty: number; price: number; size?: string | null; configuration?: string | null };
 
 const statusLabel = (status: string) => ({
   placed: "Order placed",
@@ -116,7 +116,7 @@ const statusLabel = (status: string) => ({
 export async function sendOrderPlacedEmail(order: EmailOrder, items: EmailOrderItem[]) {
   if (!order.customerEmail) return { skipped: true, reason: "no_recipient" } as const;
   const base = (process.env.APP_URL || "https://www.ugsouq.com").replace(/\/$/, "");
-  const itemRows = items.map((item) => `<tr><td style="padding:7px 0">${esc(item.name)}${item.size ? ` — Size: ${esc(item.size)}` : ""} × ${item.qty}</td><td align="right" style="padding:7px 0;font-weight:700">${esc(money(item.price * item.qty))}</td></tr>`).join("");
+  const itemRows = items.map((item) => `<tr><td style="padding:7px 0">${esc(item.name)}${item.size ? ` — Size: ${esc(item.size)}` : ""}${item.configuration ? ` — ${esc(item.configuration)}` : ""} × ${item.qty}</td><td align="right" style="padding:7px 0;font-weight:700">${esc(money(item.price * item.qty))}</td></tr>`).join("");
   const body = `<p style="font-size:15px;line-height:24px">Hi ${esc(order.customerName)}, your order has been received.</p>
     <div style="margin:18px 0;padding:16px;border-radius:14px;background:#f8fafc"><div style="font-size:12px;color:#64748b">Order code</div><div style="font-size:22px;font-weight:900">${esc(order.code)}</div></div>
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="font-size:14px">${itemRows}<tr><td style="padding-top:12px;border-top:1px solid #e2e8f0;font-weight:900">Total</td><td align="right" style="padding-top:12px;border-top:1px solid #e2e8f0;font-weight:900">${esc(money(order.total))}</td></tr></table>
