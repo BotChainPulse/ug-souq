@@ -128,3 +128,53 @@ describe('seller size configuration', () => {
     expect(readSizes(db.updates[1].sizeOptions)).toEqual([{ label: 'S', stock: 1 }, { label: 'M', stock: 1 }, { label: 'XL', stock: 0 }])
   })
 })
+
+describe('specification-aware checkout and administrator review', () => {
+  const specifications = [{ label: 'Model', value: 'Synthetic device' }, { label: 'RAM', value: '8 GB' }, { label: 'Storage', value: '128 GB' }, { label: 'Network', value: '4G' }, { label: 'Colour', value: 'Black' }]
+  const device = { ...product, name: 'Synthetic smartphone', category: 'phones', sizeOptions: null, specifications: JSON.stringify(specifications) }
+  const configuration = 'Colour: Black · Model: Synthetic device · Network: 4G · RAM: 8 GB · Storage: 128 GB'
+  it('blocks a missing configuration before stock or order writes', async () => {
+    db.rows = [[{ item: device }]]
+    await expect(caller().orders.create({ ...order, items: [{ itemType: 'product', itemId: 8, qty: 1 }] })).rejects.toThrow(/cart/)
+    expect(db.update).not.toHaveBeenCalled(); expect(db.insert).not.toHaveBeenCalled()
+  })
+  it('snapshots the server-confirmed configuration into the order and confirmation email', async () => {
+    db.rows = [[{ item: device }], [], [], [{ id: 1 }], [{ id: 90, code: 'US-SPEC' }]]
+    await caller().orders.create({ ...order, items: [{ itemType: 'product', itemId: 8, qty: 1, configuration }] })
+    expect(db.values[1]).toMatchObject([{ configuration, price: product.price, size: null }])
+    expect(sendOrderPlacedEmail).toHaveBeenCalledWith(expect.anything(), expect.arrayContaining([expect.objectContaining({ configuration })]))
+  })
+  it('requires specifications before approving devices', async () => {
+    db.rows = [[{ ...device, specifications: null }]]
+    await expect(caller().admin.setListingStatus({ key: 'synthetic-size-admin', id: 8, status: 'approved' })).rejects.toThrow(/Model/)
+    expect(db.update).not.toHaveBeenCalled()
+  })
+  it('protects administrator edits from stale specification data', async () => {
+    db.rows = [[{ ...device, productType: null, requiresSize: null }]]
+    await expect(caller().admin.setItemDetails({ key: 'synthetic-size-admin', itemType: 'product', id: 8, expected: { stock: 5, sizeOptions: null, productType: null, requiresSize: null, specifications: null }, productType: 'phone', requiresSize: false, stock: 5, sizes: [], specifications })).rejects.toThrow(/changed/)
+    expect(db.update).not.toHaveBeenCalled()
+  })
+  it('keeps an old configuration return out of current configuration stock', async () => {
+    db.rows = [[device]]
+    await restoreItemStock(db as unknown as Parameters<typeof restoreItemStock>[0], { itemType: 'product', itemId: 8, qty: 1, configuration: 'Storage: 64 GB' })
+    expect(db.update).not.toHaveBeenCalled()
+  })
+})
+
+describe('complete catalogue inventory editing', () => {
+  it('includes ordinary products so administrators can require sizes and details in any category', async () => {
+    db.rows = [[{ id: 7, name: 'Custom product', category: 'other', stock: 1 }], []]
+    expect(await caller().admin.sizeInventory({ key: 'synthetic-size-admin' })).toMatchObject([{ id: 7, name: 'Custom product' }])
+  })
+  it('saves confirmed specifications while preserving stock and creating an audit record', async () => {
+    const before = { ...product, name: 'Plain item', category: 'other', sizeOptions: null, productType: null, requiresSize: null, specifications: null }
+    db.rows = [[before]]
+    await caller().admin.setItemDetails({ key: 'synthetic-size-admin', itemType: 'product', id: 8, expected: { stock: 5, sizeOptions: null, productType: null, requiresSize: null, specifications: null }, stock: 5, sizes: [], productType: 'general', requiresSize: false, specifications: [{ label: 'Material', value: 'Cotton' }] })
+    expect(db.locks).toEqual(['update'])
+    expect(db.updates[0]).toMatchObject({ specifications: '[{"label":"Material","value":"Cotton"}]', stock: 5 })
+  })
+  it('requires authentication for complete inventory edits', async () => {
+    await expect(caller().admin.setItemDetails({ key: '', itemType: 'product', id: 8, expected: { stock: 5, sizeOptions: null, productType: null, requiresSize: null, specifications: null }, stock: 5, sizes: [], productType: 'general', requiresSize: false, specifications: [] })).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
+    expect(db.select).not.toHaveBeenCalled()
+  })
+})

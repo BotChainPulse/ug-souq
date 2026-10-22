@@ -94,7 +94,7 @@ export default function MyOrders() {
                   <div className="mt-3 divide-y divide-neutral-100 text-sm">
                     {Array.isArray(o.items) && o.items.map((i) => (
                       <div key={i.id} className="py-1.5 flex justify-between gap-3">
-                        <span className="text-neutral-700">{i.qty} × {i.name}{i.size ? ` · Size: ${i.size}` : ''}</span>
+                        <span className="text-neutral-700">{i.qty} × {i.name}{i.size ? ` · Size: ${i.size}` : ''}{i.configuration ? ` · ${i.configuration}` : ''}</span>
                         <span className="font-semibold whitespace-nowrap">{fmt(i.price * i.qty)}</span>
                       </div>
                     ))}

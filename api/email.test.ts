@@ -129,3 +129,13 @@ describe("outgoing Resend email", () => {
     expect(payload.html).not.toContain("A <script>");
   });
 });
+
+it('preserves and escapes the ordered configuration in its service email', async () => {
+  vi.stubEnv('RESEND_API_KEY', 're_test'); vi.stubEnv('SYSTEM_FROM_EMAIL', 'UGSouq <notifications@ugsouq.com>')
+  const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'email_specification' }), { status: 200 }))
+  vi.stubGlobal('fetch', fetchMock)
+  await sendOrderPlacedEmail({ code: 'US-SPEC', status: 'placed', paymentStatus: 'unpaid', customerName: 'Synthetic', customerEmail: 'spec@example.test', paymentMethod: 'cash', address: 'Synthetic address', subtotal: 100, deliveryFee: 0, total: 100 }, [{ name: 'Phone', price: 100, qty: 1, configuration: 'RAM: 8 GB · Storage: 128 GB <b>' }])
+  const payload = JSON.parse(String(fetchMock.mock.calls[0][1].body))
+  expect(payload.html).toContain('RAM: 8 GB · Storage: 128 GB &lt;b&gt;')
+  expect(payload.html).not.toContain('Storage: 128 GB <b>')
+})

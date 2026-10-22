@@ -3,11 +3,13 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 const db = vi.hoisted(() => ({ rows: [] as unknown[][], select: vi.fn(), insert: vi.fn(), update: vi.fn(), transaction: vi.fn(), values: [] as Record<string, unknown>[] }))
 vi.mock('./queries/connection', () => ({ getDb: () => db }))
 vi.mock('./email', async (original) => ({ ...await original<typeof import('./email')>(), sendOrderPlacedEmail: vi.fn(async () => undefined) }))
+import { configurationOf } from '../src/lib/productDetails'
 import { appRouter } from './router'
 
-const listing = { id: 5, sellerId: 1, status: 'approved', name: 'Synthetic test item', category: 'phones', price: 10000, oldPrice: null, offerPercent: 10, offerStartsAt: new Date('2026-10-12T00:00:00Z'), offerEndsAt: new Date('2026-10-13T00:00:00Z'), stock: 3 }
+const specifications = ['Model', 'RAM', 'Storage', 'Network', 'Colour'].map(label => ({ label, value: `Confirmed ${label}` }))
+const listing = { id: 5, sellerId: 1, status: 'approved', name: 'Synthetic test item', category: 'phones', specifications, price: 10000, oldPrice: null, offerPercent: 10, offerStartsAt: new Date('2026-10-12T00:00:00Z'), offerEndsAt: new Date('2026-10-13T00:00:00Z'), stock: 3 }
 const seller = { id: 1, shopName: 'Synthetic shop', status: 'approved', rating: 0, verified: false }
-const input = { phone: '0700000001', name: 'Synthetic test item', category: 'phones', price: 10000, stock: 3, condition: 'new' as const, warrantyMonths: 0, imageData: 'x'.repeat(100), offerPercent: 10, offerStartsAt: '2026-10-12T00:00:00Z', offerEndsAt: '2026-10-13T00:00:00Z' }
+const input = { phone: '0700000001', name: 'Synthetic test item', category: 'phones', specifications, price: 10000, stock: 3, condition: 'new' as const, warrantyMonths: 0, imageData: 'x'.repeat(100), offerPercent: 10, offerStartsAt: '2026-10-12T00:00:00Z', offerEndsAt: '2026-10-13T00:00:00Z' }
 const caller = () => appRouter.createCaller({ req: new Request('https://example.test/api/trpc'), resHeaders: new Headers() })
 
 beforeEach(() => {
@@ -71,14 +73,14 @@ describe('seller listings through the public API, isolated from production', () 
   })
   it('uses the current discount for the order, commission and seller proceeds', async () => {
     db.rows = [[{ item: listing }], [], [], [{ id: 5, code: 'US-TEST' }]]
-    await caller().orders.create({ customerName: 'Synthetic customer', phone: input.phone, email: 'test@example.test', address: 'Ntinda Kampala', paymentMethod: 'cash', items: [{ itemType: 'listing', itemId: 5, qty: 1, price: 9000 }] })
+    await caller().orders.create({ customerName: 'Synthetic customer', phone: input.phone, email: 'test@example.test', address: 'Ntinda Kampala', paymentMethod: 'cash', items: [{ itemType: 'listing', itemId: 5, qty: 1, price: 9000, configuration: configurationOf(listing) }] })
     expect(db.values[0]).toMatchObject({ subtotal: 9000, commissionFee: 630 })
     expect(db.values[1]).toMatchObject([{ itemType: 'listing', price: 9000, commissionFee: 630, sellerNet: 8370 }])
   })
   it('rejects a stale discount at checkout before changing stock or inserting an order', async () => {
     vi.setSystemTime(listing.offerEndsAt)
     db.rows = [[{ item: listing }]]
-    await expect(caller().orders.create({ customerName: 'Synthetic customer', phone: input.phone, email: 'test@example.test', address: 'Ntinda Kampala', paymentMethod: 'cash', items: [{ itemType: 'listing', itemId: 5, qty: 1, price: 9000 }] })).rejects.toMatchObject({ code: 'CONFLICT' })
+    await expect(caller().orders.create({ customerName: 'Synthetic customer', phone: input.phone, email: 'test@example.test', address: 'Ntinda Kampala', paymentMethod: 'cash', items: [{ itemType: 'listing', itemId: 5, qty: 1, price: 9000, configuration: configurationOf(listing) }] })).rejects.toMatchObject({ code: 'CONFLICT' })
     expect(db.update).not.toHaveBeenCalled()
     expect(db.insert).not.toHaveBeenCalled()
   })

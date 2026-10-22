@@ -72,6 +72,14 @@ async function ensureStartupSchema() {
   await addColumn(`ALTER TABLE products ADD COLUMN size_options TEXT NULL`);
   await addColumn(`ALTER TABLE listings ADD COLUMN size_options TEXT NULL`);
   await addColumn(`ALTER TABLE order_items ADD COLUMN size VARCHAR(32) NULL`);
+  await addColumn(`ALTER TABLE products ADD COLUMN product_type VARCHAR(24) NULL`);
+  await addColumn(`ALTER TABLE products ADD COLUMN requires_size BOOLEAN NULL`);
+  await addColumn(`ALTER TABLE products ADD COLUMN specifications TEXT NULL`);
+  await addColumn(`ALTER TABLE listings ADD COLUMN product_type VARCHAR(24) NULL`);
+  await addColumn(`ALTER TABLE listings ADD COLUMN requires_size BOOLEAN NULL`);
+  await addColumn(`ALTER TABLE listings ADD COLUMN specifications TEXT NULL`);
+  await addColumn(`ALTER TABLE order_items ADD COLUMN configuration TEXT NULL`);
+  await client.query(`UPDATE products SET category = 'shoes', product_type = 'footwear', requires_size = TRUE WHERE slug = 'running-sneakers' AND category = 'sports' AND product_type IS NULL`);
   await addColumn(`ALTER TABLE customers ADD COLUMN deletion_token_hash VARCHAR(64) NULL`);
   await addColumn(`ALTER TABLE customers ADD COLUMN email VARCHAR(255) NULL`);
   await addColumn(`ALTER TABLE orders ADD COLUMN customer_email VARCHAR(255) NULL`);

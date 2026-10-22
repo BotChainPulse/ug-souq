@@ -1,3 +1,4 @@
+import { configurationOf, type ProductDetails } from '../src/lib/productDetails'
 import { TRPCError } from '@trpc/server'
 import { eq } from 'drizzle-orm'
 import type { getDb } from './queries/connection'
@@ -5,16 +6,16 @@ type InventoryTx = Parameters<Parameters<ReturnType<typeof getDb>['transaction']
 import { listings, products } from '../db/schema'
 import { needsSize, readSizes, sizeLabel, sizeTotal, validateSizes, type SizeOption } from '../src/lib/sizes'
 
-export function listingSizes(category: string, options: SizeOption[] = []) {
+export function listingSizes(category: string, options: SizeOption[] = [], details: ProductDetails = {}) {
   try {
     const sizes = validateSizes(options)
-    if (needsSize({ category, sizeOptions: sizes.length ? sizes : null }) && !sizes.length) throw new Error('Enter sizes and stock for clothing, underwear and shoes.')
+    if (needsSize({ ...details, category, sizeOptions: sizes.length ? sizes : null }) && !sizes.length) throw new Error('Enter sizes and stock for clothing, underwear and shoes.')
     if (sizes.length && (sizeTotal(sizes) < 1 || sizeTotal(sizes) > 10000)) throw new Error('Total size stock must be from 1–10,000.')
     return sizes
   } catch (error) { throw new TRPCError({ code: 'BAD_REQUEST', message: error instanceof Error ? error.message : 'Invalid sizes.' }) }
 }
 
-export function reserveSize(item: { name: string; stock: number; category?: string; sizeOptions?: unknown }, requested: string | undefined, qty: number) {
+export function reserveSize(item: ProductDetails & { name: string; stock: number }, requested: string | undefined, qty: number) {
   const sizes = readSizes(item.sizeOptions)
   if (needsSize(item)) {
     if (!sizes.length) throw new TRPCError({ code: 'CONFLICT', message: `${item.name}: sizes are not available yet. Ask the seller to confirm size stock.` })
@@ -32,11 +33,13 @@ export function reserveSize(item: { name: string; stock: number; category?: stri
 
 // The order is locked by both cancellation callers. Lock each inventory row too,
 // so a cancellation cannot overwrite a simultaneous purchase or inventory edit.
-export async function restoreItemStock(tx: InventoryTx, item: { itemType: string; itemId: number; qty: number; size?: string | null }) {
+export async function restoreItemStock(tx: InventoryTx, item: { itemType: string; itemId: number; qty: number; size?: string | null; configuration?: string | null }) {
   if (item.itemType === 'menu_item') return
   const table = item.itemType === 'listing' ? listings : products
   const [row] = await tx.select().from(table).where(eq(table.id, item.itemId)).for('update')
   if (!row) return
+  // A returned old configuration must not become stock of a different one.
+  try { if ((item.configuration ?? '') !== configurationOf(row)) return } catch { return }
   const sizes = readSizes(row.sizeOptions)
   if (item.size) {
     const label = sizeLabel(item.size)
@@ -48,4 +51,11 @@ export async function restoreItemStock(tx: InventoryTx, item: { itemType: string
   }
   // A legacy order has no size. Do not invent size stock; administrator must
   // physically reconcile that return before adding it to size inventory.
+}
+
+export function checkoutConfiguration(item: ProductDetails, requested?: string) {
+  let configuration: string
+  try { configuration = configurationOf(item) } catch { throw new TRPCError({ code: 'CONFLICT', message: `${item.name}: the seller must confirm product specifications before ordering.` }) }
+  if ((requested ?? '') !== configuration) throw new TRPCError({ code: 'CONFLICT', message: `${item.name}: specifications changed or are missing from your cart. Open the product and add the confirmed configuration again.` })
+  return configuration || null
 }

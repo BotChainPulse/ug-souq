@@ -1,5 +1,7 @@
+import ProductDetailsEditor from '../components/ProductDetailsEditor'
+import { specificationIssue, type Specification, type PRODUCT_TYPES } from '../lib/productDetails'
 import SizeStockEditor from '../components/SizeStockEditor'
-import { readSizes, sizeCategory, sizeTotal, validateSizes, type SizeOption } from '../lib/sizes'
+import { readSizes, needsSize, sizeTotal, validateSizes, type SizeOption } from '../lib/sizes'
 import { discountedPrice, listingPrice } from '../lib/listingOffer'
 import { useState } from 'react'
 import { Link } from 'react-router'
@@ -99,7 +101,11 @@ export default function SellerListings() {
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }))
   const [sizeOptions, setSizeOptions] = useState<SizeOption[]>([])
   const [useSizes, setUseSizes] = useState(false)
-  const sized = sizeCategory(form.category) || useSizes
+  const [productType, setProductType] = useState('general')
+  const [specifications, setSpecifications] = useState<Specification[]>([])
+  const details = { ...form, productType, specifications, requiresSize: useSizes }
+  const sized = needsSize(details)
+  const specsError = specificationIssue(details)
   let sizesValid = true
   try { if (sized) { const checked = validateSizes(sizeOptions); sizesValid = checked.length > 0 && sizeTotal(checked) > 0 && sizeTotal(checked) <= 10000 } } catch { sizesValid = false }
   const [justAdded, setJustAdded] = useState(false)
@@ -119,7 +125,7 @@ export default function SellerListings() {
     new Date(form.offerEndsAt) > new Date(form.offerStartsAt) && new Date(form.offerEndsAt) > new Date())
 
   const canSubmit =
-    sizesValid && approved &&
+    !specsError && sizesValid && approved &&
     hasListingSlot &&
     form.name.trim().length >= 3 &&
     Number.isInteger(Number(form.price)) && Number(form.price) >= 100 && Number(form.price) <= 2_000_000_000 && offerValid &&
@@ -133,6 +139,7 @@ export default function SellerListings() {
       phone: searched,
       name: form.name.trim(),
       category: form.category,
+      productType: productType as typeof PRODUCT_TYPES[number], requiresSize: sized, specifications,
       price: Number(form.price),
       offerPercent: hasOffer ? percent : undefined,
       offerStartsAt: hasOffer ? new Date(form.offerStartsAt).toISOString() : undefined,
@@ -151,6 +158,8 @@ export default function SellerListings() {
     setPhoto(null)
     setSizeOptions([])
     setUseSizes(false)
+    setProductType('general')
+    setSpecifications([])
     setJustAdded(true)
     } catch { /* The mutation error is displayed beside the submit button. */ }
   }
@@ -296,7 +305,9 @@ export default function SellerListings() {
                 </div>
               </div>
 
-              {!sizeCategory(form.category) && <label className="flex gap-2 text-sm"><input type="checkbox" checked={useSizes} onChange={event => setUseSizes(event.target.checked)} />This item is sold in sizes</label>}
+              <label className="flex gap-2 text-sm"><input type="checkbox" checked={sized} disabled={needsSize({ ...details, requiresSize: false })} onChange={event => setUseSizes(event.target.checked)} />This item is sold in sizes</label>
+              <ProductDetailsEditor item={details} value={specifications} onChange={setSpecifications} onTypeChange={setProductType} />
+              {specsError && <p className="text-sm text-amber-800">{specsError}</p>}
               {sized && <><SizeStockEditor value={sizeOptions} onChange={setSizeOptions} />{!sizesValid && <p role="alert" className="text-sm text-red-700">Add distinct size labels and available stock before submitting.</p>}</>}
 
               <div className="grid sm:grid-cols-2 gap-4">

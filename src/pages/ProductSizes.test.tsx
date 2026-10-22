@@ -5,10 +5,10 @@ import { MemoryRouter } from 'react-router'
 import ProductDetail from './ProductDetail'
 import Cart from './Cart'
 import SizeStockEditor from '../components/SizeStockEditor'
-const fixture = vi.hoisted(() => ({ category: 'mens-fashion', sizeOptions: null as string | null }))
+const fixture = vi.hoisted(() => ({ name: 'Synthetic underwear', specifications: null as string | null, category: 'mens-fashion', sizeOptions: null as string | null }))
 vi.mock('../providers/trpc', () => ({ trpc: {
   products: {
-    bySlug: { useQuery: () => ({ data: { id: 1, kind: 'product', name: 'Synthetic underwear', category: fixture.category, sizeOptions: fixture.sizeOptions, price: 20000, stock: 3, image: '/synthetic.png', sellerId: 1, sellerName: 'Synthetic seller', sellerRating: 0, condition: 'new' }, isLoading: false }) },
+    bySlug: { useQuery: () => ({ data: { id: 1, kind: 'product', name: fixture.name, specifications: fixture.specifications, category: fixture.category, sizeOptions: fixture.sizeOptions, price: 20000, stock: 3, image: '/synthetic.png', sellerId: 1, sellerName: 'Synthetic seller', sellerRating: 0, condition: 'new' }, isLoading: false }) },
     browse: { useQuery: () => ({ data: [] }) },
   },
   orders: { create: { useMutation: () => ({ isPending: false }) } },
@@ -20,7 +20,7 @@ vi.mock('../lib/cart', async original => ({ ...await original<typeof import('../
 ], subtotal: 60000, count: 3, add: vi.fn(), setQty: vi.fn(), remove: vi.fn(), clear: vi.fn() }) }))
 const render = (component: typeof ProductDetail | typeof Cart) => renderToStaticMarkup(createElement(MemoryRouter, null, createElement(component)))
 describe('customer size selection', () => {
-  beforeEach(() => { fixture.category = 'mens-fashion'; fixture.sizeOptions = null })
+  beforeEach(() => { fixture.name = 'Synthetic underwear'; fixture.specifications = null; fixture.category = 'mens-fashion'; fixture.sizeOptions = null })
   it('explains why unconfigured underwear cannot be added', () => {
     const html = render(ProductDetail)
     expect(html).toContain('The seller has not confirmed sizes yet')
@@ -36,10 +36,21 @@ describe('customer size selection', () => {
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>.*?Add to Cart/s)
   })
   it('does not impose size selection on ordinary electronics', () => {
-    fixture.category = 'phones'
+    fixture.category = 'phones'; fixture.name = 'USB charger'; fixture.specifications = JSON.stringify([{label: 'Connectors', value: 'USB-C'}, {label:'Length', value:'1 m'}, {label:'Compatibility',value:'USB-C devices'}])
     const html = render(ProductDetail)
     expect(html).not.toContain('Choose your size')
     expect(html).not.toContain('disabled=""')
+  })
+  it('blocks a sneaker even when it was filed under sports', () => {
+    fixture.name = 'Running sneakers'; fixture.category = 'sports'
+    expect(render(ProductDetail)).toContain('The seller has not confirmed sizes yet')
+  })
+  it('shows a phone specification warning instead of an enabled purchase button', () => {
+    fixture.name = 'Synthetic smartphone'; fixture.category = 'phones'
+    const html = render(ProductDetail)
+    expect(html).toContain('Product specifications')
+    expect(html).toContain('Ordering is unavailable until confirmed')
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>.*?Add to Cart/s)
   })
   it('renders different sizes of one item as separate cart rows', () => {
     const html = render(Cart)

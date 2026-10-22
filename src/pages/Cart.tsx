@@ -76,6 +76,7 @@ export default function Cart() {
         price: i.price,
         qty: i.qty,
         size: i.size,
+        configuration: i.configuration,
       })),
     })
 
@@ -159,7 +160,7 @@ export default function Cart() {
                   <div className="divide-y divide-neutral-100">
                     {items.map((i) => (
                       <div
-                        key={`${i.itemType}-${i.itemId}-${i.size ?? ""}`}
+                        key={`${i.itemType}-${i.itemId}-${i.size ?? ""}-${i.configuration ?? ""}`}
                         className="flex items-center gap-4 p-4 sm:p-5"
                       >
                         <div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-xl bg-neutral-50">
@@ -176,6 +177,7 @@ export default function Cart() {
 
                         <div className="min-w-0 flex-1">
                           <p className="line-clamp-2 text-sm font-bold">{i.name}</p>
+                          {i.configuration && <p className="text-sm text-neutral-700 break-words">{i.configuration}</p>}
                           {i.size && <p className="text-sm font-semibold text-emerald-800">Size: {i.size}</p>}
                           {i.sizeRequired && !i.size && <p role="alert" className="text-sm text-red-700">Remove this item and choose a size on its product page.</p>}
                           {i.sellerName && (
@@ -193,7 +195,7 @@ export default function Cart() {
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
-                            onClick={() => setQty(i.itemType, i.itemId, i.qty - 1, i.size)}
+                            onClick={() => setQty(i.itemType, i.itemId, i.qty - 1, i.size, i.configuration)}
                             className="grid h-8 w-8 place-items-center rounded-full border border-neutral-300"
                           >
                             <Minus size={14} />
@@ -201,7 +203,7 @@ export default function Cart() {
                           <span className="w-6 text-center text-sm font-bold">{i.qty}</span>
                           <button
                             type="button"
-                            onClick={() => setQty(i.itemType, i.itemId, i.qty + 1, i.size)}
+                            onClick={() => setQty(i.itemType, i.itemId, i.qty + 1, i.size, i.configuration)}
                             className="grid h-8 w-8 place-items-center rounded-full border border-neutral-300"
                           >
                             <Plus size={14} />
@@ -210,7 +212,7 @@ export default function Cart() {
 
                         <button
                           type="button"
-                          onClick={() => remove(i.itemType, i.itemId, i.size)}
+                          onClick={() => remove(i.itemType, i.itemId, i.size, i.configuration)}
                           className="p-2 text-neutral-400 hover:text-red-600"
                         >
                           <Trash2 size={16} />
