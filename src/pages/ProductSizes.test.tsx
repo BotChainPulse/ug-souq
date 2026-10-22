@@ -24,7 +24,7 @@ describe('customer size selection', () => {
   it('explains why unconfigured underwear cannot be added', () => {
     const html = render(ProductDetail)
     expect(html).toContain('The seller has not confirmed sizes yet')
-    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>.*?Add to Cart/s)
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Sizes pending<\/button>/)
   })
   it('shows real labels, disables sold-out sizes and requires a deliberate selection', () => {
     fixture.sizeOptions = JSON.stringify([{ label: 'UK 32B', stock: 3 }, { label: 'UK 34B', stock: 0 }])
@@ -33,7 +33,7 @@ describe('customer size selection', () => {
     expect(html).toContain('UK 32B')
     expect(html).toMatch(/<option[^>]*disabled=""[^>]*>UK 34B — Out of stock/)
     expect(html).toContain('Select a size')
-    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>.*?Add to Cart/s)
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Select a size<\/button>/)
   })
   it('does not impose size selection on ordinary electronics', () => {
     fixture.category = 'phones'; fixture.name = 'USB charger'; fixture.specifications = JSON.stringify([{label: 'Connectors', value: 'USB-C'}, {label:'Length', value:'1 m'}, {label:'Compatibility',value:'USB-C devices'}])
@@ -50,7 +50,14 @@ describe('customer size selection', () => {
     const html = render(ProductDetail)
     expect(html).toContain('Product specifications')
     expect(html).toContain('Ordering is unavailable until confirmed')
-    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>.*?Add to Cart/s)
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Specifications pending<\/button>/)
+  })
+  it('blocks inconsistent size totals before the customer reaches checkout', () => {
+    fixture.sizeOptions = JSON.stringify([{ label: 'EU 42', stock: 2 }])
+    const html = render(ProductDetail)
+    expect(html).toContain('The seller needs to confirm stock for each size')
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Availability pending<\/button>/)
+    expect(html).toContain('Refresh availability')
   })
   it('renders different sizes of one item as separate cart rows', () => {
     const html = render(Cart)

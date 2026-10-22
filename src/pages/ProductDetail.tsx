@@ -1,5 +1,6 @@
 import { readSpecifications, specificationIssue, configurationOf } from '../lib/productDetails'
 import { needsSize, readSizes } from '../lib/sizes'
+import { purchaseAvailability } from '../lib/purchaseAvailability'
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { trpc } from '@/providers/trpc'
@@ -16,7 +17,7 @@ import {
 
 export default function ProductDetailPage() {
   const { slug = '' } = useParams()
-  const { data: p, isLoading } = trpc.products.bySlug.useQuery({ slug }, { refetchInterval: 60_000 })
+  const { data: p, isLoading, refetch, isFetching } = trpc.products.bySlug.useQuery({ slug }, { refetchInterval: 60_000 })
   const { add } = useCart()
   const [added, setAdded] = useState(false)
   const [selection, setSelection] = useState({ slug: '', label: '' })
@@ -24,6 +25,7 @@ export default function ProductDetailPage() {
   const sized = !!p && needsSize(p)
   const specs = readSpecifications(p?.specifications)
   const specsError = p ? specificationIssue(p) : ''
+  const availability = p ? purchaseAvailability(p) : null
   const configuration = p && !specsError ? configurationOf(p) : ''
   const selectedSize = selection.slug === slug ? sizes.find(option => option.label === selection.label && option.stock > 0) : undefined
   const [zoneId, setZoneId] = useState('kampala')
@@ -39,7 +41,7 @@ export default function ProductDetailPage() {
   )
 
   const onAdd = () => {
-    if (!p || specsError || (sized && !selectedSize)) return
+    if (!p || availability?.status !== 'ready' || (sized && !selectedSize)) return
     add({ itemType: p.kind === 'listing' ? 'listing' : 'product', itemId: p.id, name: p.name, price: p.price, image: p.image, sellerId: p.sellerId, sellerName: p.sellerName, size: selectedSize?.label, sizeRequired: sized, configuration: configuration || undefined, slug })
     setAdded(true)
     setTimeout(() => setAdded(false), 1400)
@@ -139,14 +141,15 @@ export default function ProductDetailPage() {
                     <p className="mt-2 text-xs text-neutral-600">Check the seller's size label and sizing system before ordering.</p>
                   </> : <p role="status" className="text-sm text-amber-900">The seller has not confirmed sizes yet. Ordering is unavailable until size stock is recorded.</p>}
                 </fieldset>}
+                {availability?.status === 'stock-review' && <p role="status" className="mt-4 text-sm text-amber-900">The seller needs to confirm stock for each size. Ordering is unavailable until availability is updated.</p>}
                 <div className="mt-5 flex gap-3">
                   <button
                     onClick={onAdd}
-                    disabled={!!specsError || p.stock === 0 || (sized && !selectedSize)}
+                    disabled={availability?.status !== 'ready' || (sized && !selectedSize)}
                     className="flex-1 flex items-center justify-center gap-2 font-bold text-white py-3.5 rounded-xl text-sm sm:text-base transition-colors disabled:opacity-50"
                     style={{ background: added ? '#16a34a' : ORANGE }}
                   >
-                    {added ? <><Check size={18} /> Added to cart</> : <><ShoppingCart size={18} /> Add to Cart</>}
+                    {availability?.status !== 'ready' ? availability?.label : sized && !selectedSize ? 'Select a size' : added ? <><Check size={18} /> Added to cart</> : <><ShoppingCart size={18} /> Add to Cart</>}
                   </button>
                   <Link
                     to="/support"
@@ -157,6 +160,10 @@ export default function ProductDetailPage() {
                     <Flag size={20} />
                   </Link>
                 </div>
+                {availability?.status !== 'ready' && <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
+                  <button type="button" onClick={() => refetch()} disabled={isFetching} className="font-semibold underline disabled:opacity-50">{isFetching ? 'Checking availability…' : 'Refresh availability'}</button>
+                  <Link to="/catalog" className="font-semibold underline">Browse other products</Link>
+                </div>}
 
                 <div className="mt-6 bg-white rounded-2xl border border-neutral-200 p-4 sm:p-5">
                   <h2 className="font-bold text-sm mb-3">Delivery &amp; Returns</h2>
