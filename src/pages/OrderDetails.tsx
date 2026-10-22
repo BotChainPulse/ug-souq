@@ -1,7 +1,7 @@
 import { Component, useState } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
-import { AlertTriangle, ArrowLeft, CheckCircle2, CircleDashed, MapPin, Package, ReceiptText, Truck, XCircle } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CheckCircle2, CircleDashed, Download, MapPin, Package, ReceiptText, Truck, XCircle } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { trpc } from '@/providers/trpc'
@@ -104,6 +104,10 @@ function OrderDetailsPage() {
   const [showCancel, setShowCancel] = useState(false)
   const [cancelReason, setCancelReason] = useState(CANCEL_REASONS[0])
   const [cancelNotice, setCancelNotice] = useState('')
+  const [downloadingInvoice, setDownloadingInvoice] = useState(false)
+  const [invoiceError, setInvoiceError] = useState('')
+  const [invoiceNotice, setInvoiceNotice] = useState('')
+  const utils = trpc.useUtils()
   const hasValidPhone = lookupPhone.trim().length >= 9
   const canLoad = code.trim().length >= 4 && hasValidPhone
   const orderQuery = trpc.orders.track.useQuery(
@@ -143,6 +147,31 @@ function OrderDetailsPage() {
     if (!order || !lookupPhone.trim()) return
     setCancelNotice('')
     cancelOrder.mutate({ code: order.code, phone: lookupPhone.trim(), reason: cancelReason })
+  }
+
+  const downloadInvoice = async () => {
+    if (!order || !canManage || downloadingInvoice) return
+    setDownloadingInvoice(true)
+    setInvoiceError('')
+    setInvoiceNotice('')
+    try {
+      const result = await utils.client.orders.invoice.query({ code: order.code, phone: lookupPhone.trim() })
+      const bytes = Uint8Array.from(atob(result.data), character => character.charCodeAt(0))
+      const url = URL.createObjectURL(new Blob([bytes], { type: result.mimeType }))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = result.filename
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      // Android browsers may still be opening the PDF after the click handler.
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+      setInvoiceNotice('Your PDF download has started. Check your browser downloads.')
+    } catch {
+      setInvoiceError('We could not download this invoice. Please try again, or contact support if it continues.')
+    } finally {
+      setDownloadingInvoice(false)
+    }
   }
 
   return (
@@ -264,6 +293,18 @@ function OrderDetailsPage() {
                 {items.length === 0 && <p className="py-3 text-sm text-neutral-500">No item lines were saved for this legacy order.</p>}
               </div>
               <div className="mt-2 space-y-2 border-t border-neutral-200 pt-3 text-sm"><div className="flex justify-between text-neutral-600"><span>Subtotal</span><span>{safeAmount(order.subtotal)}</span></div><div className="flex justify-between text-neutral-600"><span>Delivery</span><span>{Number(order.deliveryFee) === 0 ? 'Free' : safeAmount(order.deliveryFee)}</span></div><div className="flex justify-between pt-1 text-base font-extrabold"><span>Total</span><span>{safeAmount(order.total)}</span></div></div>
+            </section>
+
+            <section className="rounded-2xl border border-neutral-200 bg-white p-5">
+              <h2 className="flex items-center gap-2 font-extrabold"><ReceiptText size={18} className="text-emerald-700" /> Invoice &amp; payment record</h2>
+              <p className="mt-2 text-sm leading-relaxed text-neutral-600">Save a PDF of your order items, sizes, specifications, charges and recorded payment status.</p>
+              <button onClick={downloadInvoice} disabled={!canManage || downloadingInvoice} aria-busy={downloadingInvoice} className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50">
+                <Download size={17} /> {downloadingInvoice ? 'Preparing PDF…' : 'Download invoice (PDF)'}
+              </button>
+              {!canManage && <p className="mt-2 text-xs text-neutral-600">Use your original secured account device to download, or <Link to="/support" className="font-bold underline">contact support for account recovery</Link>.</p>}
+              {invoiceError && <p role="alert" className="mt-3 text-sm font-semibold text-red-700">{invoiceError}</p>}
+              {invoiceNotice && <p role="status" className="mt-3 text-sm font-semibold text-emerald-800">{invoiceNotice}</p>}
+              <p className="mt-3 text-xs leading-relaxed text-neutral-500">Original seller tax invoices and warranty documents are provided separately by the seller. This PDF reflects your saved marketplace order.</p>
             </section>
 
             <section className="grid gap-3 sm:grid-cols-2">
