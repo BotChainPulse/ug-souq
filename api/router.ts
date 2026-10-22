@@ -9,6 +9,7 @@ import { sellerPartnerships } from "../db/schema";
 import { activePartnership } from "./partnershipPolicy";
 import { z } from "zod";
 import { requireCustomerOwnership, customerOrderSummary } from "./customerOwnership";
+import { createOrderInvoicePdf, loadOrderInvoice } from './orderInvoice';
 import { TRPCError } from "@trpc/server";
 import { eq, desc, asc, or, and } from "drizzle-orm";
 import { randomBytes } from "crypto";
@@ -386,6 +387,15 @@ export const appRouter = createRouter({
   }),
 
   orders: createRouter({
+    invoice: publicQuery
+      .input(z.object({ code: z.string().trim().min(4).max(32), phone: z.string().trim().min(9).max(32) }))
+      .query(async ({ input, ctx }) => {
+        ctx.resHeaders.set('Cache-Control', 'private, no-store');
+        const invoice = await loadOrderInvoice(ctx.req, input.code, input.phone);
+        const bytes = await createOrderInvoicePdf(invoice);
+        const code = invoice.order.code.replace(/[^A-Za-z0-9_-]/g, '_');
+        return { filename: `UGSouq-Invoice-${code}.pdf`, mimeType: 'application/pdf' as const, data: Buffer.from(bytes).toString('base64') };
+      }),
     paymentOptions: publicQuery.query(() => ({ pesapal: pesapalConfigured(), environment: process.env.PESAPAL_ENV === "live" ? "live" as const : "sandbox" as const })),
     create: publicQuery
       .input(z.object({
