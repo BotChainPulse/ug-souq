@@ -11,6 +11,14 @@ import { returnWindowMs } from "./returnPolicy";
 
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
+  errorFormatter({ shape, error }) {
+    if (error.code !== "INTERNAL_SERVER_ERROR") return shape;
+    // Database/driver errors may include SQL, bound values or uploaded files.
+    // Keep those details server-side, including when running in development.
+    const data = { ...shape.data };
+    delete data.stack;
+    return { ...shape, message: "Something went wrong. Please try again.", data };
+  },
 });
 
 const normPhone = (value: string) => value.replace(/[\s-]+/g, "").trim();

@@ -1,6 +1,7 @@
 import { confirmedSpecifications, PRODUCT_TYPES } from '../src/lib/productDetails';
 import { needsSize, readSizes, sizeTotal, validateSizes } from "../src/lib/sizes";
 import { restoreItemStock } from "./sizeStock";
+import { inventoryAuditState } from "./inventoryAudit";
 import { healthcareAdminRouter } from './healthcare';
 import { customerMatchesSearch } from '../src/lib/customerSearch';
 import { serviceAdminRouter } from './services';
@@ -132,8 +133,7 @@ async function writeAudit(params: {
   beforeState?: unknown;
   afterState?: unknown;
   meta?: unknown;
-}) {
-  const db = getDb();
+}, db: Pick<ReturnType<typeof getDb>, "insert"> = getDb()) {
   await db.insert(adminAuditLogs).values({
     actorTag: actorTag(params.key),
     action: params.action,
@@ -857,7 +857,7 @@ export const adminRouter = createRouter({
   })).mutation(async ({ input }) => {
     requireAdmin(input.key);
     const db = getDb(), table = input.itemType === "product" ? products : listings;
-    const audit = await db.transaction(async tx => {
+    await db.transaction(async tx => {
       const [before] = await tx.select().from(table).where(eq(table.id, input.id)).for("update");
       if (!before) throw new TRPCError({ code: "NOT_FOUND", message: "Item not found." });
       if (Object.entries(input.expected).some(([key, value]) => (before[key as keyof typeof before] ?? null) !== value)) throw new TRPCError({ code: "CONFLICT", message: "Item changed. Refresh inventory before saving." });
@@ -871,9 +871,8 @@ export const adminRouter = createRouter({
       } catch (error) { throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Invalid item details." }); }
       const afterState = { productType: input.productType, requiresSize: input.requiresSize, specifications: specifications.length ? JSON.stringify(specifications) : null, sizeOptions: sizes.length ? JSON.stringify(sizes) : null, stock: sizes.length ? sizeTotal(sizes) : input.stock };
       await tx.update(table).set(afterState).where(eq(table.id, input.id));
-      return { beforeState: before, afterState };
+      await writeAudit({ key: input.key, action: "inventory.details.updated", entityType: input.itemType, entityId: input.id, beforeState: inventoryAuditState(before), afterState: inventoryAuditState(afterState) }, tx);
     });
-    await writeAudit({ key: input.key, action: "inventory.details.updated", entityType: input.itemType, entityId: input.id, ...audit });
     return { ok: true };
   }),
   setItemSizes: publicQuery.input(z.object({
@@ -892,9 +891,10 @@ export const adminRouter = createRouter({
       if (before.stock !== input.expectedStock || (before.sizeOptions ?? null) !== input.expectedSizes) throw new TRPCError({ code: "CONFLICT", message: "Stock changed. Refresh before saving size stock." });
       if (needsSize(before) && !sizes.length) throw new TRPCError({ code: "BAD_REQUEST", message: "Enter the item's actual sizes, including One size when applicable." });
       if (sizeTotal(sizes) > 10000) throw new TRPCError({ code: "BAD_REQUEST", message: "Total size stock cannot exceed 10,000." });
-      await tx.update(table).set({ sizeOptions: JSON.stringify(sizes), stock: sizeTotal(sizes) }).where(eq(table.id, input.id));
+      const afterState = { sizeOptions: JSON.stringify(sizes), stock: sizeTotal(sizes) };
+      await tx.update(table).set(afterState).where(eq(table.id, input.id));
+      await writeAudit({ key: input.key, action: "inventory.sizes.updated", entityType: input.itemType, entityId: input.id, beforeState: inventoryAuditState(before), afterState: inventoryAuditState({ ...before, ...afterState }) }, tx);
     });
-    await writeAudit({ key: input.key, action: "inventory.sizes.updated", entityType: input.itemType, entityId: input.id, afterState: { sizes } });
     return { ok: true };
   }),
 
