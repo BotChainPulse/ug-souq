@@ -9,7 +9,7 @@ import { appRouter } from './router'
 const specifications = ['Model', 'RAM', 'Storage', 'Network', 'Colour'].map(label => ({ label, value: `Confirmed ${label}` }))
 const listing = { id: 5, sellerId: 1, status: 'approved', name: 'Synthetic test item', category: 'phones', specifications, price: 10000, oldPrice: null, offerPercent: 10, offerStartsAt: new Date('2026-10-12T00:00:00Z'), offerEndsAt: new Date('2026-10-13T00:00:00Z'), stock: 3 }
 const seller = { id: 1, shopName: 'Synthetic shop', status: 'approved', rating: 0, verified: false }
-const input = { phone: '0700000001', name: 'Synthetic test item', category: 'phones', specifications, price: 10000, stock: 3, condition: 'new' as const, warrantyMonths: 0, imageData: 'x'.repeat(100), offerPercent: 10, offerStartsAt: '2026-10-12T00:00:00Z', offerEndsAt: '2026-10-13T00:00:00Z' }
+const input = { phone: '0700000001', name: 'Synthetic test item', category: 'phones', specifications, price: 10000, stock: 3, condition: 'new' as const, warrantyMonths: 0, imageData: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aN1cAAAAASUVORK5CYII=', offerPercent: 10, offerStartsAt: '2026-10-12T00:00:00Z', offerEndsAt: '2026-10-13T00:00:00Z' }
 const caller = () => appRouter.createCaller({ req: new Request('https://example.test/api/trpc'), resHeaders: new Headers() })
 
 beforeEach(() => {
@@ -37,6 +37,23 @@ describe('seller listings through the public API, isolated from production', () 
     await caller().sellers.addListing(input)
     expect(db.values[0]).toMatchObject({ price: 10000, oldPrice: null, offerPercent: 10, status: 'pending' })
     expect(db.values[0].offerEndsAt).toEqual(new Date(input.offerEndsAt))
+  })
+  it('persists extra photos with the main photo on a new listing', async () => {
+    db.rows = [[seller], [], [], []]
+    const extra = 'data:image/jpeg;base64,' + Buffer.from([255, 216, 255, ...Array(27).fill(0)]).toString('base64')
+    await caller().sellers.addListing({ ...input, additionalImages: [extra] })
+    expect(db.values[0]).toMatchObject({ imageData: input.imageData, imageGallery: JSON.stringify([extra]), status: 'pending' })
+  })
+  it('returns the full ordered gallery only in approved product details', async () => {
+    const extra = '/images/synthetic-extra.png'
+    db.rows = [[{ listing: { ...listing, imageData: '/images/synthetic-main.png', imageGallery: JSON.stringify([extra]) }, seller }]]
+    expect(await caller().products.bySlug({ slug: 'listing-5' })).toMatchObject({ image: '/images/synthetic-main.png', images: ['/images/synthetic-main.png', extra] })
+  })
+  it('does not add gallery payloads to search and browse cards', async () => {
+    db.rows = [[], [{ listing: { ...listing, imageData: '/images/synthetic-main.png', imageGallery: JSON.stringify(['/images/extra.png']) }, seller }]]
+    const result = await caller().products.browse({})
+    expect(result[0]).not.toHaveProperty('imageGallery')
+    expect(result[0]).not.toHaveProperty('images')
   })
   it('rejects legacy comparison-price submissions before database access', async () => {
     await expect(caller().sellers.addListing({ ...input, oldPrice: 20000 })).rejects.toMatchObject({ code: 'BAD_REQUEST' })

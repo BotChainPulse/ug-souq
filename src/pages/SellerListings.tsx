@@ -12,49 +12,8 @@ import {
 import { ORANGE, WA_LINK, WHATSAPP_INTL } from '../lib/site'
 import { trpc } from '@/providers/trpc'
 import { CATEGORIES } from '../lib/categories'
-import { Camera, X } from 'lucide-react'
-
-// Normalize every seller photo to the same square product canvas. The whole
-// item remains visible and the compact WebP stays reliable on mobile uploads.
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    const url = URL.createObjectURL(file)
-    img.onload = () => {
-      const size = 800
-      const padding = 32
-      const scale = Math.min(1, (size - padding * 2) / Math.max(img.width, img.height))
-      const w = Math.round(img.width * scale)
-      const h = Math.round(img.height * scale)
-      const canvas = document.createElement('canvas')
-      canvas.width = size
-      canvas.height = size
-      const ctx = canvas.getContext('2d')!
-      ctx.fillStyle = '#fafafa'
-      ctx.fillRect(0, 0, size, size)
-      ctx.drawImage(img, Math.round((size - w) / 2), Math.round((size - h) / 2), w, h)
-      URL.revokeObjectURL(url)
-      // Keep the data URL small enough to save reliably; step down quality if needed.
-      let quality = 0.82
-      let format = 'image/webp'
-      let data = canvas.toDataURL(format, quality)
-      if (!data.startsWith('data:image/webp')) {
-        format = 'image/jpeg'
-        data = canvas.toDataURL(format, quality)
-      }
-      while (data.length > 350_000 && quality > 0.4) {
-        quality -= 0.1
-        data = canvas.toDataURL(format, quality)
-      }
-      resolve(data)
-    }
-    img.onerror = () => {
-      URL.revokeObjectURL(url)
-      reject(new Error('The selected image could not be processed'))
-    }
-    img.src = url
-  })
-}
+import ListingPhotoEditor from '../components/ListingPhotoEditor'
+import ListingPhotoManager from '../components/ListingPhotoManager'
 
 const conditions = [
   { value: 'new', label: 'New', hint: 'Brand new, sealed or unused.' },
@@ -109,9 +68,8 @@ export default function SellerListings() {
   let sizesValid = true
   try { if (sized) { const checked = validateSizes(sizeOptions); sizesValid = checked.length > 0 && sizeTotal(checked) > 0 && sizeTotal(checked) <= 10000 } } catch { sizesValid = false }
   const [justAdded, setJustAdded] = useState(false)
-  const [photo, setPhoto] = useState<string | null>(null);
-  const [photoBusy, setPhotoBusy] = useState(false);
-  const onPhoto = async (file?: File) => { if (!file) return; setPhotoBusy(true); try { setPhoto(await fileToDataUrl(file)); } catch { setPhoto(null); } finally { setPhotoBusy(false); } };
+  const [photos, setPhotos] = useState<string[]>([])
+  const [photoBusy, setPhotoBusy] = useState(false)
 
   const seller = lookup.data
   const approved = seller?.status === 'approved'
@@ -130,7 +88,7 @@ export default function SellerListings() {
     form.name.trim().length >= 3 &&
     Number.isInteger(Number(form.price)) && Number(form.price) >= 100 && Number(form.price) <= 2_000_000_000 && offerValid &&
     (sized || (Number.isInteger(Number(form.stock)) && Number(form.stock) >= 1 && Number(form.stock) <= 10000)) &&
-    photo !== null && !photoBusy &&
+    photos.length > 0 && !photoBusy &&
     (!form.isBranded || (form.brandName.trim().length >= 2 && form.authenticityEvidence.trim().length >= 10)) &&
     (form.condition === 'new' || Number(form.warrantyMonths) >= 1)
 
@@ -152,10 +110,11 @@ export default function SellerListings() {
       brandName: form.isBranded ? form.brandName.trim() : undefined,
       authenticityEvidence: form.isBranded ? form.authenticityEvidence.trim() : undefined,
       imageNote: form.imageNote.trim() || undefined,
-      imageData: photo!,
+      imageData: photos[0],
+      additionalImages: photos.slice(1),
     })
     setForm({ name: '', category: 'phones', price: '', offerPercent: '', offerStartsAt: '', offerEndsAt: '', stock: '1', condition: 'new', warrantyMonths: '6', imageNote: '', isBranded: false, brandName: '', authenticityEvidence: '' })
-    setPhoto(null)
+    setPhotos([])
     setSizeOptions([])
     setUseSizes(false)
     setProductType('general')
@@ -395,39 +354,7 @@ export default function SellerListings() {
                 )}
               </div>
 
-              <div>
-                <label className="text-xs font-bold text-neutral-600 uppercase tracking-wide">Item photo — required *</label>
-                <p className="mt-1 text-xs text-neutral-500">
-                  Take a photo of the <b>actual item</b> with your phone — new, refurbished and used items all need a real photo.
-                  Good light, whole item visible, no screenshots or internet downloads. We automatically fit it into a clean square without cropping. Our team checks every photo before your item goes live; fake photos get your shop flagged.
-                </p>
-                {photo ? (
-                  <div className="mt-3 relative w-40">
-                    <img src={photo} alt="Item" className="h-40 w-40 rounded-xl border border-neutral-200 bg-neutral-50 object-contain p-2" />
-                    <button
-                      type="button"
-                      onClick={() => setPhoto(null)}
-                      className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-neutral-900 text-white grid place-items-center"
-                      title="Remove photo"
-                    >
-                      <X size={13} />
-                    </button>
-                  </div>
-                ) : (
-                  <label className="mt-3 flex flex-col items-center justify-center gap-2 w-full sm:w-64 h-36 rounded-xl border-2 border-dashed border-neutral-300 bg-neutral-50 cursor-pointer hover:border-orange-400 hover:bg-orange-50 transition-colors">
-                    <Camera size={24} style={{ color: ORANGE }} />
-                    <span className="text-sm font-semibold text-neutral-600">{photoBusy ? 'Processing…' : 'Tap to photograph or upload the item'}</span>
-                    <span className="text-[11px] text-neutral-400">JPG, PNG or WebP — automatically fitted to a square</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      className="hidden"
-                      onChange={(e) => onPhoto(e.target.files?.[0])}
-                    />
-                  </label>
-                )}
-              </div>
+              <ListingPhotoEditor value={photos} onChange={setPhotos} onBusyChange={setPhotoBusy} disabled={addListing.isPending} />
 
               <div>
                 <label className="text-xs font-bold text-neutral-600 uppercase tracking-wide">Photo notes — optional</label>
@@ -461,7 +388,8 @@ export default function SellerListings() {
             <h2 className="font-extrabold flex items-center gap-2"><Package size={18} style={{ color: ORANGE }} /> My listings</h2>
             <div className="mt-4 divide-y divide-neutral-100">
               {seller.listings.map((l) => (
-                <div key={l.id} className="py-3 flex items-center justify-between gap-3">
+                <div key={l.id} className="py-3">
+                <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     {(l as { imageData?: string | null }).imageData ? (
                       <img src={(l as { imageData?: string | null }).imageData!} alt={l.name} className="h-12 w-12 shrink-0 rounded-lg border border-neutral-200 bg-neutral-50 object-contain p-1" />
@@ -477,6 +405,8 @@ export default function SellerListings() {
                     </div>
                   </div>
                   <div className="text-right shrink-0"><StatusPill status={l.status} />{l.offerPercent && <p className="mt-1 text-xs text-neutral-600">{l.offerPercent}% offer · {listingPrice(l).offerActive ? 'within offer window' : 'outside offer window'}</p>}</div>
+                </div>
+                {approved && !['suspended', 'terminated'].includes(l.status) && <ListingPhotoManager listing={l} phone={searched} onSaved={() => { void lookup.refetch() }} /> }
                 </div>
               ))}
             </div>

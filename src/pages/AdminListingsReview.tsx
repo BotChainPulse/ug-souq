@@ -1,3 +1,6 @@
+import ProductGallery from '../components/ProductGallery'
+import ListingPhotoManager from '../components/ListingPhotoManager'
+import { readListingPhotos } from '../lib/listingPhotos'
 import { readSizes } from '../lib/sizes'
 import SizeInventoryPanel from '../components/admin/SizeInventoryPanel'
 import { discountedPrice } from '../lib/listingOffer'
@@ -43,7 +46,7 @@ export default function AdminListingsReview() {
       <main className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
         <SizeInventoryPanel adminKey={adminKey} />
         <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-          Review the item photo and details before approving. Approval publishes the listing to shoppers. Check the regular price, discount and offer dates for misleading price claims. Discounts do not include paid advertising.
+          Review every item photo and details before approving. Approval publishes the listing to shoppers. Check the regular price, discount and offer dates for misleading price claims. Discounts do not include paid advertising.
         </div>
 
         <div className="grid gap-3 sm:grid-cols-[1fr_190px]">
@@ -55,13 +58,15 @@ export default function AdminListingsReview() {
         {listings.error && <div className="flex gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"><AlertTriangle size={18} />{listings.error.message}</div>}
         {!listings.isLoading && !listings.error && rows.length === 0 && <div className="rounded-2xl bg-white p-8 text-center text-slate-500">No listings found.</div>}
 
+        {setListingStatus.error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{setListingStatus.error.message}</p>}
         <div className="grid gap-4 md:grid-cols-2">
           {rows.map((item) => {
             const id = Number(item.id)
             return (
               <article key={id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="grid aspect-[4/3] place-items-center bg-slate-50">
-                  {item.imageData ? <img src={item.imageData} alt={item.name || 'Seller listing'} className="h-full w-full object-contain" /> : <div className="text-center text-slate-400"><Package size={38} className="mx-auto" /><p className="mt-2 text-xs">No product image supplied</p></div>}
+                <div className="bg-slate-50 p-4">
+                  {item.imageData ? <ProductGallery key={`${id}-${item.photoRevision}`} images={readListingPhotos(item.imageData, item.imageGallery)} name={item.name || 'Seller listing'} /> : <div className="text-center text-slate-400"><Package size={38} className="mx-auto" /><p className="mt-2 text-xs">No product image supplied</p></div>}
+                  {!['suspended', 'terminated'].includes(item.status) && <ListingPhotoManager listing={item} adminKey={adminKey} onSaved={() => { void listings.refetch() }} />}
                 </div>
                 <div className="p-4">
                   <div className="flex flex-wrap items-center gap-2"><h2 className="font-black">{item.name || 'Unnamed listing'}</h2><span className={`rounded-full px-2 py-1 text-xs font-bold ${statusClass[item.status] || statusClass.pending}`}>{item.status || 'pending'}</span>{item.sellerVerified && <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-1 text-xs font-bold text-blue-700"><CheckCircle size={12} />Verified seller</span>}</div>
@@ -81,7 +86,7 @@ export default function AdminListingsReview() {
                   </div>
                   <p className="mt-2 text-sm">{readSizes(item.sizeOptions).map(size => `${size.label}: ${size.stock}`).join(' · ')}</p>
                   {item.imageNote && <p className="mt-3 text-xs text-slate-500">Seller note: {item.imageNote}</p>}
-                  {item.status === 'pending' && <div className="mt-4 grid grid-cols-2 gap-2"><button disabled={setListingStatus.isPending} onClick={() => window.confirm(`Approve ${item.name}? This will publish it to shoppers.`) && setListingStatus.mutate({ key: adminKey, id, status: 'approved' })} className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-3 text-sm font-bold text-white disabled:opacity-50"><Check size={16} />Approve</button><button disabled={setListingStatus.isPending} onClick={() => window.confirm(`Reject ${item.name}?`) && setListingStatus.mutate({ key: adminKey, id, status: 'rejected' })} className="flex items-center justify-center gap-2 rounded-xl bg-red-600 px-3 py-3 text-sm font-bold text-white disabled:opacity-50"><X size={16} />Reject</button></div>}
+                  {item.status === 'pending' && <div className="mt-4 grid grid-cols-2 gap-2"><button disabled={setListingStatus.isPending} onClick={() => window.confirm(`Approve ${item.name}? This will publish it to shoppers.`) && setListingStatus.mutate({ key: adminKey, id, status: 'approved', expectedPhotoRevision: item.photoRevision })} className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-3 text-sm font-bold text-white disabled:opacity-50"><Check size={16} />Approve</button><button disabled={setListingStatus.isPending} onClick={() => window.confirm(`Reject ${item.name}?`) && setListingStatus.mutate({ key: adminKey, id, status: 'rejected', expectedPhotoRevision: item.photoRevision })} className="flex items-center justify-center gap-2 rounded-xl bg-red-600 px-3 py-3 text-sm font-bold text-white disabled:opacity-50"><X size={16} />Reject</button></div>}
                 </div>
               </article>
             )

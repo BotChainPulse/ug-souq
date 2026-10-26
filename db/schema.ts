@@ -113,6 +113,7 @@ export const listings = mysqlTable("listings", {
   warrantyMonths: int("warranty_months").notNull().default(0),
   imageNote: varchar("image_note", { length: 255 }).notNull(),
   imageData: mediumtext("image_data"),
+  imageGallery: mediumtext("image_gallery"),
   isBranded: boolean("is_branded").notNull().default(false),
   brandName: varchar("brand_name", { length: 128 }),
   authenticityEvidence: text("authenticity_evidence"),

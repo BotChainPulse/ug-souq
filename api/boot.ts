@@ -63,6 +63,7 @@ async function ensureStartupSchema() {
   await addColumn(`ALTER TABLE seller_ad_bookings ADD COLUMN objective ENUM('product_sales','product_views','shop_visits') NULL`);
   await addColumn(`ALTER TABLE seller_ad_bookings ADD COLUMN cta ENUM('shop_now','view_product','visit_shop') NULL`);
   await addColumn(`ALTER TABLE seller_ad_bookings ADD COLUMN requested_start_date VARCHAR(10) NULL`);
+  await addColumn(`ALTER TABLE listings ADD COLUMN image_gallery MEDIUMTEXT NULL`);
   await addColumn(`ALTER TABLE listings ADD COLUMN offer_percent INT NULL`);
   await addColumn(`ALTER TABLE listings ADD COLUMN offer_starts_at TIMESTAMP NULL`);
   await addColumn(`ALTER TABLE listings ADD COLUMN offer_ends_at TIMESTAMP NULL`);

@@ -1,3 +1,7 @@
+import { listingCardColumns } from "./listingColumns";
+import { readListingPhotos } from "../src/lib/listingPhotos";
+import { listingPhotosInput, photoRevision, validateListingPhotos } from "./listingPhotos";
+import { saveListingPhotos } from "./saveListingPhotos";
 import { confirmedSpecifications, PRODUCT_TYPES } from '../src/lib/productDetails';
 import { caseInsensitiveContains } from './searchPolicy';
 import { healthcareRouter } from './healthcare';
@@ -198,6 +202,7 @@ export const appRouter = createRouter({
           category: listing.category,
           ...listingPrice(listing),
           image: listing.imageData ?? "/images/product-default.png",
+          images: readListingPhotos(listing.imageData, listing.imageGallery),
           stock: listing.stock, sizeOptions: listing.sizeOptions, productType: listing.productType, requiresSize: listing.requiresSize, specifications: listing.specifications,
           condition: listing.condition,
           warrantyMonths: listing.warrantyMonths,
@@ -218,6 +223,7 @@ export const appRouter = createRouter({
       return {
         kind: "product" as const,
         ...row.product,
+        images: [row.product.image],
         sellerName: row.seller.shopName,
         sellerVerified: row.seller.verified,
         sellerRating: row.seller.rating / 10,
@@ -243,7 +249,7 @@ export const appRouter = createRouter({
         discount: product.oldPrice ? Math.round((1 - product.price / product.oldPrice) * 100) : 0,
       }));
       const lrows = await db
-        .select({ listing: listings, seller: sellers })
+        .select({ listing: listingCardColumns, seller: sellers })
         .from(listings)
         .innerJoin(sellers, eq(listings.sellerId, sellers.id))
         .where(eq(listings.sellerId, input.sellerId));
@@ -306,7 +312,7 @@ export const appRouter = createRouter({
           .filter((p) => (input.deals ? p.discount > 0 && p.stock > 0 : true));
         // Approved seller listings appear on the market too, with their uploaded photos
         const lrows = await db
-          .select({ listing: listings, seller: sellers })
+          .select({ listing: listingCardColumns, seller: sellers })
           .from(listings)
           .innerJoin(sellers, eq(listings.sellerId, sellers.id))
           .where(and(eq(listings.status, "approved"), eq(sellers.status, "approved")));
@@ -351,7 +357,7 @@ export const appRouter = createRouter({
           discount: product.oldPrice ? Math.round((1 - product.price / product.oldPrice) * 100) : 0,
         }))
         ;
-      const listingRows = await db.select({ listing: listings, seller: sellers }).from(listings)
+      const listingRows = await db.select({ listing: listingCardColumns, seller: sellers }).from(listings)
         .innerJoin(sellers, eq(listings.sellerId, sellers.id))
         .where(and(eq(listings.status, "approved"), eq(sellers.status, "approved"), or(caseInsensitiveContains(listings.name, q), caseInsensitiveContains(listings.category, q))));
       const listingResults = listingRows.map(({ listing, seller }) => ({
@@ -666,7 +672,7 @@ export const appRouter = createRouter({
         district: row.district,
         verified: row.verified,
         status: row.status,
-        listings: myListings,
+        listings: myListings.map(listing => ({ ...listing, photoRevision: photoRevision(listing.imageData, listing.imageGallery) })),
         plan: { ...plan, listingsUsed, monthlyFee: PRO_MONTHLY_FEE },
       };
     }),
@@ -691,10 +697,12 @@ export const appRouter = createRouter({
         brandName: z.string().trim().max(128).optional(),
         authenticityEvidence: z.string().trim().max(1000).optional(),
         imageNote: z.string().optional(),
-        imageData: z.string().min(100, "A real photo of the item is required").max(2_000_000, "Photo is too large to save"),
+        imageData: z.string().min(1).max(2_000_000),
+        additionalImages: z.array(z.string().max(350_000)).max(5).optional(),
       }))
       .mutation(async ({ input }) => {
         if (input.oldPrice != null) throw new TRPCError({ code: "BAD_REQUEST", message: "Use the regular price, discount percentage and offer dates. Refresh the seller listing form." });
+        const photos = validateListingPhotos([input.imageData, ...(input.additionalImages ?? [])]);
         const sizes = listingSizes(input.category, input.sizeOptions, input);
         let specifications;
         try { specifications = confirmedSpecifications(input); } catch (error) { throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Confirm product specifications." }); }
@@ -736,7 +744,7 @@ export const appRouter = createRouter({
           condition: input.condition,
           warrantyMonths: input.condition === "new" ? 0 : input.warrantyMonths,
           imageNote: input.imageNote ?? "Photo uploaded by seller",
-          imageData: input.imageData,
+          ...photos,
           isBranded: input.isBranded,
           brandName: input.isBranded ? input.brandName : null,
           authenticityEvidence: input.isBranded ? input.authenticityEvidence : null,
@@ -751,6 +759,15 @@ export const appRouter = createRouter({
         });
         return { id: row.id };
       }),
+    updateListingPhotos: publicQuery.input(z.object({
+      phone: z.string().trim().min(9).max(32), id: z.number().int().positive(),
+      photos: listingPhotosInput, expectedRevision: z.string().regex(/^[a-f0-9]{64}$/),
+    })).mutation(async ({ input, ctx }) => {
+      await requireCustomerOwnership(ctx.req, input.phone);
+      const [seller] = await getDb().select().from(sellers).where(eq(sellers.phone, normPhone(input.phone)));
+      if (!seller || seller.status !== "approved") throw new TRPCError({ code: "FORBIDDEN", message: "An approved shop with this secured account phone is required to edit photos." });
+      return saveListingPhotos({ ...input, sellerId: seller.id });
+    }),
     bookAd: publicQuery
       .input(z.object({
         phone: z.string().min(9),

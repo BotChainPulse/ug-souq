@@ -60,7 +60,7 @@ const TABLES = [
     \`price\` int NOT NULL, \`old_price\` int, \`stock\` int NOT NULL DEFAULT 1,
     \`condition\` enum('new','refurbished','used') NOT NULL DEFAULT 'new',
     \`warranty_months\` int NOT NULL DEFAULT 0, \`image_note\` varchar(255) NOT NULL,
-    \`image_data\` mediumtext,
+    \`image_data\` mediumtext, \`image_gallery\` mediumtext,
     \`is_branded\` boolean NOT NULL DEFAULT false, \`brand_name\` varchar(128), \`authenticity_evidence\` text,
     \`status\` enum('pending','approved','rejected','suspended','terminated') NOT NULL DEFAULT 'pending',
     \`created_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -231,6 +231,7 @@ const ALTERS = [
   "ALTER TABLE sellers ADD COLUMN \`seller_contract_accepted_at\` timestamp NULL",
   "ALTER TABLE products ADD COLUMN size_options TEXT NULL",
   "ALTER TABLE listings ADD COLUMN size_options TEXT NULL",
+  "ALTER TABLE listings ADD COLUMN image_gallery MEDIUMTEXT NULL",
   "ALTER TABLE order_items ADD COLUMN size VARCHAR(32) NULL",
   "ALTER TABLE products ADD COLUMN product_type VARCHAR(24) NULL",
   "ALTER TABLE products ADD COLUMN requires_size BOOLEAN NULL",
