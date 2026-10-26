@@ -1,3 +1,4 @@
+import ProductGallery from '../components/ProductGallery'
 import { readSpecifications, specificationIssue, configurationOf } from '../lib/productDetails'
 import { needsSize, readSizes } from '../lib/sizes'
 import { purchaseAvailability } from '../lib/purchaseAvailability'
@@ -82,8 +83,8 @@ export default function ProductDetailPage() {
         ) : (
           <>
             <div className="grid md:grid-cols-2 gap-6 lg:gap-10">
-              <div className="bg-white rounded-2xl border border-neutral-200 p-4 sm:p-6 relative self-start">
-                <img src={p.image} alt={p.name} className="product-image-standard rounded-xl" />
+              <div className="min-w-0 bg-white rounded-2xl border border-neutral-200 p-4 sm:p-6 relative self-start">
+                <ProductGallery key={slug} images={p.images?.length ? p.images : [p.image]} name={p.name} />
                 {p.discount > 0 && (
                   <span className="absolute top-4 left-4 text-sm font-bold text-white px-2.5 py-1 rounded-full" style={{ background: ORANGE }}>−{p.discount}%</span>
                 )}

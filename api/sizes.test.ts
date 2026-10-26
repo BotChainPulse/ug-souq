@@ -105,7 +105,7 @@ describe('cancellation and administrator stock edits', () => {
 })
 
 describe('seller size configuration', () => {
-  const listing = { phone: '0700000001', name: 'Synthetic underwear', category: 'mens-fashion', price: 20000, stock: 999, condition: 'new' as const, warrantyMonths: 0, imageData: 'x'.repeat(100) }
+  const listing = { phone: '0700000001', name: 'Synthetic underwear', category: 'mens-fashion', price: 20000, stock: 999, condition: 'new' as const, warrantyMonths: 0, imageData: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aN1cAAAAASUVORK5CYII=' }
   it('derives stock from confirmed sizes and retains pending review', async () => {
     db.rows = [[{ id: 1, shopName: 'Synthetic shop', status: 'approved' }], [], [], []]
     await caller().sellers.addListing({ ...listing, sizeOptions: sizes })

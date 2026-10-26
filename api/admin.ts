@@ -1,3 +1,6 @@
+import { readListingPhotos } from "../src/lib/listingPhotos";
+import { listingPhotosInput, photoRevision, photoAudit } from "./listingPhotos";
+import { saveListingPhotos } from "./saveListingPhotos";
 import { confirmedSpecifications, PRODUCT_TYPES } from '../src/lib/productDetails';
 import { needsSize, readSizes, sizeTotal, validateSizes } from "../src/lib/sizes";
 import { restoreItemStock } from "./sizeStock";
@@ -829,7 +832,7 @@ export const adminRouter = createRouter({
       .innerJoin(sellers, eq(listings.sellerId, sellers.id))
       .orderBy(desc(listings.createdAt));
 
-    let mapped = rows.map(({ listing, seller }) => ({ ...listing, sellerName: seller.shopName, sellerVerified: seller.verified }));
+    let mapped = rows.map(({ listing, seller }) => ({ ...listing, photoRevision: photoRevision(listing.imageData, listing.imageGallery), sellerName: seller.shopName, sellerVerified: seller.verified }));
     if (input.status) mapped = mapped.filter((l) => l.status === input.status);
     if (input.search) {
       const q = input.search.toLowerCase();
@@ -838,6 +841,13 @@ export const adminRouter = createRouter({
     return mapped.sort((a, b) => (a.status === "pending" ? -1 : 0) - (b.status === "pending" ? -1 : 0));
   }),
 
+  setListingPhotos: publicQuery.input(z.object({
+    key: z.string(), id: z.number().int().positive(), photos: listingPhotosInput,
+    expectedRevision: z.string().regex(/^[a-f0-9]{64}$/),
+  })).mutation(async ({ input }) => {
+    requireAdmin(input.key);
+    return saveListingPhotos(input, (tx, beforeState, afterState) => writeAudit({ key: input.key, action: "listing.photos.updated", entityType: "listing", entityId: input.id, beforeState, afterState }, tx));
+  }),
   sizeInventory: publicQuery.input(z.object({ key: z.string() })).query(async ({ input }) => {
     requireAdmin(input.key);
     const db = getDb();
@@ -899,24 +909,31 @@ export const adminRouter = createRouter({
   }),
 
   setListingStatus: publicQuery
-    .input(z.object({ key: z.string(), id: z.number(), status: z.enum(["pending", "approved", "rejected", "suspended", "terminated"]) }))
+    .input(z.object({ key: z.string(), id: z.number(), status: z.enum(["pending", "approved", "rejected", "suspended", "terminated"]), expectedPhotoRevision: z.string().regex(/^[a-f0-9]{64}$/).optional() }))
     .mutation(async ({ input }) => {
       requireAdmin(input.key);
       const db = getDb();
-      const [before] = await db.select().from(listings).where(eq(listings.id, input.id));
-      if (!before) throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found." });
-      if (input.status === "approved" && needsSize(before) && (!readSizes(before.sizeOptions).length || sizeTotal(readSizes(before.sizeOptions)) !== before.stock)) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "Confirm sizes and stock in Size inventory before approving this listing." });
-      }
-      if (input.status === "approved") {
-        try { confirmedSpecifications(before); } catch (error) { throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Confirm product specifications before approval." }); }
-      }
-      if (input.status === "approved" && before.isBranded && (!before.brandName || !before.authenticityEvidence)) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "Branded goods cannot be approved without recorded authenticity evidence." });
-      }
-      await db.update(listings).set({ status: input.status }).where(eq(listings.id, input.id));
-      const [after] = await db.select().from(listings).where(eq(listings.id, input.id));
-      await writeAudit({ key: input.key, action: "listing.status.changed", entityType: "listing", entityId: input.id, beforeState: before, afterState: after });
+      await db.transaction(async tx => {
+        const [before] = await tx.select().from(listings).where(eq(listings.id, input.id)).for("update");
+        if (!before) throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found." });
+        if (input.status === "approved" && needsSize(before) && (!readSizes(before.sizeOptions).length || sizeTotal(readSizes(before.sizeOptions)) !== before.stock)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Confirm sizes and stock in Size inventory before approving this listing." });
+        }
+        if (input.status === "approved") {
+          try { confirmedSpecifications(before); } catch (error) { throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Confirm product specifications before approval." }); }
+        }
+        if (input.status === "approved" && before.isBranded && (!before.brandName || !before.authenticityEvidence)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Branded goods cannot be approved without recorded authenticity evidence." });
+        }
+        if ((input.status === "approved" || input.expectedPhotoRevision) && input.expectedPhotoRevision !== photoRevision(before.imageData, before.imageGallery)) {
+          throw new TRPCError({ code: "CONFLICT", message: "Photos changed or this review page is outdated. Refresh and review every photo before deciding." });
+        }
+        const photos = readListingPhotos(before.imageData, before.imageGallery);
+        if (input.status === "approved" && !photos.length) throw new TRPCError({ code: "BAD_REQUEST", message: "A real item photo is required before approval." });
+        await tx.update(listings).set({ status: input.status }).where(eq(listings.id, input.id));
+        const beforeState = { status: before.status, ...inventoryAuditState(before), photos: photoAudit(photos) };
+        await writeAudit({ key: input.key, action: "listing.status.changed", entityType: "listing", entityId: input.id, beforeState, afterState: { ...beforeState, status: input.status } }, tx);
+      });
       return { ok: true };
     }),
 

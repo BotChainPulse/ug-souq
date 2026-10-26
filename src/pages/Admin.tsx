@@ -1,3 +1,6 @@
+import ProductGallery from '../components/ProductGallery'
+import ListingPhotoManager from '../components/ListingPhotoManager'
+import { readListingPhotos } from '../lib/listingPhotos'
 import HealthcareAdminPanel from '../components/admin/HealthcareAdminPanel'
 import ServiceAdminPanel from '../components/admin/ServiceAdminPanel'
 import PartnershipPanel from "../components/admin/PartnershipPanel"
@@ -334,6 +337,7 @@ function Listings({ adminKey }: { adminKey: string }) {
           <option value="all">All Status</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option>
         </select>
       </div>
+      {setListingStatus.error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{setListingStatus.error.message}</p>}
       <div className="space-y-3">
         {list.length === 0 && <p className="text-neutral-500">No listings found.</p>}
         {list.map((l: any) => {
@@ -347,6 +351,10 @@ function Listings({ adminKey }: { adminKey: string }) {
                 {l?.sellerVerified && <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium flex items-center gap-1"><CheckCircle size={12} /> Verified Seller</span>}
               </div>
               <p className="text-sm text-neutral-600">UGX {Number(l?.price ?? 0).toLocaleString()} · by {l?.sellerName ?? "-"}</p>
+              <div className="mt-3 max-w-md">
+                <ProductGallery key={`${lid}-${l.photoRevision}`} name={l.name || 'Seller listing'} images={readListingPhotos(l.imageData, l.imageGallery)} />
+                {!['suspended', 'terminated'].includes(status) && <ListingPhotoManager listing={l} adminKey={adminKey} onSaved={() => { void refetch() }} />}
+              </div>
               <p className="mt-2 text-sm">{readSizes(l?.sizeOptions).map(size => `${size.label}: ${size.stock}`).join(' · ')}</p>
               {l?.isBranded && (
                 <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
@@ -357,9 +365,9 @@ function Listings({ adminKey }: { adminKey: string }) {
               )}
               {status === "pending" && (
                 <div className="mt-3 flex gap-2">
-                  <button onClick={() => { if (!lid) return; if (window.confirm(`Approve "${l?.name}"?`)) setListingStatus.mutate({ key: adminKey, id: lid, status: "approved" }) }} disabled={setListingStatus.isPending}
+                  <button onClick={() => { if (!lid) return; if (window.confirm(`Approve "${l?.name}"?`)) setListingStatus.mutate({ key: adminKey, id: lid, status: "approved", expectedPhotoRevision: l.photoRevision }) }} disabled={setListingStatus.isPending}
                     className="text-sm px-3 py-1.5 bg-emerald-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-1"><Check size={14} /> Approve</button>
-                  <button onClick={() => { if (!lid) return; if (window.confirm(`Reject "${l?.name}"?`)) setListingStatus.mutate({ key: adminKey, id: lid, status: "rejected" }) }} disabled={setListingStatus.isPending}
+                  <button onClick={() => { if (!lid) return; if (window.confirm(`Reject "${l?.name}"?`)) setListingStatus.mutate({ key: adminKey, id: lid, status: "rejected", expectedPhotoRevision: l.photoRevision }) }} disabled={setListingStatus.isPending}
                     className="text-sm px-3 py-1.5 bg-red-600 text-white rounded-lg disabled:opacity-50 flex items-center gap-1"><X size={14} /> Reject</button>
                 </div>
               )}
