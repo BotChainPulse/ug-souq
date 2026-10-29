@@ -82,17 +82,24 @@ export default function SellerListings() {
     discountedPrice(Number(form.price), percent) >= 100 && !!form.offerStartsAt && !!form.offerEndsAt &&
     new Date(form.offerEndsAt) > new Date(form.offerStartsAt) && new Date(form.offerEndsAt) > new Date())
 
-  const canSubmit =
-    !specsError && sizesValid && approved &&
-    hasListingSlot &&
-    form.name.trim().length >= 3 &&
-    Number.isInteger(Number(form.price)) && Number(form.price) >= 100 && Number(form.price) <= 2_000_000_000 && offerValid &&
-    (sized || (Number.isInteger(Number(form.stock)) && Number(form.stock) >= 1 && Number(form.stock) <= 10000)) &&
-    photos.length > 0 && !photoBusy &&
-    (!form.isBranded || (form.brandName.trim().length >= 2 && form.authenticityEvidence.trim().length >= 10)) &&
-    (form.condition === 'new' || Number(form.warrantyMonths) >= 1)
+  const submissionIssues = [
+    !approved && 'Your shop must be approved before you can submit an item.',
+    !hasListingSlot && 'Your shop has reached its listing limit.',
+    form.name.trim().length < 3 && 'Enter an item name with at least 3 characters.',
+    !(Number.isInteger(Number(form.price)) && Number(form.price) >= 100 && Number(form.price) <= 2_000_000_000) && 'Enter a whole regular price from UGX 100 to UGX 2,000,000,000.',
+    !offerValid && 'Check the discount and its start and end dates.',
+    !(sized || (Number.isInteger(Number(form.stock)) && Number(form.stock) >= 1 && Number(form.stock) <= 10000)) && 'Enter available stock from 1 to 10,000.',
+    !sizesValid && 'Add valid sizes and available stock for each size.',
+    specsError,
+    photos.length === 0 && 'Add at least one item photo.',
+    photoBusy && 'Wait for the photos to finish preparing.',
+    form.isBranded && !(form.brandName.trim().length >= 2 && form.authenticityEvidence.trim().length >= 10) && 'Enter the brand name and authenticity evidence.',
+    !(form.condition === 'new' || Number(form.warrantyMonths) >= 1) && 'Select a seller warranty for this used or refurbished item.',
+  ].filter((issue): issue is string => typeof issue === 'string' && issue.length > 0)
+  const canSubmit = submissionIssues.length === 0
 
   const submit = async () => {
+    if (!canSubmit || addListing.isPending) return
     try { await addListing.mutateAsync({
       phone: searched,
       name: form.name.trim(),
@@ -370,9 +377,14 @@ export default function SellerListings() {
                 <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl p-3">{addListing.error.message}</p>
               )}
 
+              {submissionIssues.length > 0 && <div id="listing-submit-help" role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+                <p className="font-semibold">Before you can submit:</p>
+                <ul className="mt-1 list-disc space-y-1 pl-5">{submissionIssues.map(issue => <li key={issue}>{issue}</li>)}</ul>
+              </div>}
               <button
                 onClick={submit}
                 disabled={!canSubmit || addListing.isPending}
+                aria-describedby={submissionIssues.length > 0 ? 'listing-submit-help' : undefined}
                 className="w-full h-12 rounded-xl text-sm font-bold text-white disabled:opacity-40"
                 style={{ background: ORANGE }}
               >
@@ -416,3 +428,4 @@ export default function SellerListings() {
     </div>
   )
 }
+

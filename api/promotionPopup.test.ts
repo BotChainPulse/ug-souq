@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { promotionChoices, promotionPage, usablePromotions } from '../src/lib/promotionPopup'
+import { floatingPromotionPage, promotionChoices, promotionPage, usablePromotions } from '../src/lib/promotionPopup'
 
 describe('promotion placement boundaries', () => {
+  it('keeps floating ads off seller uploads and transactional pages, including nested routes', () => {
+    for (const path of ['/sell', '/sell/', '/sell/listings', '/sell/listings/', '/sell/listings/photos', '/cart', '/account', '/orders/ABC', '/payment-settings', '/addresses', '/services/profile', '/healthcare/register', '/admin/ads']) {
+      expect(floatingPromotionPage(path), path).toBe(false)
+    }
+  })
+  it('preserves browse placements without adding a second advert over shopping-page promotions', () => {
+    expect(floatingPromotionPage('/food/chicken-tonight')).toBe(true)
+    for (const path of ['/', '/catalog', '/search', '/product/listing-2', '/seller/2']) {
+      expect(promotionPage(path), path).toBe(true)
+      expect(floatingPromotionPage(path), path).toBe(false)
+    }
+  })
   it('keeps a truthful seller invitation available and distinct from paid campaigns', () => {
     const choices = promotionChoices([])
     expect(choices).toHaveLength(1)
@@ -23,3 +35,4 @@ describe('promotion placement boundaries', () => {
     expect(usablePromotions([null, {}, { ...ad, placementType: 'unapproved' }])).toEqual([])
   })
 })
+
