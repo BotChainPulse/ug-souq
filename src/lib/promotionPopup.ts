@@ -5,6 +5,12 @@ export function promotionPage(pathname: string): boolean {
   return /^\/(?:catalog|mall|search|promotions|food|product\/[^/]+|seller\/[^/]+)?\/?$/.test(pathname)
 }
 
+// Floating adverts must never sit over seller uploads or transactional controls.
+export function floatingPromotionPage(pathname: string): boolean {
+  return !pathname.startsWith('/admin') && !promotionPage(pathname) &&
+    !/^\/(cart|pay|account|orders|track|payment-settings|addresses|sell|services|healthcare)(\/|$)/.test(pathname)
+}
+
 export type Promotion = {
   id: string | number
   placementType: 'paid' | 'launch'
@@ -45,3 +51,4 @@ export function usablePromotions(data: unknown, now = Date.now()): Promotion[] {
     typeof ad.targetPath === 'string' && /^\/(product|seller)\/[a-zA-Z0-9_-]+$/.test(ad.targetPath) &&
     (!ad.expiresAt || Date.parse(ad.expiresAt) > now)))
 }
+

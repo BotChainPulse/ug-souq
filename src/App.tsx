@@ -11,7 +11,7 @@ import { CartProvider } from './lib/cart'
 import ChatBot from './components/ChatBot'
 import SponsoredBanner from './components/SponsoredBanner'
 import PromotionPopup from './components/PromotionPopup'
-import { promotionPage } from './lib/promotionPopup'
+import { floatingPromotionPage } from './lib/promotionPopup'
 import AdminNavigationBridge from './components/AdminNavigationBridge'
 import Home from './pages/Home'
 import Sell from './pages/Sell'
@@ -59,6 +59,7 @@ import Support from './pages/Support'
 export default function App() {
   const location = useLocation()
   const isAdminRoute = location.pathname.startsWith('/admin')
+  const isSellerRoute = /^\/sell(\/|$)/.test(location.pathname)
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
@@ -66,9 +67,9 @@ export default function App() {
 
   return (
     <CartProvider>
-      {!isAdminRoute && !location.pathname.startsWith('/healthcare') && <ChatBot />}
-      {!isAdminRoute && !location.pathname.startsWith('/healthcare') && <PromotionPopup />}
-      {!isAdminRoute && !promotionPage(location.pathname) && !/^\/(cart|pay|account|orders|track|payment-settings|addresses|services|healthcare)(\/|$)/.test(location.pathname) && <SponsoredBanner />}
+      {!isAdminRoute && !isSellerRoute && !location.pathname.startsWith('/healthcare') && <ChatBot />}
+      {!isAdminRoute && !isSellerRoute && !location.pathname.startsWith('/healthcare') && <PromotionPopup />}
+      {floatingPromotionPage(location.pathname) && <SponsoredBanner />}
       {isAdminRoute && <AdminNavigationBridge />}
       <Routes>
         <Route path="/" element={<Home />} />
@@ -126,3 +127,4 @@ export default function App() {
     </CartProvider>
   )
 }
+
