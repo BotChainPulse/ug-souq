@@ -42,6 +42,30 @@ export function saveAddresses(
   storage.setItem(phoneKey(accountPhone), JSON.stringify(addresses));
 }
 
+export function clearLocalAddresses(storage: Pick<Storage, "removeItem">, accountPhone: string) {
+  storage.removeItem(phoneKey(accountPhone));
+}
+
+const ADDRESS_DEVICE_KEY = "ugsouq_address_device";
+
+export function loadAddressDevice() {
+  try {
+    const token = localStorage.getItem(ADDRESS_DEVICE_KEY);
+    return token && /^[A-Za-z0-9_-]{43}$/.test(token) ? token : "";
+  } catch {
+    return "";
+  }
+}
+
+export function saveAddressDevice(token: string) {
+  try {
+    if (token) localStorage.setItem(ADDRESS_DEVICE_KEY, token);
+    else localStorage.removeItem(ADDRESS_DEVICE_KEY);
+  } catch {
+    // This browser can use the current link in memory until the page closes.
+  }
+}
+
 export function validUgandanPhone(phone: string) {
   const digits = phone.replace(/\D/g, "");
   return /^(?:256|0)?(?:7|3)\d{8}$/.test(digits);

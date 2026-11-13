@@ -1,3 +1,4 @@
+export { customerAddressBooks, customerAddressLinks } from "./addressBookSchema";
 export { healthcareProfessionals, prescriptionPhotos } from './healthcareSchema';
 export { serviceProviders, serviceRequests } from './serviceSchema';
 import {

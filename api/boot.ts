@@ -1,3 +1,4 @@
+import { ADDRESS_BOOK_TABLE_SQL } from "../db/addressBookSchema";
 import { HEALTHCARE_TABLE_SQL } from '../db/healthcareSchema';
 import { cleanupHealthcareData } from './healthcarePrivacy';
 import { primaryAdminDestination } from './adminDestination';
@@ -27,6 +28,7 @@ async function ensureStartupSchema() {
   await client.query(PARTNERSHIP_TABLE_SQL);
   for (const stmt of SERVICE_TABLE_SQL) await client.query(stmt);
   for (const stmt of HEALTHCARE_TABLE_SQL) await client.query(stmt);
+  for (const stmt of ADDRESS_BOOK_TABLE_SQL) await client.query(stmt);
 
   const addColumn = async (sql: string) => {
     try {
@@ -264,7 +266,7 @@ app.use("/api/trpc/*", async (c) => {
     router: appRouter,
     createContext,
   });
-  if (c.req.path.includes("healthcare") || c.req.header("x-ugsouq-customer-credential")) {
+  if (c.req.path.includes("healthcare") || c.req.path.includes("addressBook.") || c.req.header("x-ugsouq-customer-credential")) {
     response.headers.set("Cache-Control", "private, no-store");
     response.headers.set("Pragma", "no-cache");
   }

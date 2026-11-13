@@ -6,6 +6,7 @@ import Footer from '../components/Footer'
 import { ORANGE } from '../lib/site'
 import { clearAccount, getAccount, saveAccount } from '../lib/account'
 import { trpc } from '../providers/trpc'
+import { clearLocalAddresses } from '../lib/addressBook'
 
 export default function DeleteAccount() {
   const [account, setAccount] = useState(getAccount)
@@ -31,7 +32,10 @@ export default function DeleteAccount() {
     if (!account?.deletionToken || !confirmed) return
     deletion.mutate(
       { phone: account.phone, deletionToken: account.deletionToken, confirmation: 'DELETE' },
-      { onSuccess: () => clearAccount() },
+      { onSuccess: () => {
+        clearAccount()
+        try { clearLocalAddresses(localStorage, account.phone) } catch { /* Browser storage is unavailable. */ }
+      } },
     )
   }
 

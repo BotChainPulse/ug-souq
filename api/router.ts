@@ -1,3 +1,4 @@
+import { addressBookRouter, deleteCustomerAddressData } from "./addressBook";
 import { listingCardColumns } from "./listingColumns";
 import { readListingPhotos } from "../src/lib/listingPhotos";
 import { listingPhotosInput, photoRevision, validateListingPhotos } from "./listingPhotos";
@@ -64,6 +65,7 @@ async function upsertCustomer(db: any, name: string, phone: string, email?: stri
 }
 
 export const appRouter = createRouter({
+  addressBook: addressBookRouter,
   services: servicesRouter,
   healthcare: healthcareRouter,
   ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),
@@ -930,6 +932,8 @@ export const appRouter = createRouter({
         }
 
         await db.transaction(async (tx) => {
+          await tx.select({ id: customers.id }).from(customers).where(eq(customers.id, customer.id)).for("update");
+          await deleteCustomerAddressData(tx, customer.id);
           await deleteCustomerHealthcareData(tx, customer.id);
           await deleteCustomerServiceData(tx, customer.id);
           await tx.delete(marketingSubscribers).where(or(
