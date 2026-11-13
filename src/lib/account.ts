@@ -1,3 +1,5 @@
+import { saveAddressDevice } from "./addressBook";
+
 // The buyer's account on this device (like noon's signed-in profile).
 export type Account = { name: string; phone: string; email: string; location: string; deletionToken?: string }
 
@@ -24,6 +26,7 @@ export function saveAccount(a: Account) {
 export function clearAccount() {
   localStorage.removeItem(KEY)
   localStorage.removeItem('ugsouq_myphone')
+  saveAddressDevice('')
 }
 
 // A checkout for another phone must never inherit the signed-in buyer credential.
