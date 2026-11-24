@@ -21,6 +21,8 @@ Outgoing Resend mail covers order confirmations, order/payment/delivery status u
 
 Seller identity uploads deliberately fail closed if the dedicated encryption key is absent. Pesapal remains hidden from checkout until every Pesapal variable is configured. A callback or IPN never marks an order paid by itself: the server calls Pesapal's transaction-status endpoint and matches provider reference, exact amount, and currency.
 
+The optional direct WhatsApp assistant uses the [WhatsApp replies setup](docs/WHATSAPP_REPLIES.md).
+
 ## Verification
 
 ```bash

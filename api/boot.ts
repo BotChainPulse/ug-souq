@@ -18,6 +18,7 @@ import { verifyPesapalPayment } from "./pesapal";
 import { registerMarketingCampaignRoutes, startMarketingCampaignScheduler } from "./marketingCampaigns";
 import { registerInboundEmailRoutes } from "./inboundEmail";
 import { registerOutboundEmailRoutes } from "./email";
+import { createWhatsAppWebhook, initializeWhatsAppReplies } from "./whatsapp";
 
 async function ensureStartupSchema() {
   const { getDb } = await import("./queries/connection");
@@ -273,6 +274,7 @@ app.use("/api/trpc/*", async (c) => {
 registerMarketingCampaignRoutes(app);
 registerInboundEmailRoutes(app);
 registerOutboundEmailRoutes(app);
+app.route("/api/whatsapp/webhook", createWhatsAppWebhook());
 
 // Public sponsored seller campaigns. Only admin-activated bookings are exposed.
 // The creative is taken from the seller's selected approved listing so no unreviewed image can become an ad.
@@ -507,6 +509,7 @@ export default app;
 
 if (env.isProduction) {
   await ensureStartupSchema();
+  await initializeWhatsAppReplies().catch(() => console.error("WhatsApp reply table initialization failed."));
   await cleanupServiceData();
   await cleanupHealthcareData();
   setInterval(() => { cleanupHealthcareData().catch(() => console.error("Healthcare retention cleanup failed; administrator action needed.")); }, 60 * 60 * 1000).unref();
